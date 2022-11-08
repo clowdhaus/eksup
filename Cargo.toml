@@ -1,0 +1,11 @@
+[package]
+name = "eksup"
+version = "0.1.0"
+authors = ["Bryant Biggs <bryantbiggs@gmail.com>"]
+documentation = "https://github.com/clowdhaus/eksup"
+homepage = "https://github.com/clowdhaus/eksup"
+repository = "https://github.com/clowdhaus/eksup"
+license = "Apache-2.0"
+edition = "2021"
+
+[dependencies]
