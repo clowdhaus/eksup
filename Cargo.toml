@@ -2,10 +2,22 @@
 name = "eksup"
 version = "0.1.0"
 authors = ["Bryant Biggs <bryantbiggs@gmail.com>"]
+description = "A CLI to generate EKS upgrade playbooks with upgrade guidance"
 documentation = "https://github.com/clowdhaus/eksup"
 homepage = "https://github.com/clowdhaus/eksup"
 repository = "https://github.com/clowdhaus/eksup"
 license = "Apache-2.0"
 edition = "2021"
+keywords = [
+  "kubernetes",
+  "eks",
+]
+categories = [
+  "command-line-utilities",
+  "text-processing",
+]
 
 [dependencies]
+anyhow = "1.0"
+clap = { version = "^4.0", features = ["derive"] }
+strum_macros = "0.24.3"
