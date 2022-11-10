@@ -64,6 +64,18 @@ struct Upgrade {
     /// The cluster upgrade strategy
     #[arg(short, long, value_enum, default_value_t)]
     strategy: Strategy,
+
+    /// Render output to stdout
+    #[arg(long)]
+    stdout: bool,
+
+    /// The cluster hosts stateful workloads
+    #[arg(long)]
+    stateful: bool,
+
+    /// The cluster hosts multi-tenant teams
+    #[arg(long)]
+    multi_tenant: bool,
 }
 
 fn main() -> Result<(), anyhow::Error> {
