@@ -86,17 +86,29 @@ struct Upgrade {
 #[folder = "templates/"]
 struct Asset;
 
+fn _get_kubernetes_deprecations(version: ClusterVersion) -> Result<String> {
+    let url = "https://kubernetes.io/docs/reference/using-api/deprecation-guide/#v";
+    let formatted_version = version.to_string().replace('.', "-");
+
+    let deprecations = match version {
+        ClusterVersion::V22 => format!("{url}{formatted_version}"),
+        _ => "".to_string(),
+    };
+
+    Ok(deprecations)
+}
+
 fn main() -> Result<(), anyhow::Error> {
     let args = Upgrade::parse();
 
     // println!("Hello {:#?}", args);
     // println!("v{}", ClusterVersion::V19);
 
-    let path_version = args.cluster_version.to_string().replace(".", "_");
+    let path_version = args.cluster_version.to_string().replace('.', "_");
 
     // let eks_version = format!("EKS/versions/{}.md", path_version);
 
-    let index_html = Asset::get(format!("EKS/versions/{path_version}.md").as_str()).unwrap();
+    let index_html = Asset::get(format!("eks/versions/{path_version}.md").as_str()).unwrap();
     let contents = index_html.data.as_ref();
 
     println!("{:?}", std::str::from_utf8(index_html.data.as_ref()));
