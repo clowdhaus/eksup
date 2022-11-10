@@ -3,7 +3,7 @@ use clap::{Parser, ValueEnum};
 use strum_macros::Display;
 
 #[derive(Copy, Clone, Debug, Display, PartialEq, Eq)]
-enum Version {
+enum ClusterVersion {
     #[strum(serialize = "1.19")]
     V19,
     #[strum(serialize = "1.20")]
@@ -18,7 +18,7 @@ enum Version {
     V24,
 }
 
-impl ValueEnum for Version {
+impl ValueEnum for ClusterVersion {
     fn value_variants<'a>() -> &'a [Self] {
         &[
             Self::V19,
@@ -55,11 +55,11 @@ impl Default for Strategy {
 }
 
 #[derive(Parser, Debug)]
-#[command(author, about)]
+#[command(author, about, version)]
 struct Upgrade {
     /// The cluster's current Kubernetes version
     #[arg(short, long, value_enum)]
-    version: Version,
+    cluster_version: ClusterVersion,
 
     /// The cluster upgrade strategy
     #[arg(short, long, value_enum, default_value_t)]
@@ -70,7 +70,7 @@ fn main() -> Result<(), anyhow::Error> {
     let args = Upgrade::parse();
 
     println!("Hello {:#?}", args);
-    println!("v{}", Version::V19);
+    println!("v{}", ClusterVersion::V19);
 
     Ok(())
 }
