@@ -20,5 +20,7 @@ categories = [
 [dependencies]
 anyhow = "1.0"
 clap = { version = "^4.0", features = ["derive"] }
-rust-embed = { version = "6.4.2", features = ["compression"] }
-strum_macros = "0.24.3"
+handlebars = { version = "4.3", features = ["rust-embed"] }
+rust-embed = { version = "6.4", features = ["compression"] }
+serde_json = "1.0.87"
+strum_macros = "0.24"

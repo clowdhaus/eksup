@@ -1,5 +1,11 @@
+use std::fs::File;
+use std::str;
+
 use anyhow::*;
 use clap::{Parser, ValueEnum};
+use handlebars::{to_json, Handlebars};
+use rust_embed::RustEmbed;
+use serde_json::value::{Map, Value as Json};
 use strum_macros::Display;
 
 #[derive(Copy, Clone, Debug, Display, PartialEq, Eq)]
@@ -16,6 +22,20 @@ pub enum ClusterVersion {
     V23,
     #[strum(serialize = "1.24")]
     V24,
+}
+
+impl ClusterVersion {
+    pub fn hyphenated_version(&self) -> String {
+        match self {
+            ClusterVersion::V19 => "1-19",
+            ClusterVersion::V20 => "1-20",
+            ClusterVersion::V21 => "1-21",
+            ClusterVersion::V22 => "1-22",
+            ClusterVersion::V23 => "1-23",
+            ClusterVersion::V24 => "1-24",
+        }
+        .to_string()
+    }
 }
 
 impl ValueEnum for ClusterVersion {
@@ -78,14 +98,66 @@ pub struct Upgrade {
     pub multi_tenant: bool,
 }
 
-fn _get_kubernetes_deprecations(version: ClusterVersion) -> Result<String> {
+#[derive(RustEmbed)]
+#[folder = "templates/"]
+struct Templates;
+
+fn get_kubernetes_deprecations(version: ClusterVersion) -> Result<String, anyhow::Error> {
     let url = "https://kubernetes.io/docs/reference/using-api/deprecation-guide/#v";
-    let formatted_version = version.to_string().replace('.', "-");
+    let hyphenated_version = version.hyphenated_version();
 
     let deprecations = match version {
-        ClusterVersion::V22 => format!("{url}{formatted_version}"),
+        ClusterVersion::V22 => format!("{url}{hyphenated_version}"),
         _ => "".to_string(),
     };
 
     Ok(deprecations)
+}
+
+pub fn render_template_data(upgrade: Upgrade) -> Map<String, Json> {
+    let mut data = Map::new();
+
+    let current_minor_version = upgrade
+        .cluster_version
+        .to_string()
+        .split('.')
+        .collect::<Vec<&str>>()[1]
+        .parse::<i32>()
+        .unwrap();
+
+    let target_version = format!("1.{}", current_minor_version + 1);
+    let kubernetes_deprecations = get_kubernetes_deprecations(upgrade.cluster_version).unwrap();
+
+    data.insert(
+        "current_version".to_string(),
+        to_json(upgrade.cluster_version.to_string()),
+    );
+    data.insert("target_version".to_string(), to_json(target_version));
+    data.insert(
+        "kubernetes_deprecations".to_string(),
+        to_json(kubernetes_deprecations),
+    );
+
+    // let eks_version = format!("EKS/versions/{}.md", path_version);
+    let hyphenated_version = upgrade.cluster_version.hyphenated_version();
+
+    // let path_version = args.cluster_version.to_string().replace('.', "_");
+    let eks_version =
+        Templates::get(format!("eks/versions/{hyphenated_version}.md").as_str()).unwrap();
+    let contents = str::from_utf8(eks_version.data.as_ref()).unwrap().to_string();
+
+    data.insert("eks_version".to_string(), to_json(contents));
+
+    data
+}
+
+pub fn render(upgrade: Upgrade) -> Result<(), anyhow::Error> {
+    let mut handlebars = Handlebars::new();
+    handlebars.register_embed_templates::<Templates>().unwrap();
+
+    let mut output_file = File::create("playbook.md")?;
+    let data = render_template_data(upgrade);
+    handlebars.render_to_write("playbook.tmpl", &data, &mut output_file)?;
+
+    Ok(())
 }
