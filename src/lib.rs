@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs;
 use std::str;
 
 use anyhow::*;
@@ -154,10 +154,16 @@ pub fn render(upgrade: Upgrade) -> Result<(), anyhow::Error> {
     let mut handlebars = Handlebars::new();
     handlebars.register_embed_templates::<Templates>().unwrap();
 
-    let mut output_file = File::create("playbook.md")?;
     let data = render_template_data(upgrade);
 
-    handlebars.render_to_write("playbook.tmpl", &data, &mut output_file)?;
+    // TODO = handlebars should be able to handle backticks and apostrophes
+    // Need to figure out why this isn't the case currently
+    // let mut output_file = File::create("playbook.md")?;
+    let rendered = handlebars.render("playbook.tmpl", &data)?;
+    // handlebars.render_to_write("playbook.tmpl", &data, &mut output_file)?;
+
+    let replaced = rendered.replace("&#x60;", "`").replace("&#x27;", "'");
+    fs::write("playbook.md", replaced)?;
 
     Ok(())
 }
