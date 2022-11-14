@@ -1,0 +1,4 @@
+[eks]
+
+[kubernetes]
+release_url = "https://kubernetes.io/blog/2022/05/03/kubernetes-1-24-release-announcement/"

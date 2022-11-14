@@ -1,0 +1,5 @@
+[eks]
+
+[kubernetes]
+release_url = "TBD"
+deprecation_url = "https://kubernetes.io/docs/reference/using-api/deprecation-guide/#v1-27"

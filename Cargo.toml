@@ -20,7 +20,9 @@ categories = [
 [dependencies]
 anyhow = "1.0"
 clap = { version = "^4.0", features = ["derive"] }
+config = "0.13"
 handlebars = { version = "4.3", features = ["rust-embed"] }
 rust-embed = { version = "6.4", features = ["compression"] }
-serde_json = "1.0.87"
+serde = "1.0.147"
+serde_json = "1.0"
 strum_macros = "0.24"

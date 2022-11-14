@@ -1,0 +1,4 @@
+[eks]
+
+[kubernetes]
+release_url = "https://kubernetes.io/blog/2020/12/08/kubernetes-1-20-release-announcement/"

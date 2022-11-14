@@ -1,0 +1,5 @@
+[eks]
+
+[kubernetes]
+release_url = "https://kubernetes.io/blog/2021/08/04/kubernetes-1-22-release-announcement/"
+deprecation_url = "https://kubernetes.io/docs/reference/using-api/deprecation-guide/#v1-22"
