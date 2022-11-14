@@ -43,7 +43,7 @@ Kubernetes releases a new version [approximately every 4 months](https://kuberne
   - Can provide an awscli command for users to use for EKS optimized AMI
   - Can also provide kubectl commands to check on cluster
 2. Check that there are at least 5 free IPs in the VPC subnets
-3. Check that the security groups allow the necessry cluster communication
+3. Check that the security groups allow the necessary cluster communication
   - If the current cluster primary security group was deleted, then only route is blue/green upgrade
 4. Check Kubernetes version prerequisites
   - v1.22 -> https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html#update-1.22

@@ -2,4 +2,57 @@
 
 {{ kubernetes_deprecations }}
 
+## Pre
+
+### Info
+
+- [Amazon EKS version](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html)
+- [Kubernetes deprecation guide]({{ kubernetes_deprecations }})
+- [Kubernetes changelog]({{ kubernetes_changelog }})
+
+### Actions
+
+1. Check version skew between data plane and control plane
+
+```sh
+# Control plane version
+kubectl version --short
+
+# Node versions
+kubectl get nodes
+```
+
+2. Check that there are at least 5 free IPs in the VPC subnets
+
+```sh
+aws ec2 describe-subnets --subnet-ids \
+  $(aws eks describe-cluster --name {{ cluster_name }} --region {{ region }} \
+  --query 'cluster.resourcesVpcConfig.subnetIds' --output text) \
+  --region {{ region }} --query 'Subnets[*].AvailableIpAddressCount'
+```
+
+3. Check that the security groups allow the necessry cluster communication
+  - If the current cluster primary security group was deleted, then only route is blue/green upgrade
+  - What steps/actions do we provide here?
+
+4. Check Kubernetes version prerequisites
+
 {{ eks_version }}
+
+## Upgrade
+
+1. Here is the high level steps to upgrade EKS cluster
+  a. Upgrade the control plane
+  b. Upgrade the data plane
+    - [EKS Managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
+    - [Self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/update-workers.html)
+    - Fargate profiles: Any new pods that are launched on Fargate have a kubelet version that matches your cluster version. Existing Fargate pods aren't changed.
+  c. Upgrade addons (kube-proxy, coredns, vpc-cni, cluster-autoscaler, etc.)
+    - List those that have callouts tied to versions. See EKS docs
+  d. [Optional] Update applications running on the cluster as needed
+  e. [Optional] Re-run `popeye` to check for any new deprecations and remediate
+  f. [Optional] Update CLI versions
+    - kubectl
+    - awscli (v1alpha1 -> v1beta1 for `aws eks update-kubeconfig`)
+
+## Post
