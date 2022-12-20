@@ -19,6 +19,14 @@ The end goal of this tool is a playbook that you and your team feel confident in
 - This CLI does not access your cluster(s) or perform any actions on your behalf
 - The guidance and recommendations are not exhaustive. The information provided here is intended to be broadly applicable to the majority of Amazon EKS users. However, there are many factors that can affect your cluster upgrade process, specifically with regards to the applications running on the cluster and their configurations, and users will need to consider these factors when planning their upgrade process. This is why the output from this tool is a playbook that is intended to be modified and tailored to your cluster's configurations, applications, workloads, business requirements, processes, etc. As always, it is strongly recommended to practice your upgrade process in a non-production environment before attempting to upgrade your production cluster(s).
 
+## Notes
+
+<These will be removed eventually>
+
+Choices:
+- CLI / Terraform
+- [EKS MNG] default AMI vs custom AMI (???)
+
 ## Pre
 
 ### Info

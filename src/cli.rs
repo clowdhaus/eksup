@@ -65,12 +65,28 @@ impl Default for Strategy {
     }
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Copy, Clone)]
 #[command(author, about, version)]
 pub struct Upgrade {
     /// The cluster's current Kubernetes version
     #[arg(short, long, value_enum)]
     pub cluster_version: ClusterVersion,
+
+    /// Whether an EKS managed node group is used
+    #[arg(long)]
+    pub eks_managed_node_group: bool,
+
+    /// Whether an self-managed node group is used
+    #[arg(long)]
+    pub self_managed_node_group: bool,
+
+    /// Whether a Fargate Profile is used
+    #[arg(long)]
+    pub fargate_profile: bool,
+
+    /// Whether the AMI used is custom or not (provided by AWS)
+    #[arg(long)]
+    pub custom_ami: bool,
     // /// The cluster upgrade strategy
     // #[arg(short, long, value_enum, default_value_t)]
     // pub strategy: Strategy,

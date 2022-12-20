@@ -4,6 +4,10 @@
 
 1. [Pre-Upgrade](#pre-upgrade)
 2. [Upgrade](#upgrade)
+  a. [High Level Overview](#high-level-overview)
+  b. [Upgrade the Control Plane](#upgrade-the-control-plane)
+  c. [Upgrade the Data Plane](#upgrade-the-data-plane)
+  d. [Upgrade Addons](#upgrade-addons)
 3. [Post-Upgrade](#post-upgrade)
 4. [References](#references)
 
@@ -37,14 +41,6 @@ aws ec2 describe-subnets --subnet-ids \
 4. Check Kubernetes version prerequisites
   - You can utilize https://github.com/FairwindsOps/pluto to scan your Kubernetes manifests for deprecated/removed API versions
 
-{{#if is_self_managed_node_group }}
-5. It is recommended to utilize the instance refresh capability of the for self-managed node group Autoscaling group in conjunction with `node-termination-handler`
-{{/if}}
-
-{{#if is_eks_managed_node_group }}
-5. It is recommended to set an update configuration of `max_unavailable_percent` to `30` to start
-{{/if}}
-
 ## Upgrade
 
 ### High Level Overview
@@ -57,18 +53,30 @@ aws ec2 describe-subnets --subnet-ids \
     - kubectl
     - awscli (v1alpha1 -> v1beta1 for `aws eks update-kubeconfig`)
 
-### Process
+### Upgrade the Control Plane
 
-{{#each upgrade_steps }}
-{{@index}}. {{ this }}
-{{/each}}
+1. Upgrade the control plane to the next Kubernetes minor version:
 
-    - [EKS Managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
-    - [Self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/update-workers.html)
-    - Fargate profiles: Any new pods that are launched on Fargate have a kubelet version that matches your cluster version. Existing Fargate pods aren't changed.
+```sh
+aws eks update-cluster-version --region <REGION> --name <CLUSTER_NAME> --kubernetes-version {{ target_version }}
+```
+
+2. Wait for the control plane to finish upgrading before proceeding with any further modifications
+
+### Upgrade the Data Plane
+
+{{ self_managed_node_group }}
+
+{{ eks_managed_node_group }}
+
+{{ fargate_profile }}
+
+### Upgrade Addons
 
 ## Post Upgrade
 
+- Update applications running on the cluster
+- Update tools that interact with the cluster (kubectl, awscli, etc.)
 - TODO
 
 ## References
