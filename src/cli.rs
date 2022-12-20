@@ -65,11 +65,11 @@ impl Default for Strategy {
     }
 }
 
-#[derive(Parser, Debug, Copy, Clone)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, about, version)]
 pub struct Upgrade {
     /// The cluster's current Kubernetes version
-    #[arg(short, long, value_enum)]
+    #[arg(long, value_enum)]
     pub cluster_version: ClusterVersion,
 
     /// Whether an EKS managed node group is used
@@ -87,6 +87,10 @@ pub struct Upgrade {
     /// Whether the AMI used is custom or not (provided by AWS)
     #[arg(long)]
     pub custom_ami: bool,
+
+    /// Name of the output file
+    #[arg(short, long, default_value = "playbook.md")]
+    pub filename: String,
     // /// The cluster upgrade strategy
     // #[arg(short, long, value_enum, default_value_t)]
     // pub strategy: Strategy,

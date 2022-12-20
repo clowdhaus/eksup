@@ -16,7 +16,7 @@ fn render(upgrade: Upgrade) -> Result<(), anyhow::Error> {
     let mut handlebars = Handlebars::new();
     handlebars.register_embed_templates::<Templates>().unwrap();
 
-    let mut tmpl_data = TemplateData::get_data(upgrade);
+    let mut tmpl_data = TemplateData::get_data(upgrade.clone());
 
     // Render sub-templates for data plane components
     if upgrade.eks_managed_node_group {
@@ -52,7 +52,7 @@ fn render(upgrade: Upgrade) -> Result<(), anyhow::Error> {
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&#x3D;", "=");
-    fs::write("playbook.md", replaced)?;
+    fs::write(upgrade.filename, replaced)?;
 
     Ok(())
 }
