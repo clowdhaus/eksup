@@ -5,7 +5,7 @@ Note: Fargate profiles are immutable and therefore cannot be changed. However, y
 1. Create a new Fargate profile(s) with the desired Kubernetes version in the profile name
 
     ```sh
-    aws eks create-fargate-profile --region <REGION> --cluster-name <CLUSTER-NAME> \
+    aws eks create-fargate-profile --cluster-name <CLUSTER-NAME> \
       --fargate-profile-name <FARGATE-PROFILE-NAME>-{{ target_version }} --pod-execution-role-arn <POD-EXECUTION-ROLE-ARN>
     ```
 

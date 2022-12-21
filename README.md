@@ -29,29 +29,6 @@ Choices:
 
 ## Pre
 
-### Info
-
-- [Amazon EKS version](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html)
-- [Kubernetes deprecation guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide)
-- [Kubernetes changelog](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.24.md)
-
-### Actions
-
-1. Check version skew between data plane and control plane
-
-  - Can provide an awscli command for users to use for EKS optimized AMI
-  - Can also provide kubectl commands to check on cluster
-
-2. Check that there are at least 5 free IPs in the VPC subnets
-3. Check that the security groups allow the necessary cluster communication
-
-  - If the current cluster primary security group was deleted, then only route is blue/green upgrade
-
-4. Check Kubernetes version prerequisites
-
-  - v1.22 -> https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html#update-1.22
-  - https://kubernetes.io/docs/reference/using-api/deprecation-guide
-
 ## Upgrade
 
 1. Here is the high level steps to upgrade EKS cluster

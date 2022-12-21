@@ -23,7 +23,7 @@ To upgrade an EKS managed node group:
 2. Update the launch template version specified on the EKS managed node group:
 
     ```sh
-    aws eks update-nodegroup-version --region <REGION> --cluster-name <CLUSTER_NAME> \
+    aws eks update-nodegroup-version --cluster-name <CLUSTER_NAME> \
       --nodegroup-name <NODEGROUP_NAME> --launch-template <LAUNCH_TEMPLATE>
     ```
 
@@ -31,7 +31,7 @@ To upgrade an EKS managed node group:
 1. Update the Kubernetes version specified on the EKS managed node group:
 
     ```sh
-    aws eks update-nodegroup-version --region <REGION> --cluster-name <CLUSTER_NAME> \
+    aws eks update-nodegroup-version --cluster-name <CLUSTER_NAME> \
       --nodegroup-name <NODEGROUP_NAME> --kubernetes-version {{ target_version }}
     ```
 {{/if}}

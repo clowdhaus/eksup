@@ -18,7 +18,7 @@
     You can [retrieve the recommended EKS optimized AL2 AMI ID](https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html) by running the following command:
 
     ```sh
-    aws ssm get-parameter --name /aws/service/eks/optimized-ami/{{ target_version }}/amazon-linux-2/recommended/image_id --region <REGION> --query 'Parameter.Value' --output text
+    aws ssm get-parameter --name /aws/service/eks/optimized-ami/{{ target_version }}/amazon-linux-2/recommended/image_id --query 'Parameter.Value' --output text
     ```
 
 2. Update the autoscaling-group to use the new launch template
