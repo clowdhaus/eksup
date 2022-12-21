@@ -10,43 +10,26 @@
 
 1. Update the launch template, specifying the ID of an AMI that matches the control plane's Kubernetes version:
 
-```sh
-aws ec2 create-launch-template-version --launch-template-id <ID> \
-  --source-version <LT_VERSION> --launch-template-data 'ImageId=<AMI_ID>'
-```
+    ```sh
+    aws ec2 create-launch-template-version --launch-template-id <LAUNCH_TEMPLATE_ID> \
+      --source-version <LAUNCH_TEMPLATE_VERSION> --launch-template-data 'ImageId=<AMI_ID>'
+    ```
 
-Where:
+    You can [retrieve the recommended EKS optimized AL2 AMI ID](https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html) by running the following command:
 
-- `<ID>` is the ID of your launch template
-- `<LT_VERSION>` is the current version of your launch template
-- `<AMI_ID>` is the ID of the AMI that matches the control plane's Kubernetes version
-
-You can [retrieve the recommended EKS optimized AL2 AMI ID](https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html) by running the following command:
-
-```sh
-aws ssm get-parameter --name /aws/service/eks/optimized-ami/{{ target_version }}/amazon-linux-2/recommended/image_id --region <REGION> --query 'Parameter.Value' --output text
-```
-
-Where:
-
-- `<REGION>` is the region where the node group will be provisioned
+    ```sh
+    aws ssm get-parameter --name /aws/service/eks/optimized-ami/{{ target_version }}/amazon-linux-2/recommended/image_id --region <REGION> --query 'Parameter.Value' --output text
+    ```
 
 2. Update the autoscaling-group to use the new launch template
 
-```sh
-aws autoscaling update-auto-scaling-group --auto-scaling-group-name <NAME> \
-  --launch-template LaunchTemplateId=<ID>,Version='$Latest'
-```
-
-Where:
-
-- `<NAME>` is the name of your autoscaling group
-- `<ID>` is the ID of your launch template
+    ```sh
+    aws autoscaling update-auto-scaling-group --auto-scaling-group-name <ASG_NAME> \
+      --launch-template LaunchTemplateId=<LAUNCH_TEMPLATE_ID>,Version='$Latest'
+    ```
 
 3. Wait for the instance refresh to complete. From the [documentation](https://docs.aws.amazon.com/autoscaling/ec2/userguide/asg-instance-refresh.html#instance-refresh-how-it-works), here is what happens during the instance refresh:
 
-> Amazon EC2 Auto Scaling starts performing a rolling replacement of the instances. It takes a set of instances out of service, terminates them, and launches a set of instances with the new desired configuration. Then, it waits until the instances pass your health checks and complete warmup before it moves on to replacing other instances.
-
-> After a certain percentage of the group is replaced, a checkpoint is reached. Whenever there is a checkpoint, Amazon EC2 Auto Scaling temporarily stops replacing instances, sends a notification, and waits for the amount of time you specified before continuing. After you receive the notification, you can verify that your new instances are working as expected.
-
-> After the instance refresh succeeds, the Auto Scaling group settings are automatically updated with the configuration that you specified at the start of the operation.
+    > Amazon EC2 Auto Scaling starts performing a rolling replacement of the instances. It takes a set of instances out of service, terminates them, and launches a set of instances with the new desired configuration. Then, it waits until the instances pass your health checks and complete warmup before it moves on to replacing other instances.
+    > After a certain percentage of the group is replaced, a checkpoint is reached. Whenever there is a checkpoint, Amazon EC2 Auto Scaling temporarily stops replacing instances, sends a notification, and waits for the amount of time you specified before continuing. After you receive the notification, you can verify that your new instances are working as expected.
+    > After the instance refresh succeeds, the Auto Scaling group settings are automatically updated with the configuration that you specified at the start of the operation.
