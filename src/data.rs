@@ -65,6 +65,8 @@ impl TemplateData {
             to_json(config_data.kubernetes.release_url),
         );
 
+        tmpl_data.insert("custom_ami".to_string(), to_json(upgrade.custom_ami));
+
         tmpl_data
     }
 }

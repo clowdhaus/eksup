@@ -1,8 +1,9 @@
-#### [EKS Managed Node Group](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
+#### EKS Managed Node Group
+
+- ℹ️ [Updating a managed node group](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
+- ℹ️ [Managed node group update behavior](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-update-behavior.html)
 
 ##### Before Upgrading
-
-- Refer to the official EKS documentation for [updating EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html) as well as the documentation on the EKS managed node group [update behavior](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-update-behavior.html).
 
 - It is recommended to configure the [node group update config](https://docs.aws.amazon.com/eks/latest/APIReference/API_NodegroupUpdateConfig.html) to support updating multiple nodes in parallel during an upgrade. The update config has a max quota of 100 nodes that can be updated in parallel at once. A recommended starting point for the configuration is to use a value of 30% as the max unavailable percentage and adjust as necessary.
 

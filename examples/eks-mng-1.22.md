@@ -1,13 +1,13 @@
-# EKS Cluster Upgrade: {{ current_version }} -> {{ target_version }}
+# EKS Cluster Upgrade: 1.22 -> 1.23
 
 |                            |                           Value                           |
 | :------------------------- | :-------------------------------------------------------: |
-| Current version            |                 `v{{ current_version }}`                  |
-| Target version             |                  `v{{ target_version }}`                  |
-| EKS Managed node group(s)  | {{#if eks_managed_node_group }} ✅ {{ else }} ➖ {{/if}}  |
-| Self-Managed node group(s) | {{#if self_managed_node_group }} ✅ {{ else }} ➖ {{/if}} |
-| Fargate profile(s)         |     {{#if fargate_profile }} ✅ {{ else }} ➖ {{/if}}     |
-| AMI                        |    {{#if custom_ami }} Custom {{else}} Amazon {{/if}}     |
+| Current version            |                 `v1.22`                  |
+| Target version             |                  `v1.23`                  |
+| EKS Managed node group(s)  |  ✅   |
+| Self-Managed node group(s) |  ➖  |
+| Fargate profile(s)         |      ➖      |
+| AMI                        |     Amazon      |
 
 ### Table of Contents
 
@@ -17,15 +17,7 @@
 - [Upgrade](#upgrade)
   - [Upgrade the Control Plane](#upgrade-the-control-plane)
   - [Upgrade the Data Plane](#upgrade-the-data-plane)
-{{#if eks_managed_node_group }}
     - [EKS Managed Node Group](#eks-managed-node-group)
-{{/if}}
-{{#if self_managed_node_group }}
-    - [Self-Managed Node Group](#eks-managed-node-group)
-{{/if}}
-{{#if fargate_profile }}
-    - [Fargate Profile](#fargate-profile)
-{{/if}}
   - [Upgrade Addons](#upgrade-addons)
 - [Post-Upgrade](#post-upgrade)
 
@@ -46,11 +38,8 @@
 
 Before upgrading, review the following resources for affected changes in the next version of Kubernetes:
 
-{{#if k8s_deprecation_url }}
-- ‼️ [Kubernetes `{{ target_version }}` API deprecations]({{ k8s_deprecation_url }})
-{{/if}}
-- ℹ️ [Kubernetes `{{ target_version }}` release announcement]({{ k8s_release_url }})
-- ℹ️ [EKS `{{ target_version }}` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-{{ target_version }})
+- ℹ️ [Kubernetes `1.23` release announcement](https://kubernetes.io/blog/2021/12/07/kubernetes-1-23-release-announcement/)
+- ℹ️ [EKS `1.23` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-1.23)
 
 ## Pre-Upgrade
 
@@ -127,7 +116,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 1. Upgrade the control plane to the next Kubernetes minor version:
 
     ```sh
-    aws eks update-cluster-version --name <CLUSTER_NAME> --kubernetes-version {{ target_version }}
+    aws eks update-cluster-version --name <CLUSTER_NAME> --kubernetes-version 1.23
     ```
 
 2. Wait for the control plane to finish upgrading before proceeding with any further modifications. The cluster status will change to `ACTIVE` once the upgrade is complete.
@@ -138,15 +127,29 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 ### Upgrade the Data Plane
 
-{{#if eks_managed_node_group }}
-{{ eks_managed_node_group }}
-{{/if}}
-{{#if self_managed_node_group }}
-{{ self_managed_node_group }}
-{{/if}}
-{{#if fargate_profile }}
-{{ fargate_profile }}
-{{/if}}
+#### EKS Managed Node Group
+
+- ℹ️ [Updating a managed node group](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
+- ℹ️ [Managed node group update behavior](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-update-behavior.html)
+
+##### Before Upgrading
+
+- It is recommended to configure the [node group update config](https://docs.aws.amazon.com/eks/latest/APIReference/API_NodegroupUpdateConfig.html) to support updating multiple nodes in parallel during an upgrade. The update config has a max quota of 100 nodes that can be updated in parallel at once. A recommended starting point for the configuration is to use a value of 30% as the max unavailable percentage and adjust as necessary.
+
+- The default update strategy is a rolling update. This option respects the pod disruption budgets for your cluster. Updates fail if there's a pod disruption budget issue that causes Amazon EKS to be unable to gracefully drain the pods that are running on this node group, or if pods do not safely evict from the nodes within a 15 minute window after the node has been marked as cordoned and set to drain. You can specify a force update. This option does not respect pod disruption budgets. Updates occur regardless of pod disruption budget issues by forcing node restarts to occur.
+
+##### Upgrade
+
+To upgrade an EKS managed node group:
+
+1. Update the Kubernetes version specified on the EKS managed node group:
+
+    ```sh
+    aws eks update-nodegroup-version --cluster-name <CLUSTER_NAME> \
+      --nodegroup-name <NODEGROUP_NAME> --kubernetes-version 1.23
+    ```
+
+In the event that you encounter pod disruption budget issues or update timeouts due to pods not safely evicting from the nodes within the 15 minute window, you can force the update to proceed by adding the `--force` flag.
 
 ### Upgrade Addons
 

@@ -1,5 +1,7 @@
 #### Fargate Profile
 
+- ℹ️ [Fargate pod patching](https://docs.aws.amazon.com/eks/latest/userguide/fargate-pod-patching.html)
+
 Note: Fargate profiles are immutable and therefore cannot be changed. However, you can create a new, updated profile to replace an existing profile, and then delete the original. Adding the Kubernetes version to your Fargate profile names will allow you to have one profile name mapped to each version to facilitate upgrades across versions without name conflicts.
 
 1. Create a new Fargate profile(s) with the desired Kubernetes version in the profile name

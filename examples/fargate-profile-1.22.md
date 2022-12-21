@@ -1,13 +1,13 @@
-# EKS Cluster Upgrade: {{ current_version }} -> {{ target_version }}
+# EKS Cluster Upgrade: 1.22 -> 1.23
 
 |                            |                           Value                           |
 | :------------------------- | :-------------------------------------------------------: |
-| Current version            |                 `v{{ current_version }}`                  |
-| Target version             |                  `v{{ target_version }}`                  |
-| EKS Managed node group(s)  | {{#if eks_managed_node_group }} ✅ {{ else }} ➖ {{/if}}  |
-| Self-Managed node group(s) | {{#if self_managed_node_group }} ✅ {{ else }} ➖ {{/if}} |
-| Fargate profile(s)         |     {{#if fargate_profile }} ✅ {{ else }} ➖ {{/if}}     |
-| AMI                        |    {{#if custom_ami }} Custom {{else}} Amazon {{/if}}     |
+| Current version            |                 `v1.22`                  |
+| Target version             |                  `v1.23`                  |
+| EKS Managed node group(s)  |  ➖   |
+| Self-Managed node group(s) |  ➖  |
+| Fargate profile(s)         |      ✅      |
+| AMI                        |     Amazon      |
 
 ### Table of Contents
 
@@ -17,15 +17,7 @@
 - [Upgrade](#upgrade)
   - [Upgrade the Control Plane](#upgrade-the-control-plane)
   - [Upgrade the Data Plane](#upgrade-the-data-plane)
-{{#if eks_managed_node_group }}
-    - [EKS Managed Node Group](#eks-managed-node-group)
-{{/if}}
-{{#if self_managed_node_group }}
-    - [Self-Managed Node Group](#eks-managed-node-group)
-{{/if}}
-{{#if fargate_profile }}
     - [Fargate Profile](#fargate-profile)
-{{/if}}
   - [Upgrade Addons](#upgrade-addons)
 - [Post-Upgrade](#post-upgrade)
 
@@ -46,11 +38,8 @@
 
 Before upgrading, review the following resources for affected changes in the next version of Kubernetes:
 
-{{#if k8s_deprecation_url }}
-- ‼️ [Kubernetes `{{ target_version }}` API deprecations]({{ k8s_deprecation_url }})
-{{/if}}
-- ℹ️ [Kubernetes `{{ target_version }}` release announcement]({{ k8s_release_url }})
-- ℹ️ [EKS `{{ target_version }}` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-{{ target_version }})
+- ℹ️ [Kubernetes `1.23` release announcement](https://kubernetes.io/blog/2021/12/07/kubernetes-1-23-release-announcement/)
+- ℹ️ [EKS `1.23` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-1.23)
 
 ## Pre-Upgrade
 
@@ -127,7 +116,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 1. Upgrade the control plane to the next Kubernetes minor version:
 
     ```sh
-    aws eks update-cluster-version --name <CLUSTER_NAME> --kubernetes-version {{ target_version }}
+    aws eks update-cluster-version --name <CLUSTER_NAME> --kubernetes-version 1.23
     ```
 
 2. Wait for the control plane to finish upgrading before proceeding with any further modifications. The cluster status will change to `ACTIVE` once the upgrade is complete.
@@ -138,15 +127,22 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 ### Upgrade the Data Plane
 
-{{#if eks_managed_node_group }}
-{{ eks_managed_node_group }}
-{{/if}}
-{{#if self_managed_node_group }}
-{{ self_managed_node_group }}
-{{/if}}
-{{#if fargate_profile }}
-{{ fargate_profile }}
-{{/if}}
+#### Fargate Profile
+
+- ℹ️ [Fargate pod patching](https://docs.aws.amazon.com/eks/latest/userguide/fargate-pod-patching.html)
+
+Note: Fargate profiles are immutable and therefore cannot be changed. However, you can create a new, updated profile to replace an existing profile, and then delete the original. Adding the Kubernetes version to your Fargate profile names will allow you to have one profile name mapped to each version to facilitate upgrades across versions without name conflicts.
+
+1. Create a new Fargate profile(s) with the desired Kubernetes version in the profile name
+
+    ```sh
+    aws eks create-fargate-profile --cluster-name <CLUSTER-NAME> \
+      --fargate-profile-name <FARGATE-PROFILE-NAME>-1.23 --pod-execution-role-arn <POD-EXECUTION-ROLE-ARN>
+    ```
+
+⚠️ Amazon EKS uses the [Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to safely drain the pod while respecting the pod disruption budgets that you set for the application(s).
+
+⚠️ To limit the number of pods that are down at one time when pods are patched, you can set pod disruption budgets (PDBs). You can use PDBs to define minimum availability based on the requirements of each of your applications while still allowing updates to occur. For more information, see [Specifying a Disruption Budget for your Application](To limit the number of pods that are down at one time when pods are patched, you can set pod disruption budgets (PDBs). You can use PDBs to define minimum availability based on the requirements of each of your applications while still allowing updates to occur. For more information, see Specifying a Disruption Budget for your Application in the Kubernetes Documentation.) in the Kubernetes Documentation.
 
 ### Upgrade Addons
 
