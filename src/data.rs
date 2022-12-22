@@ -3,7 +3,7 @@ use handlebars::to_json;
 use serde::Deserialize;
 use serde_json::value::{Map, Value as Json};
 
-use crate::Upgrade;
+use crate::Playbook;
 
 /// Data related to Amazon EKS service
 #[derive(Deserialize, Debug)]
@@ -35,10 +35,10 @@ impl TemplateData {
         s.try_deserialize()
     }
 
-    pub fn get_data(upgrade: Upgrade) -> Map<String, Json> {
+    pub fn get_data(playbook: Playbook) -> Map<String, Json> {
         let mut tmpl_data = Map::new();
 
-        let version = upgrade.cluster_version.to_string();
+        let version = playbook.cluster_version.to_string();
 
         // Parse out minor version string into an integer
         let current_minor_version = version.split('.').collect::<Vec<&str>>()[1]
@@ -65,7 +65,7 @@ impl TemplateData {
             to_json(config_data.kubernetes.release_url),
         );
 
-        tmpl_data.insert("custom_ami".to_string(), to_json(upgrade.custom_ami));
+        tmpl_data.insert("custom_ami".to_string(), to_json(playbook.custom_ami));
 
         tmpl_data
     }

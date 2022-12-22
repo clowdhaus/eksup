@@ -17,7 +17,9 @@ The end goal of this tool is a playbook that you and your team feel confident in
 ### What it is NOT
 
 - This CLI does not access your cluster(s) or perform any actions on your behalf
+  - ⚠️ Need to revisit this - we should do more than just generate a Markdown file and tell users to use other OSS tools and piece together the results. This CLI should be all encompassing for EKS upgrades to give users as much details information as possible on their cluster to give the best upgrade experience and the most confidence in the upgrade process.
 - The guidance and recommendations are not exhaustive. The information provided here is intended to be broadly applicable to the majority of Amazon EKS users. However, there are many factors that can affect your cluster upgrade process, specifically with regards to the applications running on the cluster and their configurations, and users will need to consider these factors when planning their upgrade process. This is why the output from this tool is a playbook that is intended to be modified and tailored to your cluster's configurations, applications, workloads, business requirements, processes, etc. As always, it is strongly recommended to practice your upgrade process in a non-production environment before attempting to upgrade your production cluster(s).
+  - ⚠️ Need to revisit this - we should strive to remove as much ambiguity as possible
 
 ## Notes
 
@@ -27,31 +29,44 @@ Choices:
 - CLI / Terraform
 - [EKS MNG] default AMI vs custom AMI (???)
 
-## Pre
+- Prefer topology hints over affinity for larger clusters
+  - [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity)
+> Note: Inter-pod affinity and anti-affinity require substantial amount of processing which can slow down scheduling in large clusters significantly. We do not recommend using them in clusters larger than several hundred nodes.
 
-## Upgrade
+## Questions
 
-1. Here is the high level steps to upgrade EKS cluster
-   a. Upgrade the control plane
-   b. Upgrade the data plane
-    - [EKS Managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
-    - [Self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/update-workers.html)
-    - Fargate profiles: Any new pods that are launched on Fargate have a kubelet version that matches your cluster version. Existing Fargate pods aren't changed.
-      c. Upgrade addons (kube-proxy, coredns, vpc-cni, cluster-autoscaler, etc.)
-    - List those that have callouts tied to versions. See EKS docs
-      d. [Optional] Update applications running on the cluster as needed
-      e. [Optional] Re-run `popeye` to check for any new deprecations and remediate
-      f. [Optional] Update CLI versions
-    - kubectl
-    - awscli (v1alpha1 -> v1beta1 for `aws eks update-kubeconfig`)
+- What is the churn calculation for updating node groups?
+  - When updating a self-managed node group, how many instances are spun up before instances are terminated, whats the lifecycle, etc.
+  - Same for EKS managed node group - how much do we surge to (max), etc.
+  - This is important for:
+    - Do users have enough resources at their disposal before the start their upgrade or do they need to request resource limit increases (EC2s)?
+    - We state that the control plane needs at least 5 free IPs before it can be upgraded, but this also will affect the data plane upgrade and churn
+    - How long will the upgrade take users?
+    - How can users influence the amount of churn - why should they, what recommendations or guidance do we have?
+- Do we have different guidance for large clusters?
+  - See note on [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity)
+- What is the impact on a large/busy cluster when scanning with tools for deprecated APIs, etc.?
 
-## Post
+## Commands
+
+- `eksup playbook` - Creates a cluster upgrade playbook
+- `eksup analyze`(`--cluster`, `--files`) - Analyzes a cluster and provides feedback based on pre-upgrade checks/considerations
+  - Warn on deprecated APIs in use
+  - Error on APIs that have been removed in the next version
+  - Detect docker socket use (1.24+ affected) https://github.com/aws-containers/kubectl-detector-for-docker-socket
+  - Warn on pod security policy use (deprecated 1.21, removed 1.25) https://kubernetes.io/docs/concepts/security/pod-security-policy/
+    - Advise to switch to pod security admission https://kubernetes.io/docs/concepts/security/pod-security-admission/
+  - Something for https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/ ?
 
 ## Future
 
-- Have users point CLI at the cluster and just scan for information to reduce amount of input
-  - As part of playbook, we can use things like `popeye` to generate action items for pre-upgrade
-  - Maybe it cannot generate the playbook, but it could pre-populate a lot of the information for users who can do a final review on (generate a config)
+- https://github.com/kube-rs/kube
+- https://github.com/kdash-rs/kdash
 - Add snippets for commonly used provisioning tools to explain how those fit into the guidance
   - <Select> Framework used to managed EKS cluster [`terraform-aws-eks`, `eksctl`]
   - <Select> Version of framework used [`v18.x`, `v19.x`]
+
+
+## TODO
+
+- Make default invocation `--help` (https://github.com/clap-rs/clap/issues/4367)

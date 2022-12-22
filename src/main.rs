@@ -1,37 +1,38 @@
 use std::fs;
+use std::process;
 
 use anyhow::*;
 use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use rust_embed::RustEmbed;
 
-use eksup::{LatestVersion, TemplateData, Upgrade};
+use eksup::{Commands, LatestVersion, Playbook, TemplateData, Upgrade};
 
 #[derive(RustEmbed)]
 #[folder = "templates/"]
 struct Templates;
 
-fn render(upgrade: Upgrade) -> Result<(), anyhow::Error> {
+fn render(playbook: &Playbook) -> Result<(), anyhow::Error> {
     // Registry templates with handlebars
     let mut handlebars = Handlebars::new();
     handlebars.register_embed_templates::<Templates>().unwrap();
 
-    let mut tmpl_data = TemplateData::get_data(upgrade.clone());
+    let mut tmpl_data = TemplateData::get_data(playbook.clone());
 
     // Render sub-templates for data plane components
-    if upgrade.eks_managed_node_group {
+    if playbook.eks_managed_node_group {
         tmpl_data.insert(
             "eks_managed_node_group".to_string(),
             to_json(handlebars.render("data-plane/eks-managed-node-group.md", &tmpl_data)?),
         );
     }
-    if upgrade.self_managed_node_group {
+    if playbook.self_managed_node_group {
         tmpl_data.insert(
             "self_managed_node_group".to_string(),
             to_json(handlebars.render("data-plane/self-managed-node-group.md", &tmpl_data)?),
         );
     }
-    if upgrade.fargate_profile {
+    if playbook.fargate_profile {
         tmpl_data.insert(
             "fargate_profile".to_string(),
             to_json(handlebars.render("data-plane/fargate-profile.md", &tmpl_data)?),
@@ -52,21 +53,37 @@ fn render(upgrade: Upgrade) -> Result<(), anyhow::Error> {
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&#x3D;", "=");
-    fs::write(upgrade.filename, replaced)?;
+    fs::write(&playbook.filename, replaced)?;
 
     Ok(())
 }
 
 fn main() -> Result<(), anyhow::Error> {
-    let args = Upgrade::parse();
+    let cli = Upgrade::parse();
 
-    let cluster_version = &args.cluster_version.to_string();
-    if LatestVersion.eq(cluster_version) {
-        println!("Cluster is already at the latest supported version: {cluster_version}");
-        println!("Nothing to upgrade at this time");
-        return Ok(());
+    match &cli.command {
+        Commands::CreatePlaybook(args) => {
+            let cluster_version = args.cluster_version.to_string();
+            if LatestVersion.eq(&cluster_version) {
+                println!("Cluster is already at the latest supported version: {cluster_version}");
+                println!("Nothing to upgrade at this time");
+                return Ok(());
+            }
+
+            if let Err(err) = render(args) {
+                eprintln!("{err}");
+                process::exit(2);
+            }
+        }
+
+        Commands::Analyze(args) => {
+            println!("{:?}", args);
+            // if let Err(err) = render(args) {
+            //     eprintln!("{err}");
+            //     process::exit(2);
+            // }
+        }
     }
 
-    render(args)?;
     Ok(())
 }

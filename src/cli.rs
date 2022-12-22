@@ -1,6 +1,6 @@
 use std::str;
 
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use strum_macros::Display;
 
 pub const LATEST: &str = "1.24";
@@ -53,21 +53,17 @@ impl ValueEnum for ClusterVersion {
     }
 }
 
-#[derive(Copy, Clone, Debug, Display, PartialEq, Eq, ValueEnum)]
-pub enum Strategy {
-    InPlace,
-    BlueGreen,
-}
-
-impl Default for Strategy {
-    fn default() -> Self {
-        Self::InPlace
-    }
-}
-
+/// Analyze an Amazon EKS cluster prior to upgrading
 #[derive(Parser, Debug, Clone)]
-#[command(author, about, version)]
-pub struct Upgrade {
+pub struct Analysis {
+    /// The name of the cluster to analyze
+    #[arg(long, value_enum)]
+    pub cluster_name: String,
+}
+
+/// Create a playbook for upgrading an Amazon EKS cluster
+#[derive(Parser, Debug, Clone)]
+pub struct Playbook {
     /// The cluster's current Kubernetes version
     #[arg(long, value_enum)]
     pub cluster_version: ClusterVersion,
@@ -91,10 +87,6 @@ pub struct Upgrade {
     /// Name of the output file
     #[arg(short, long, default_value = "playbook.md")]
     pub filename: String,
-    // /// The cluster upgrade strategy
-    // #[arg(short, long, value_enum, default_value_t)]
-    // pub strategy: Strategy,
-
     // /// Render output to stdout
     // #[arg(long)]
     // pub stdout: bool,
@@ -106,4 +98,18 @@ pub struct Upgrade {
     // /// The cluster hosts multi-tenant teams
     // #[arg(long)]
     // pub multi_tenant: bool,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum Commands {
+    Analyze(Analysis),
+    CreatePlaybook(Playbook),
+}
+
+#[derive(Parser, Debug)]
+#[command(author, about, version)]
+#[command(propagate_version = true)]
+pub struct Upgrade {
+    #[command(subcommand)]
+    pub command: Commands,
 }

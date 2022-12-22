@@ -108,7 +108,8 @@ Before upgrading, review the following resources for affected changes in the nex
     - For stateless workloads
         - Specify multiple replicas for your [replica set(s)](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)
         - Specify [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) for replica sets
-    -
+    - For stateful workloads
+        - Specify
 
 ## Upgrade
 
@@ -154,4 +155,3 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 - ⚠️ Update applications running on the cluster
 - ⚠️ Update tools that interact with the cluster (kubectl, awscli, etc.)
-- ⚠️ TODO
