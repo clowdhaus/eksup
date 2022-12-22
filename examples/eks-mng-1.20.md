@@ -23,7 +23,7 @@
 
 ## Caveats
 
-- Unless specifically stated, the phrase `Amazon EKS cluster` or just `cluster` throughout this document typically refers to the control plane.
+- Unless otherwise stated, the phrase `Amazon EKS cluster` or just `cluster` throughout this document typically refers to the control plane.
 - In-place cluster upgrades can only be upgraded to the next incremental minor version. For example, you can upgrade from Kubernetes version 1.20 to 1.21, but not from 1.20 to 1.22.
 - Reverting an upgrade, or downgrading the Kubernetes version of a cluster, is not supported. If you upgrade your cluster to a new Kubernetes version and then want to revert to the previous version, you must create a new cluster and migrate your workloads.
 - If the Amazon EKS cluster primary security group has been deleted, the only course of action to upgrade is to create a new cluster and migrate your workloads.
@@ -36,7 +36,7 @@
 
 ## References
 
-Before upgrading, review the following resources for affected changes in the next version of Kubernetes:
+Prior to upgrading, review the following resources for affected changes in the next version of Kubernetes:
 
 - ℹ️ [Kubernetes `1.21` release announcement](https://kubernetes.io/blog/2021/04/08/kubernetes-1-21-release-announcement/)
 - ℹ️ [EKS `1.21` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-1.21)
@@ -84,21 +84,28 @@ Before upgrading, review the following resources for affected changes in the nex
       --query 'cluster.resourcesVpcConfig.subnetIds' --output text) --query 'Subnets[*].AvailableIpAddressCount'
     ```
 
-3. Ensure the security groups allow the necessary cluster communication. The new control plane network interfaces may be created in different subnets than what your existing control plane network interfaces are in, so make sure that your security group rules allow the [required cluster communication](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html) for any of the subnets that you specified when you created your cluster.
+3. Ensure the security groups utilized (control plane and data plane) allow the necessary cluster communication. The new control plane network interfaces may be created in different subnets than what your existing control plane network interfaces are in, so make sure that your security group rules allow the [required cluster communication](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html) for any of the subnets that you specified when you created your cluster.
 
-4. Check Kubernetes API version prerequisites and ensure any removed APIs in the next version are updated prior to upgrading the cluster. There are several open source tools that can help you identify deprecated API versions in your Kubernetes manifests. The following open source projects support scanning both your cluster as well as manifest files to identify deprecated and/or removed API versions:
+4. Check Kubernetes API versions currently in use and ensure any versions that are removed in the next Kubernetes release are updated prior to upgrading the cluster. There are several open source tools that can help you identify deprecated API versions in your Kubernetes manifests. The following open source projects support scanning both your cluster as well as manifest files to identify deprecated and/or removed API versions:
 
     - https://github.com/FairwindsOps/pluto
     - https://github.com/doitintl/kube-no-trouble
     - https://github.com/rikatz/kubepug
 
-5. Ensure workloads and applications running on the cluster are setup for high-availability to minimize and avoid disruption during the upgrade process.
-
+5. Ensure applications and services running on the cluster are setup for high-availability to minimize and avoid disruption during the upgrade process.
+    - We strongly recommend that you use readiness and liveness probes when upgrading the data plane. This ensures that your pods register as ready/healthy at the appropriate time during an upgrade.
     - For stateless workloads
         - Specify multiple replicas for your [replica set(s)](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)
         - Specify [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) for replica sets
     - For stateful workloads
-        - Specify
+        - Specify multiple replicas for your [stateful set(s)](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
+        - Specify [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) for stateful sets
+            - This is useful for stateful application where there needs to be a quorum for the number of replicas to be available during an upgrade.
+            - [1.24+ only - maximum unavailable pods](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#maximum-unavailable-pods)
+        - If your stateful set does not require unique ordering, typically associated with processes that utilize leader election, switching to a `parallel` strategy for [`podManagementPolicy`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#parallel-pod-management) will speed up your scale up/down time as well as reduce the time needed to upgrade your cluster.
+        - If you are running a critical application on a Karpenter-provisioned node, such as a long running batch job or stateful application, and the node’s TTL has expired, the application will be interrupted when the instance is terminated. By adding a karpenter.sh/do-not-evict annotation to the pod, you are instructing Karpenter to preserve the node until the Pod is terminated or the do-not-evict annotation is removed. See Deprovisioning documentation for further information.
+    - For batch workloads:
+        - If you are running a critical application on a Karpenter-provisioned node, such as a long running batch job or stateful application, and the node’s TTL has expired, the application will be interrupted when the instance is terminated. By adding a karpenter.sh/do-not-evict annotation to the pod, you are instructing Karpenter to preserve the node until the Pod is terminated or the do-not-evict annotation is removed. See Deprovisioning documentation for further information.
 
 ## Upgrade
 
@@ -111,6 +118,8 @@ The order of operations to upgrade an Amazon EKS cluster can be summarized as:
 ### Upgrade the Control Plane
 
 When upgrading the control plane, Amazon EKS performs standard infrastructure and readiness health checks for network traffic on the new control plane nodes to verify that they're working as expected. If any of these checks fail, Amazon EKS reverts the infrastructure deployment, and your cluster control plane remains on the prior Kubernetes version. Running applications aren't affected, and your cluster is never left in a non-deterministic or unrecoverable state. Amazon EKS regularly backs up all managed clusters, and mechanisms exist to recover clusters if necessary.
+
+The control plane should be upgraded first to meet the [Kubernetes version skew policy requirements](https://kubernetes.io/releases/version-skew-policy/#kubelet) where `kubelet` must not be newer than `kube-apiserver`.
 
 - ℹ️ [Updating an Amazon EKS cluster Kubernetes version](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html)
 
@@ -150,7 +159,21 @@ To upgrade an EKS managed node group:
       --nodegroup-name <NODEGROUP_NAME> --kubernetes-version 1.21
     ```
 
+When a node is upgraded, the following happens with the Pods:
+
+  - The node is cordoned so that Kubernetes does not schedule new Pods on it.
+  - The node is then drained while respecting the set `PodDisruptionBudget` and `GracefulTerminationPeriod` settings for pods for up to 15 minutes.
+  - The control plane reschedules Pods managed by controllers onto other nodes. Pods that cannot be rescheduled stay in the Pending phase until they can be rescheduled.
+
+The node pool upgrade process may take up to a few hours depending on the upgrade strategy, the number of nodes, and their workload configurations. Configurations that can cause a node upgrade to take longer to complete include:
+
+  - A high value of `terminationGracePeriodSeconds` in a Pod's configuration.
+  - A conservative Pod Disruption Budget.
+  - Node affinity interactions
+  - Attached PersistentVolumes
+
 In the event that you encounter pod disruption budget issues or update timeouts due to pods not safely evicting from the nodes within the 15 minute window, you can force the update to proceed by adding the `--force` flag.
+
 
 ### Upgrade Addons
 

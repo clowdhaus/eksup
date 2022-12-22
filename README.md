@@ -8,7 +8,7 @@ Kubernetes releases a new version [approximately every 4 months](https://kuberne
 
 This CLI produces a cluster upgrade playbook that attempts to:
 
-- Educate users on the overall process of upgrading an Amazon EKS cluster (order of operations, which parts AWS manages and which parts are the user's respopnsibility, etc.)
+- Educate users on the overall process of upgrading an Amazon EKS cluster (order of operations, which parts AWS manages and which parts are the user's responsibility, etc.)
 - Provide one approach as the basis for upgrading a cluster that users can modify/customize to suit their cluster configuration/architecture and business requirements
 - Provide recommendations on what to check for and precautions to consider before upgrading, how to perform the cluster upgrade, and considerations for configuring your cluster and/or applications to minimize risk and disruption during the upgrade process
 
@@ -35,6 +35,10 @@ Choices:
 
 ## Questions
 
+- What is the guidance for batch workloads?
+- What is the recommended way to manage the lifecycle of Fargate profiles?
+  - Should users have one profile per AZ?
+  - Should users name their profile with the Kubernetes version to aid in upgrades (deploy profiles with next version, remove prior version)?
 - What is the churn calculation for updating node groups?
   - When updating a self-managed node group, how many instances are spun up before instances are terminated, whats the lifecycle, etc.
   - Same for EKS managed node group - how much do we surge to (max), etc.
@@ -49,14 +53,17 @@ Choices:
 
 ## Commands
 
-- `eksup playbook` - Creates a cluster upgrade playbook
+- `eksup create-playbook` - Creates a cluster upgrade playbook
 - `eksup analyze`(`--cluster`, `--files`) - Analyzes a cluster and provides feedback based on pre-upgrade checks/considerations
   - Warn on deprecated APIs in use
   - Error on APIs that have been removed in the next version
+  - Check that there are enough free IPs to upgrade
+  - Check version skew between control plane and data plane
   - Detect docker socket use (1.24+ affected) https://github.com/aws-containers/kubectl-detector-for-docker-socket
   - Warn on pod security policy use (deprecated 1.21, removed 1.25) https://kubernetes.io/docs/concepts/security/pod-security-policy/
     - Advise to switch to pod security admission https://kubernetes.io/docs/concepts/security/pod-security-admission/
   - Something for https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/ ?
+  - The [in-tree Amazon EBS storage provisioner](https://kubernetes.io/docs/concepts/storage/volumes/#awselasticblockstore) is deprecated. If you are upgrading your cluster to version 1.23, then you must first install the Amazon EBS driver before updating your cluster. For more information, see [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html). If you have pods running on a version 1.22 or earlier cluster, then you must install the Amazon EBS driver before updating your cluster to version 1.23 to avoid service interruption. https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html
 
 ## Future
 
@@ -65,8 +72,5 @@ Choices:
 - Add snippets for commonly used provisioning tools to explain how those fit into the guidance
   - <Select> Framework used to managed EKS cluster [`terraform-aws-eks`, `eksctl`]
   - <Select> Version of framework used [`v18.x`, `v19.x`]
-
-
-## TODO
-
-- Make default invocation `--help` (https://github.com/clap-rs/clap/issues/4367)
+- Add test/example suite for trying out upgrades
+  - Give users the ability to test out their upgrade process in a non-production environment

@@ -37,4 +37,17 @@ To upgrade an EKS managed node group:
     ```
 {{/if}}
 
+When a node is upgraded, the following happens with the Pods:
+
+  - The node is cordoned so that Kubernetes does not schedule new Pods on it.
+  - The node is then drained while respecting the set `PodDisruptionBudget` and `GracefulTerminationPeriod` settings for pods for up to 15 minutes.
+  - The control plane reschedules Pods managed by controllers onto other nodes. Pods that cannot be rescheduled stay in the Pending phase until they can be rescheduled.
+
+The node pool upgrade process may take up to a few hours depending on the upgrade strategy, the number of nodes, and their workload configurations. Configurations that can cause a node upgrade to take longer to complete include:
+
+  - A high value of `terminationGracePeriodSeconds` in a Pod's configuration.
+  - A conservative Pod Disruption Budget.
+  - Node affinity interactions
+  - Attached PersistentVolumes
+
 In the event that you encounter pod disruption budget issues or update timeouts due to pods not safely evicting from the nodes within the 15 minute window, you can force the update to proceed by adding the `--force` flag.
