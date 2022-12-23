@@ -6,7 +6,7 @@ use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use rust_embed::RustEmbed;
 
-use eksup::{Commands, LatestVersion, Playbook, TemplateData, Upgrade};
+use eksup::{Commands, Compute, LatestVersion, Playbook, TemplateData, Upgrade};
 
 #[derive(RustEmbed)]
 #[folder = "templates/"]
@@ -20,19 +20,19 @@ fn render(playbook: &Playbook) -> Result<(), anyhow::Error> {
     let mut tmpl_data = TemplateData::get_data(playbook.clone());
 
     // Render sub-templates for data plane components
-    if playbook.eks_managed_node_group {
+    if playbook.compute.contains(&Compute::EksManaged) {
         tmpl_data.insert(
             "eks_managed_node_group".to_string(),
             to_json(handlebars.render("data-plane/eks-managed-node-group.md", &tmpl_data)?),
         );
     }
-    if playbook.self_managed_node_group {
+    if playbook.compute.contains(&Compute::SelfManaged) {
         tmpl_data.insert(
             "self_managed_node_group".to_string(),
             to_json(handlebars.render("data-plane/self-managed-node-group.md", &tmpl_data)?),
         );
     }
-    if playbook.fargate_profile {
+    if playbook.compute.contains(&Compute::FargateProfile) {
         tmpl_data.insert(
             "fargate_profile".to_string(),
             to_json(handlebars.render("data-plane/fargate-profile.md", &tmpl_data)?),
@@ -77,7 +77,7 @@ fn main() -> Result<(), anyhow::Error> {
         }
 
         Commands::Analyze(args) => {
-            println!("{:?}", args);
+            println!("{args:?}");
             // if let Err(err) = render(args) {
             //     eprintln!("{err}");
             //     process::exit(2);

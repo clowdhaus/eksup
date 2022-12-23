@@ -4,20 +4,18 @@ rm examples/*.md
 
 for version in "1.20" "1.21" "1.22" "1.23" "1.24"; do
   cargo run -- create-playbook --cluster-version $version \
-    --eks-managed-node-group \
+    --compute eks \
     --filename "examples/eks-mng-${version}.md"
 
   cargo run -- create-playbook --cluster-version $version \
-    --self-managed-node-group \
+    --compute self \
     --filename "examples/self-mng-${version}.md"
 
   cargo run -- create-playbook --cluster-version $version \
-    --fargate-profile \
+    --compute fargate \
     --filename "examples/fargate-profile-${version}.md"
 
   cargo run -- create-playbook --cluster-version $version \
-    --eks-managed-node-group \
-    --self-managed-node-group \
-    --fargate-profile \
+    --compute eks self fargate \
     --filename "examples/all-${version}.md"
 done

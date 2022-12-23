@@ -53,6 +53,39 @@ impl ValueEnum for ClusterVersion {
     }
 }
 
+#[derive(Copy, Clone, Debug, Display, PartialEq, Eq)]
+pub enum Compute {
+    EksManaged,
+    SelfManaged,
+    FargateProfile,
+}
+
+impl ValueEnum for Compute {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::EksManaged, Self::SelfManaged, Self::FargateProfile]
+    }
+
+    fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
+        match self {
+            Self::EksManaged => Some(clap::builder::PossibleValue::new("eks")),
+            Self::SelfManaged => Some(clap::builder::PossibleValue::new("self")),
+            Self::FargateProfile => Some(clap::builder::PossibleValue::new("fargate")),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Display, PartialEq, Eq, ValueEnum)]
+pub enum Strategy {
+    InPlace,
+    // BlueGreen,
+}
+
+impl Default for Strategy {
+    fn default() -> Self {
+        Self::InPlace
+    }
+}
+
 /// Analyze an Amazon EKS cluster prior to upgrading
 #[derive(Parser, Debug, Clone)]
 pub struct Analysis {
@@ -68,17 +101,9 @@ pub struct Playbook {
     #[arg(long, value_enum)]
     pub cluster_version: ClusterVersion,
 
-    /// Whether an EKS managed node group is used
-    #[arg(long)]
-    pub eks_managed_node_group: bool,
-
-    /// Whether an self-managed node group is used
-    #[arg(long)]
-    pub self_managed_node_group: bool,
-
-    /// Whether a Fargate Profile is used
-    #[arg(long)]
-    pub fargate_profile: bool,
+    /// Array of compute types used in the data plane
+    #[arg(long, value_enum, num_args = 1..=3)]
+    pub compute: Vec<Compute>,
 
     /// Whether the AMI used is custom or not (provided by AWS)
     #[arg(long)]
@@ -87,6 +112,10 @@ pub struct Playbook {
     /// Name of the output file
     #[arg(short, long, default_value = "playbook.md")]
     pub filename: String,
+
+    /// The cluster upgrade strategy
+    #[arg(short, long, value_enum, default_value_t)]
+    pub strategy: Strategy,
     // /// Render output to stdout
     // #[arg(long)]
     // pub stdout: bool,

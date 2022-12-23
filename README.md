@@ -64,6 +64,10 @@ Choices:
     - Advise to switch to pod security admission https://kubernetes.io/docs/concepts/security/pod-security-admission/
   - Something for https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/ ?
   - The [in-tree Amazon EBS storage provisioner](https://kubernetes.io/docs/concepts/storage/volumes/#awselasticblockstore) is deprecated. If you are upgrading your cluster to version 1.23, then you must first install the Amazon EBS driver before updating your cluster. For more information, see [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html). If you have pods running on a version 1.22 or earlier cluster, then you must install the Amazon EBS driver before updating your cluster to version 1.23 to avoid service interruption. https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html
+    - Blog https://aws.amazon.com/blogs/containers/migrating-amazon-eks-clusters-from-gp2-to-gp3-ebs-volumes/
+  - Compare the current version of EKS addons used against next Kubernetes version recommendations (default)
+    - Do we warn/error when a 3rd party addon is not listed in the next Kubernetes version?
+  - Check service limits and utilization for relevant resources (ec2 instances, etc.)
 
 ## Future
 
@@ -74,3 +78,6 @@ Choices:
   - <Select> Version of framework used [`v18.x`, `v19.x`]
 - Add test/example suite for trying out upgrades
   - Give users the ability to test out their upgrade process in a non-production environment
+- Turn into a CronJob
+- Add support for outputting results in JSON format
+  - Multi-cluster scenario - all clusters emitting data back to central location to report on which clusters need components to be upgraded/modified

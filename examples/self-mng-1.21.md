@@ -9,7 +9,7 @@
 | Fargate profile(s)         |      ➖      |
 | AMI                        |     Amazon      |
 
-### Table of Contents
+## Table of Contents
 
 - [Caveats](#caveats)
 - [References](#references)
@@ -42,7 +42,7 @@ Prior to upgrading, review the following resources for affected changes in the n
 - ℹ️ [Kubernetes `1.22` release announcement](https://kubernetes.io/blog/2021/08/04/kubernetes-1-22-release-announcement/)
 - ℹ️ [EKS `1.22` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-1.22)
 
-## Pre-Upgrade
+# Pre-Upgrade
 
 1. Before updating your control plane to a new Kubernetes version, ensure that the Kubernetes minor version of data plane nodes are the same as your control plane's version.
 
@@ -94,11 +94,15 @@ Prior to upgrading, review the following resources for affected changes in the n
     - https://github.com/rikatz/kubepug
 
 5. Ensure applications and services running on the cluster are setup for high-availability to minimize and avoid disruption during the upgrade process.
-    - We strongly recommend that you use readiness and liveness probes when upgrading the data plane. This ensures that your pods register as ready/healthy at the appropriate time during an upgrade.
+    - We strongly recommend that you have [readiness and liveness probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes) configured before upgrading the data plane. This ensures that your pods register as ready/healthy at the appropriate time during an upgrade.
     - For stateless workloads
         - Specify multiple replicas for your [replica set(s)](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)
         - Specify [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) for replica sets
     - For stateful workloads
+        - ℹ️ [Exploring Upgrade Strategies for Stateful Sets in Kubernetes](https://www.velotio.com/engineering-blog/exploring-upgrade-strategies-for-stateful-sets-in-kubernetes)
+        - ⚠️ TODO - what guidance for cluster backup before upgrade
+            - [Velero](https://github.com/vmware-tanzu/velero-plugin-for-aws)
+            - [Portworx](https://github.com/portworx/aws-helm/tree/master/portworx)
         - Specify multiple replicas for your [stateful set(s)](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
         - Specify [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) for stateful sets
             - This is useful for stateful application where there needs to be a quorum for the number of replicas to be available during an upgrade.
@@ -108,21 +112,23 @@ Prior to upgrading, review the following resources for affected changes in the n
     - For batch workloads:
         - If you are running a critical application on a Karpenter-provisioned node, such as a long running batch job or stateful application, and the node’s TTL has expired, the application will be interrupted when the instance is terminated. By adding a karpenter.sh/do-not-evict annotation to the pod, you are instructing Karpenter to preserve the node until the Pod is terminated or the do-not-evict annotation is removed. See Deprovisioning documentation for further information.
 
-## Upgrade
+6. Double check [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
+
+# Upgrade
 
 The order of operations to upgrade an Amazon EKS cluster can be summarized as:
 
 - [Upgrade the control plane](#upgrade-the-control-plane)
 - [Upgrade the data plane](#upgrade-the-data-plane)
-- [Upgrade addons](#upgrade-addons)
+- [Upgrade EKS addons](#upgrade-eks-addons)
 
-### Upgrade the Control Plane
+## Upgrade the Control Plane
+
+- ℹ️ [Updating an Amazon EKS cluster Kubernetes version](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html)
 
 When upgrading the control plane, Amazon EKS performs standard infrastructure and readiness health checks for network traffic on the new control plane nodes to verify that they're working as expected. If any of these checks fail, Amazon EKS reverts the infrastructure deployment, and your cluster control plane remains on the prior Kubernetes version. Running applications aren't affected, and your cluster is never left in a non-deterministic or unrecoverable state. Amazon EKS regularly backs up all managed clusters, and mechanisms exist to recover clusters if necessary.
 
 The control plane should be upgraded first to meet the [Kubernetes version skew policy requirements](https://kubernetes.io/releases/version-skew-policy/#kubelet) where `kubelet` must not be newer than `kube-apiserver`.
-
-- ℹ️ [Updating an Amazon EKS cluster Kubernetes version](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html)
 
 1. Upgrade the control plane to the next Kubernetes minor version:
 
@@ -136,19 +142,17 @@ The control plane should be upgraded first to meet the [Kubernetes version skew 
     aws eks describe-cluster --name <CLUSTER_NAME> --query 'cluster.status'
     ```
 
-### Upgrade the Data Plane
+## Upgrade the Data Plane
 
-#### Self-Managed Node Group
+### Self-Managed Node Group
 
 - ℹ️ [Self-managed node updates](https://docs.aws.amazon.com/eks/latest/userguide/update-workers.html)
 
-##### Before Upgrading
-
-- It is recommended to use the [instance refresh](https://docs.aws.amazon.com/autoscaling/ec2/userguide/asg-instance-refresh.html) functionality provided by AWS Auto Scaling groups in coordination with the [`node-termination-handler`](https://github.com/aws/aws-node-termination-handler) to gracefully migrate pods from instances scheduled for replacement when upgrading. Once the launch template has been updated with the new AMI ID, the Auto Scaling group will initiate the instance refresh cycle to rollout the replacement of instances to meet the new launch template specification. The `node-termination-handler` listens to the Auto Scaling group lifecycle events to intervene and gracefully migrate pods off of the instance(s) being replaced.
+- It is recommended to use the [instance refresh](https://docs.aws.amazon.com/autoscaling/ec2/userguide/asg-instance-refresh.html) functionality provided by AWS Auto Scaling groups in coordination with the [`node-termination-handler`](https://github.com/aws/aws-node-termination-handler) to gracefully migrate pods from instances scheduled for replacement when upgrading. Once the launch template has been updated with the new AMI ID, the Auto Scaling group will initiate the instance refresh cycle to rollout the replacement of instances to meet the new launch template specification. The `node-termination-handler` listens to the Auto Scaling group lifecycle events to intervene and gracefully migrate pods off of the instance(s) being replaced. When using EKS managed node groups, this functionality (rolling nodes with instance refresh and gracefully migrating pods with `node-termination-handler`) are provided by the service.
 
 - A recommended starting point for the instance refresh configuration is to use a value of 70% as the minimum healthy percentage and adjust as necessary. Lowering this value will allow more instances to be refreshed at once, however, it will also increase the risk of overwhelming the control plane with requests. Users should aim to replace no more than 100 instances at a time to match the behavior of EKS managed node groups and avoid overwhelming the control plane during an upgrade.
 
-##### Upgrade
+#### Upgrade
 
 1. Update the launch template, specifying the ID of an AMI that matches the control plane's Kubernetes version:
 
@@ -160,7 +164,8 @@ The control plane should be upgraded first to meet the [Kubernetes version skew 
     You can [retrieve the recommended EKS optimized AL2 AMI ID](https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html) by running the following command:
 
     ```sh
-    aws ssm get-parameter --name /aws/service/eks/optimized-ami/1.22/amazon-linux-2/recommended/image_id --query 'Parameter.Value' --output text
+    aws ssm get-parameter --name /aws/service/eks/optimized-ami/1.22/amazon-linux-2/recommended/image_id \
+      --query 'Parameter.Value' --output text
     ```
 
 2. Update the autoscaling-group to use the new launch template
@@ -178,9 +183,40 @@ The control plane should be upgraded first to meet the [Kubernetes version skew 
     >
     > After the instance refresh succeeds, the Auto Scaling group settings are automatically updated with the configuration that you specified at the start of the operation.
 
-### Upgrade Addons
+## Upgrade EKS Addons
 
-## Post Upgrade
+
+⚠️ TODO - how to get the default version of an addon for a given cluster version, JMESPATH is hard!
+
+1. For each EKS addon deployed in the cluster, ensure the addon is compatible with the target Kubernetes version. If the addon is not compatible, upgrade the addon to a version that is compatible with the target Kubernetes version. You can run the following to get information on the addons used with respect to current versions:
+
+    ```sh
+    CLUSTER_NAME=<CLUSTER_NAME>
+    KUBERNETES_VERSION=1.22
+
+    for ADDON in $(aws eks list-addons --cluster-name ${CLUSTER_NAME} --query 'addons[*]' --output text); do
+        CURRENT=$(aws eks describe-addon --cluster-name ${CLUSTER_NAME} --addon-name ${ADDON} \
+            --query 'addon.addonVersion' --output text)
+        LATEST=$(aws eks describe-addon-versions --addon-name ${ADDON} --kubernetes-version ${KUBERNETES_VERSION} \
+            --query 'addons[0].addonVersions[0].addonVersion' --output text)
+        LIST=$(aws eks describe-addon-versions --addon-name ${ADDON} --kubernetes-version ${KUBERNETES_VERSION} \
+            --query 'addons[0].addonVersions[:3].addonVersion')
+
+        echo "${ADDON} current version: ${CURRENT}"
+        echo "${ADDON} latest version: ${LATEST}"
+        echo "${ADDON} latest 3 available versions: ${LIST}"
+    done
+    ```
+
+2. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
+
+    ```sh
+    aws eks update-addon --cluster-name <CLUSTER_NAME> --addon-name <ADDON_NAME> --addon-version <ADDON_VERSION>
+    ```
+
+    You may need to add `--resolve-conflicts OVERWRITE` to the command if the addon has been modified since it was deployed to ensure the addon is upgraded.
+
+# Post Upgrade
 
 - ⚠️ Update applications running on the cluster
 - ⚠️ Update tools that interact with the cluster (kubectl, awscli, etc.)
