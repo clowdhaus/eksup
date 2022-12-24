@@ -3,11 +3,12 @@ use std::process;
 use anyhow::*;
 use clap::Parser;
 
-use eksup::{playbook, Cli, Commands};
+use eksup::{analysis, playbook, Cli, Commands};
 
 pub const LATEST: &str = "1.24";
 
-fn main() -> Result<(), anyhow::Error> {
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
     let cli = Cli::parse();
 
     match &cli.command {
@@ -26,7 +27,13 @@ fn main() -> Result<(), anyhow::Error> {
         }
 
         Commands::Analyze(args) => {
-            println!("{args:?}");
+            let k8s_client = kube::Client::try_default().await?;
+            analysis::kubernetes::collect_from_nodes(k8s_client).await?;
+
+            let aws_shared_config = aws_config::load_from_env().await;
+            let aws_client = aws_sdk_eks::Client::new(&aws_shared_config);
+            let cluster = analysis::aws::describe_cluster(&aws_client, &args.cluster_name).await?;
+            println!("{cluster:#?}");
         }
     }
 
