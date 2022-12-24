@@ -50,7 +50,9 @@ fn render(playbook: &Playbook) -> Result<(), anyhow::Error> {
         .replace("&#x60;", "`")
         .replace("&#x27;", "'")
         .replace("&lt;", "<")
+        .replace("&amp;lt;", "<")
         .replace("&gt;", ">")
+        .replace("&amp;gt;", ">")
         .replace("&quot;", "\"")
         .replace("&#x3D;", "=");
     fs::write(&playbook.filename, replaced)?;

@@ -38,7 +38,7 @@
     - The following should return the details of the cluster primary security group. If not, the security group may no longer exist:
 
         ```sh
-        aws ec2 describe-security-groups --group-ids $(aws eks describe-cluster --name <CLUSTER_NAME> \
+        aws ec2 describe-security-groups --group-ids $(aws eks describe-cluster --name {{ cluster_name }} \
             --query 'cluster.resourcesVpcConfig.clusterSecurityGroupId' --output text)
         ```
 
@@ -91,7 +91,7 @@ Prior to upgrading, review the following resources for affected changes in the n
 2. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
 
     ```sh
-    aws ec2 describe-subnets --subnet-ids $(aws eks describe-cluster --name <CLUSTER_NAME> \
+    aws ec2 describe-subnets --subnet-ids $(aws eks describe-cluster --name {{ cluster_name }} \
       --query 'cluster.resourcesVpcConfig.subnetIds' --output text) --query 'Subnets[*].AvailableIpAddressCount'
     ```
 
@@ -143,13 +143,13 @@ The control plane should be upgraded first to meet the [Kubernetes version skew 
 1. Upgrade the control plane to the next Kubernetes minor version:
 
     ```sh
-    aws eks update-cluster-version --name <CLUSTER_NAME> --kubernetes-version {{ target_version }}
+    aws eks update-cluster-version --name {{ cluster_name }} --kubernetes-version {{ target_version }}
     ```
 
 2. Wait for the control plane to finish upgrading before proceeding with any further modifications. The cluster status will change to `ACTIVE` once the upgrade is complete.
 
     ```sh
-    aws eks describe-cluster --name <CLUSTER_NAME> --query 'cluster.status'
+    aws eks describe-cluster --name {{ cluster_name }} --query 'cluster.status'
     ```
 
 ## Upgrade the Data Plane
@@ -172,7 +172,7 @@ The control plane should be upgraded first to meet the [Kubernetes version skew 
 1. For each EKS addon deployed in the cluster, ensure the addon is compatible with the target Kubernetes version. If the addon is not compatible, upgrade the addon to a version that is compatible with the target Kubernetes version. You can run the following to get information on the addons used with respect to current versions:
 
     ```sh
-    CLUSTER_NAME=<CLUSTER_NAME>
+    CLUSTER_NAME={{ cluster_name }}
     KUBERNETES_VERSION={{ target_version }}
 
     for ADDON in $(aws eks list-addons --cluster-name ${CLUSTER_NAME} --query 'addons[*]' --output text); do
@@ -192,7 +192,7 @@ The control plane should be upgraded first to meet the [Kubernetes version skew 
 2. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
 
     ```sh
-    aws eks update-addon --cluster-name <CLUSTER_NAME> --addon-name <ADDON_NAME> --addon-version <ADDON_VERSION>
+    aws eks update-addon --cluster-name {{ cluster_name }} --addon-name <ADDON_NAME> --addon-version <ADDON_VERSION>
     ```
 
     You may need to add `--resolve-conflicts OVERWRITE` to the command if the addon has been modified since it was deployed to ensure the addon is upgraded.

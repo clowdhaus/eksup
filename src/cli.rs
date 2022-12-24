@@ -97,6 +97,10 @@ pub struct Analysis {
 /// Create a playbook for upgrading an Amazon EKS cluster
 #[derive(Parser, Debug, Clone)]
 pub struct Playbook {
+    /// The name of the cluster
+    #[arg(long, default_value = "<CLUSTER_NAME>")]
+    pub cluster_name: Option<String>,
+
     /// The cluster's current Kubernetes version
     #[arg(long, value_enum)]
     pub cluster_version: ClusterVersion,

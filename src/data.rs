@@ -38,6 +38,8 @@ impl TemplateData {
     pub fn get_data(playbook: Playbook) -> Map<String, Json> {
         let mut tmpl_data = Map::new();
 
+        tmpl_data.insert("cluster_name".to_string(), to_json( playbook.cluster_name));
+
         let version = playbook.cluster_version.to_string();
 
         // Parse out minor version string into an integer
@@ -46,7 +48,6 @@ impl TemplateData {
             .unwrap();
 
         let target_version = format!("1.{}", current_minor_version + 1);
-
         let config_data = TemplateData::new(format!("templates/data/{target_version}.toml"))
             .unwrap_or_else(|_| {
                 panic!("EKS does not support Kubernetes v{target_version} at this time")

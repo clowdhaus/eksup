@@ -20,7 +20,7 @@
 2. Update the launch template version specified on the EKS managed node group:
 
     ```sh
-    aws eks update-nodegroup-version --cluster-name <CLUSTER_NAME> \
+    aws eks update-nodegroup-version --cluster-name {{ cluster_name }} \
       --nodegroup-name <NODEGROUP_NAME> --launch-template <LAUNCH_TEMPLATE>
     ```
 
@@ -28,7 +28,7 @@
 1. Update the Kubernetes version specified on the EKS managed node group:
 
     ```sh
-    aws eks update-nodegroup-version --cluster-name <CLUSTER_NAME> \
+    aws eks update-nodegroup-version --cluster-name {{ cluster_name }} \
       --nodegroup-name <NODEGROUP_NAME> --kubernetes-version {{ target_version }}
     ```
 {{/if}}
