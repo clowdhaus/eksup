@@ -1,9 +1,12 @@
+use std::fs;
+
 use config::{Config, ConfigError, File};
-use handlebars::to_json;
+use handlebars::{to_json, Handlebars};
+use rust_embed::RustEmbed;
 use serde::Deserialize;
 use serde_json::value::{Map, Value as Json};
 
-use crate::Playbook;
+use crate::cli::{Compute, Playbook};
 
 /// Data related to Amazon EKS service
 #[derive(Deserialize, Debug)]
@@ -38,7 +41,7 @@ impl TemplateData {
     pub fn get_data(playbook: Playbook) -> Map<String, Json> {
         let mut tmpl_data = Map::new();
 
-        tmpl_data.insert("cluster_name".to_string(), to_json( playbook.cluster_name));
+        tmpl_data.insert("cluster_name".to_string(), to_json(playbook.cluster_name));
 
         let version = playbook.cluster_version.to_string();
 
@@ -70,4 +73,56 @@ impl TemplateData {
 
         tmpl_data
     }
+}
+
+#[derive(RustEmbed)]
+#[folder = "templates/"]
+struct Templates;
+
+pub fn create(playbook: &Playbook) -> Result<(), anyhow::Error> {
+    // Registry templates with handlebars
+    let mut handlebars = Handlebars::new();
+    handlebars.register_embed_templates::<Templates>().unwrap();
+
+    let mut tmpl_data = TemplateData::get_data(playbook.clone());
+
+    // Render sub-templates for data plane components
+    if playbook.compute.contains(&Compute::EksManaged) {
+        tmpl_data.insert(
+            "eks_managed_node_group".to_string(),
+            to_json(handlebars.render("data-plane/eks-managed-node-group.md", &tmpl_data)?),
+        );
+    }
+    if playbook.compute.contains(&Compute::SelfManaged) {
+        tmpl_data.insert(
+            "self_managed_node_group".to_string(),
+            to_json(handlebars.render("data-plane/self-managed-node-group.md", &tmpl_data)?),
+        );
+    }
+    if playbook.compute.contains(&Compute::FargateProfile) {
+        tmpl_data.insert(
+            "fargate_profile".to_string(),
+            to_json(handlebars.render("data-plane/fargate-profile.md", &tmpl_data)?),
+        );
+    }
+
+    // println!("{:#?}", tmpl_data);
+
+    // TODO = handlebars should be able to handle backticks and apostrophes
+    // Need to figure out why this isn't the case currently
+    // let mut output_file = File::create("playbook.md")?;
+    let rendered = handlebars.render("playbook.md", &tmpl_data)?;
+    // handlebars.render_to_write("playbook.tmpl", &data, &mut output_file)?;
+    let replaced = rendered
+        .replace("&#x60;", "`")
+        .replace("&#x27;", "'")
+        .replace("&lt;", "<")
+        .replace("&amp;lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#x3D;", "=");
+    fs::write(&playbook.filename, replaced)?;
+
+    Ok(())
 }

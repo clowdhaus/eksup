@@ -3,8 +3,6 @@ use std::str;
 use clap::{Parser, Subcommand, ValueEnum};
 use strum_macros::Display;
 
-pub const LATEST: &str = "1.24";
-
 #[derive(Copy, Clone, Debug, Display, PartialEq, Eq)]
 pub enum ClusterVersion {
     #[strum(serialize = "1.20")]
@@ -142,7 +140,7 @@ pub enum Commands {
 #[derive(Parser, Debug)]
 #[command(author, about, version)]
 #[command(propagate_version = true)]
-pub struct Upgrade {
+pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
 }

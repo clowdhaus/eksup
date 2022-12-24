@@ -1,5 +1,4 @@
 mod cli;
-pub use cli::{Commands, Compute, Playbook, Upgrade, LATEST as LatestVersion};
+pub use cli::{Cli, Commands};
 
-mod data;
-pub use data::TemplateData;
+pub mod playbook;
