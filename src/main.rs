@@ -26,14 +26,14 @@ async fn main() -> Result<(), anyhow::Error> {
             }
         }
 
-        Commands::Analyze(args) => {
+        Commands::Analyze(_args) => {
             let k8s_client = kube::Client::try_default().await?;
             analysis::kubernetes::collect_from_nodes(k8s_client).await?;
 
-            let aws_shared_config = aws_config::load_from_env().await;
-            let aws_client = aws_sdk_eks::Client::new(&aws_shared_config);
-            let cluster = analysis::aws::describe_cluster(&aws_client, &args.cluster_name).await?;
-            println!("{cluster:#?}");
+            // let aws_shared_config = aws_config::load_from_env().await;
+            // let aws_client = aws_sdk_eks::Client::new(&aws_shared_config);
+            // let cluster = analysis::aws::describe_cluster(&aws_client, &args.cluster_name).await?;
+            // println!("{cluster:#?}");
         }
     }
 

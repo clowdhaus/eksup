@@ -33,6 +33,11 @@ Choices:
   - [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity)
 > Note: Inter-pod affinity and anti-affinity require substantial amount of processing which can slow down scheduling in large clusters significantly. We do not recommend using them in clusters larger than several hundred nodes.
 
+Helpful commands:
+
+- `kubectl api-groups`
+- `kubectl api-resources -o wide`
+
 ## Questions
 
 - What is the guidance for batch workloads?

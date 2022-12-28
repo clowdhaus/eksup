@@ -18,6 +18,10 @@ categories = [
 ]
 exclude = ["/.github", ".gitignore", "examples"]
 
+[[bin]]
+name = "eksup"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1.0"
 aws-config = "0.52"
