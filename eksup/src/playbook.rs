@@ -1,112 +1,142 @@
+use std::collections::HashMap;
 use std::fs;
 
-use config::{Config, ConfigError, File};
-use handlebars::{to_json, Handlebars};
+use handlebars::Handlebars;
 use rust_embed::RustEmbed;
-use serde::Deserialize;
-use serde_json::value::{Map, Value as Json};
+use serde::{Deserialize, Serialize};
 
 use crate::cli::{Compute, Playbook};
 
-/// Data related to Amazon EKS service
-#[derive(Deserialize, Debug)]
-pub struct Eks {}
+/// Embeds the contents of the `templates/` directory into the binary
+///
+/// This struct contains both the templates used for rendering the playbook
+/// as well as the static data used for populating the playbook templates
+/// embedded into the binary for distribution
+#[derive(RustEmbed)]
+#[folder = "templates/"]
+struct Templates;
 
-/// Data related to Kuberenetes open source project (upstream)
-#[derive(Deserialize, Debug)]
-pub struct Kubernetes {
-    pub release_url: String,
-    pub deprecation_url: Option<String>,
+/// Relevant data for a Kubernetes release
+///
+/// Used to populate the playbook templates with the data associated
+/// to a specific Kubernetes release version
+#[derive(Serialize, Deserialize, Debug)]
+struct Release {
+    release_url: String,
+    deprecation_url: Option<String>,
 }
 
-/// Configuration data that will be passed to the template(s) rendered
-#[derive(Deserialize, Debug)]
+/// Type alias for Kubernetes version string (i.e. - "1.21")
+type Version = String;
+
+/// Get the Kubernetes version the cluster is intended to be upgraded to
+///
+/// Given the current Kubernetes version and the default behavior based on Kubernetes
+/// upgrade restrictions of one minor version upgrade at a time, return the
+/// next minor Kubernetes version
+/// TODO: This will change in the future when the strategy allows for `BlueGreen` upgrades
+fn get_target_version(cluster_version: &str) -> Result<String, anyhow::Error> {
+    let current_minor_version =
+        cluster_version.split('.').collect::<Vec<&str>>()[1].parse::<i32>()?;
+
+    Ok(format!("1.{}", current_minor_version + 1))
+}
+
+/// Data to populate the template(s) for rendering the upgrade playbook
+///
+/// This combines the static data from the `data.yaml` embedded along with
+/// data collected from CLI arguments provided by users and is used to
+/// populate the playbook templates when rendered. This also serves as
+/// the central authority for the data/inputs used to populate the playbook
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TemplateData {
-    pub eks: Eks,
-    pub kubernetes: Kubernetes,
+    ///
+    cluster_name: String,
+
+    cluster_version: String,
+
+    target_version: String,
+
+    k8s_release_url: String,
+
+    k8s_deprecation_url: String,
+
+    custom_ami: bool,
+
+    eks_managed_node_group: Option<String>,
+
+    self_managed_node_group: Option<String>,
+
+    fargate_profile: Option<String>,
 }
 
 /// Load configuration data from the associated Kubernetes version data file
 #[allow(unused)]
 impl TemplateData {
-    pub fn new(file_with_name: String) -> Result<Self, ConfigError> {
-        let s = Config::builder()
-            .add_source(File::with_name(&file_with_name).required(false))
-            .build()?;
+    fn new(playbook: &Playbook) -> Result<Self, anyhow::Error> {
+        let data_file = Templates::get("data.yaml").unwrap();
+        let contents = std::str::from_utf8(data_file.data.as_ref())?;
+        let data: HashMap<Version, Release> = serde_yaml::from_str(contents)?;
 
-        // You can deserialize (and thus freeze) the entire configuration as
-        s.try_deserialize()
-    }
+        let cluster_name = playbook.cluster_name.as_ref().unwrap();
+        let cluster_version = playbook.cluster_version.to_string();
+        let target_version = get_target_version(&cluster_version)?;
+        let release = data.get(&target_version).unwrap();
 
-    pub fn get_data(playbook: Playbook) -> Map<String, Json> {
-        let mut tmpl_data = Map::new();
+        println!("{:#?}", release);
 
-        tmpl_data.insert("cluster_name".to_string(), to_json(playbook.cluster_name));
-
-        let version = playbook.cluster_version.to_string();
-
-        // Parse out minor version string into an integer
-        let current_minor_version = version.split('.').collect::<Vec<&str>>()[1]
-            .parse::<i32>()
-            .unwrap();
-
-        let target_version = format!("1.{}", current_minor_version + 1);
-        let config_data = TemplateData::new(format!("templates/data/{target_version}.toml"))
-            .unwrap_or_else(|_| {
-                panic!("EKS does not support Kubernetes v{target_version} at this time")
-            });
-
-        tmpl_data.insert("current_version".to_string(), to_json(version));
-        tmpl_data.insert("target_version".to_string(), to_json(target_version));
-
-        let deprecation_url = match config_data.kubernetes.deprecation_url {
-            Some(url) => url,
-            None => "".to_string(),
-        };
-        tmpl_data.insert("k8s_deprecation_url".to_string(), to_json(deprecation_url));
-        tmpl_data.insert(
-            "k8s_release_url".to_string(),
-            to_json(config_data.kubernetes.release_url),
-        );
-
-        tmpl_data.insert("custom_ami".to_string(), to_json(playbook.custom_ami));
-
-        tmpl_data
+        Ok(TemplateData {
+            cluster_name: cluster_name.to_string(),
+            cluster_version,
+            target_version,
+            k8s_release_url: release.release_url.to_string(),
+            k8s_deprecation_url: match &release.deprecation_url {
+                Some(url) => url.to_string(),
+                None => "".to_string(),
+            },
+            // TODO: Should this be a separate data structur since we are mutating
+            // it after the fact? Plus, these are templates that are rendered with
+            // the same data passed to the playbook template (in this very struct)
+            eks_managed_node_group: None,
+            self_managed_node_group: None,
+            fargate_profile: None,
+            custom_ami: playbook.custom_ami,
+        })
     }
 }
 
-#[derive(RustEmbed)]
-#[folder = "templates/"]
-struct Templates;
-
 pub fn create(playbook: &Playbook) -> Result<(), anyhow::Error> {
-    // Registry templates with handlebars
     let mut handlebars = Handlebars::new();
-    handlebars.register_embed_templates::<Templates>().unwrap();
+    handlebars.register_embed_templates::<Templates>()?;
 
-    let mut tmpl_data = TemplateData::get_data(playbook.clone());
+    let mut tmpl_data = TemplateData::new(playbook)?;
+
+    println!("{tmpl_data:#?}");
 
     // Render sub-templates for data plane components
-    if playbook.compute.contains(&Compute::EksManaged) {
-        tmpl_data.insert(
-            "eks_managed_node_group".to_string(),
-            to_json(handlebars.render("data-plane/eks-managed-node-group.md", &tmpl_data)?),
-        );
-    }
-    if playbook.compute.contains(&Compute::SelfManaged) {
-        tmpl_data.insert(
-            "self_managed_node_group".to_string(),
-            to_json(handlebars.render("data-plane/self-managed-node-group.md", &tmpl_data)?),
-        );
-    }
-    if playbook.compute.contains(&Compute::FargateProfile) {
-        tmpl_data.insert(
-            "fargate_profile".to_string(),
-            to_json(handlebars.render("data-plane/fargate-profile.md", &tmpl_data)?),
-        );
-    }
+    let eks_managed_node_group = if playbook.compute.contains(&Compute::EksManaged) {
+        let rendered = handlebars.render("eks-managed-node-group.md", &tmpl_data)?;
+        Some(rendered)
+    } else {
+        None
+    };
+    tmpl_data.eks_managed_node_group = eks_managed_node_group;
 
-    // println!("{:#?}", tmpl_data);
+    let self_managed_node_group = if playbook.compute.contains(&Compute::SelfManaged) {
+        let rendered = handlebars.render("self-managed-node-group.md", &tmpl_data)?;
+        Some(rendered)
+    } else {
+        None
+    };
+    tmpl_data.self_managed_node_group = self_managed_node_group;
+
+    let fargate_profile = if playbook.compute.contains(&Compute::EksManaged) {
+        let rendered = handlebars.render("fargate-profile.md", &tmpl_data)?;
+        Some(rendered)
+    } else {
+        None
+    };
+    tmpl_data.fargate_profile = fargate_profile;
 
     // TODO = handlebars should be able to handle backticks and apostrophes
     // Need to figure out why this isn't the case currently

@@ -23,6 +23,8 @@ async fn main() -> Result<(), anyhow::Error> {
                 return Ok(());
             }
 
+            println!("{args:#?}");
+
             if let Err(err) = playbook::create(args) {
                 eprintln!("{err}");
                 process::exit(2);

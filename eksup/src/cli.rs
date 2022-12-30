@@ -1,9 +1,10 @@
 use std::str;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
-#[derive(Copy, Clone, Debug, Display, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Display, Serialize, Deserialize)]
 pub enum ClusterVersion {
     #[strum(serialize = "1.20")]
     V20,
@@ -51,7 +52,7 @@ impl ValueEnum for ClusterVersion {
     }
 }
 
-#[derive(Copy, Clone, Debug, Display, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Compute {
     EksManaged,
     SelfManaged,
@@ -72,7 +73,7 @@ impl ValueEnum for Compute {
     }
 }
 
-#[derive(Copy, Clone, Debug, Display, PartialEq, Eq, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum, Serialize, Deserialize)]
 pub enum Strategy {
     InPlace,
     // BlueGreen,
@@ -85,7 +86,7 @@ impl Default for Strategy {
 }
 
 /// Analyze an Amazon EKS cluster prior to upgrading
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug, Serialize, Deserialize)]
 pub struct Analysis {
     /// The name of the cluster to analyze
     #[arg(long, value_enum)]
@@ -93,7 +94,7 @@ pub struct Analysis {
 }
 
 /// Create a playbook for upgrading an Amazon EKS cluster
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug, Serialize, Deserialize)]
 pub struct Playbook {
     /// The name of the cluster
     #[arg(long, default_value = "<CLUSTER_NAME>")]
