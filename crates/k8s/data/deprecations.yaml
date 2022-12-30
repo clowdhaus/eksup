@@ -1,0 +1,286 @@
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#webhook-resources-v122
+- api_version: admissionregistration.k8s.io/v1beta1
+  kind: MutatingWebhookConfiguration
+  deprecated_in: v1.16
+  removed_in: v1.22
+  replacement_api_version: admissionregistration.k8s.io/v1
+
+- api_version: admissionregistration.k8s.io/v1beta1
+  kind: ValidatingWebhookConfiguration
+  deprecated_in: v1.16
+  removed_in: v1.22
+  replacement_api_version: admissionregistration.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#customresourcedefinition-v122
+- api_version: apiextensions.k8s.io/v1beta1
+  kind: CustomResourceDefinition
+  deprecated_in: v1.16
+  removed_in: v1.22
+  replacement_api_version: apiextensions.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#apiservice-v122
+- api_version: apiregistration.k8s.io/v1beta1
+  kind: APIService
+  removed_in: v1.22
+  deprecated_in: v1.10
+  replacement_api_version: apiregistration.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#tokenreview-v122
+- api_version: authentication.k8s.io/v1beta1
+  kind: TokenReview
+  replacement_api_version: authentication.k8s.io/v1
+  deprecated_in: v1.6
+  removed_in: v1.22
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#subjectaccessreview-resources-v122
+- api_version: authorization.k8s.io/v1beta1
+  kind: LocalSubjectAccessReview
+  deprecated_in: v1.6
+  removed_in: v1.22
+  replacement_api_version: authorization.k8s.io/v1
+
+- api_version: authorization.k8s.io/v1beta1
+  kind: SelfSubjectAccessReview
+  deprecated_in: v1.6
+  removed_in: v1.22
+  replacement_api_version: authorization.k8s.io/v1
+
+- api_version: authorization.k8s.io/v1beta1
+  kind: SubjectAccessReview
+  deprecated_in: v1.6
+  removed_in: v1.22
+  replacement_api_version: authorization.k8s.io/v1
+
+- api_version: authorization.k8s.io/v1beta1
+  kind: SelfSubjectRulesReview
+  deprecated_in: v1.6
+  removed_in: v1.22
+  replacement_api_version: authorization.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#certificatesigningrequest-v122
+- api_version: certificates.k8s.io/v1beta1
+  kind: CertificateSigningRequest
+  deprecated_in: v1.19
+  removed_in: v1.22
+  replacement_api_version: certificates.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#lease-v122
+- api_version: coordination.k8s.io/v1beta1
+  kind: Lease
+  replacement_api_version: coordination.k8s.io/v1
+  deprecated_in: v1.14
+  removed_in: v1.22
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingress-v122
+- api_version: extensions/v1beta1
+  kind: Ingress
+  deprecated_in: v1.19
+  removed_in: v1.22
+  replacement_api_version: networking.k8s.io/v1
+
+- api_version: networking.k8s.io/v1beta1
+  kind: Ingress
+  deprecated_in: v1.19
+  removed_in: v1.22
+  replacement_api_version: networking.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingressclass-v122
+- api_version: networking.k8s.io/v1beta1
+  kind: IngressClass
+  deprecated_in: v1.19
+  removed_in: v1.22
+  replacement_api_version: networking.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#rbac-resources-v122
+- api_version: rbac.authorization.k8s.io/v1beta1
+  kind: ClusterRole
+  deprecated_in: v1.8
+  removed_in: v1.22
+  replacement_api_version: rbac.authorization.k8s.io/v1
+
+- api_version: rbac.authorization.k8s.io/v1beta1
+  kind: ClusterRoleList
+  deprecated_in: v1.8
+  removed_in: v1.22
+  replacement_api_version: rbac.authorization.k8s.io/v1
+
+- api_version: rbac.authorization.k8s.io/v1beta1
+  kind: ClusterRoleBinding
+  deprecated_in: v1.8
+  removed_in: v1.22
+  replacement_api_version: rbac.authorization.k8s.io/v1
+
+- api_version: rbac.authorization.k8s.io/v1beta1
+  kind: ClusterRoleBindingList
+  deprecated_in: v1.8
+  removed_in: v1.22
+  replacement_api_version: rbac.authorization.k8s.io/v1
+
+- api_version: rbac.authorization.k8s.io/v1beta1
+  kind: Role
+  deprecated_in: v1.8
+  removed_in: v1.22
+  replacement_api_version: rbac.authorization.k8s.io/v1
+
+- api_version: rbac.authorization.k8s.io/v1beta1
+  kind: RoleList
+  deprecated_in: v1.8
+  removed_in: v1.22
+  replacement_api_version: rbac.authorization.k8s.io/v1
+
+- api_version: rbac.authorization.k8s.io/v1beta1
+  kind: RoleBinding
+  deprecated_in: v1.8
+  removed_in: v1.22
+  replacement_api_version: rbac.authorization.k8s.io/v1
+
+- api_version: rbac.authorization.k8s.io/v1beta1
+  kind: RoleBindingList
+  deprecated_in: v1.8
+  removed_in: v1.22
+  replacement_api_version: rbac.authorization.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#priorityclass-v122
+- api_version: scheduling.k8s.io/v1beta1
+  kind: PriorityClass
+  deprecated_in: v1.14
+  removed_in: v1.22
+  replacement_api_version: scheduling.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#storage-resources-v122
+- api_version: storage.k8s.io/v1beta1
+  kind: CSIDriver
+  deprecated_in: v1.19
+  removed_in: v1.22
+  replacement_api_version: storage.k8s.io/v1
+
+- api_version: storage.k8s.io/v1beta1
+  kind: CSINode
+  deprecated_in: v1.17
+  removed_in: v1.22
+  replacement_api_version: storage.k8s.io/v1
+
+- api_version: storage.k8s.io/v1beta1
+  kind: StorageClass
+  deprecated_in: v1.6
+  removed_in: v1.22
+  replacement_api_version: storage.k8s.io/v1
+
+- api_version: storage.k8s.io/v1beta1
+  kind: VolumeAttachment
+  deprecated_in: v1.13
+  removed_in: v1.22
+  replacement_api_version: storage.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#cronjob-v125
+- api_version: batch/v1beta1
+  kind: CronJob
+  replacement_api_version: batch/v1
+  deprecated_in: v1.21
+  removed_in: v1.25
+
+- api_version: batch/v1beta1
+  kind: CronJobList
+  replacement_api_version: batch/v1
+  deprecated_in: v1.21
+  removed_in: v1.25
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#endpointslice-v125
+- api_version: discovery.k8s.io/v1beta1
+  kind: EndpointSlice
+  replacement_api_version: discovery.k8s.io/v1
+  deprecated_in: v1.21
+  removed_in: v1.25
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#event-v125
+- api_version: events.k8s.io/v1beta1
+  kind: Event
+  replacement_api_version: events.k8s.io/v1
+  deprecated_in: v1.19
+  removed_in: v1.25
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#horizontalpodautoscaler-v125
+- api_version: autoscaling/v2beta1
+  kind: HorizontalPodAutoscaler
+  deprecated_in: v1.22
+  removed_in: v1.25
+  replacement_api_version: autoscaling/v2
+
+- api_version: autoscaling/v2beta1
+  kind: HorizontalPodAutoscalerList
+  deprecated_in: v1.22
+  removed_in: v1.25
+  replacement_api_version: autoscaling/v2
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#poddisruptionbudget-v125
+- api_version: policy/v1beta1
+  kind: PodDisruptionBudget
+  deprecated_in: v1.21
+  removed_in: v1.25
+  replacement_api_version: policy/v1
+
+- api_version: policy/v1beta1
+  kind: PodDisruptionBudgetList
+  deprecated_in: v1.21
+  removed_in: v1.25
+  replacement_api_version: policy/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#psp-v125
+- api_version: policy/v1beta1
+  kind: PodSecurityPolicy
+  deprecated_in: v1.21
+  removed_in: v1.25
+  replacement_api_version:
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#psp-v125
+- api_version: node.k8s.io/v1beta1
+  kind: RuntimeClass
+  deprecated_in: v1.20
+  removed_in: v1.25
+  replacement_api_version: node.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#flowcontrol-resources-v126
+- api_version: flowcontrol.apiserver.k8s.io/v1beta1
+  kind: FlowSchema
+  deprecated_in: v1.23
+  removed_in: v1.26
+  replacement_api_version: flowcontrol.apiserver.k8s.io/v1beta3
+
+- api_version: flowcontrol.apiserver.k8s.io/v1beta1
+  kind: PriorityLevelConfiguration
+  deprecated_in: v1.23
+  removed_in: v1.26
+  replacement_api_version: flowcontrol.apiserver.k8s.io/v1beta3
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#horizontalpodautoscaler-v126
+- api_version: autoscaling/v2beta2
+  kind: HorizontalPodAutoscaler
+  deprecated_in: v1.23
+  removed_in: v1.26
+  replacement_api_version: autoscaling/v2
+
+- api_version: autoscaling/v2beta2
+  kind: HorizontalPodAutoscalerList
+  deprecated_in: v1.23
+  removed_in: v1.26
+  replacement_api_version: autoscaling/v2
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#horizontalpodautoscaler-v126
+- api_version: storage.k8s.io/v1beta1
+  kind: CSIStorageCapacity
+  deprecated_in: v1.23
+  removed_in: v1.27
+  replacement_api_version: storage.k8s.io/v1
+
+# https://kubernetes.io/docs/reference/using-api/deprecation-guide/#v1-29
+- api_version: flowcontrol.apiserver.k8s.io/v1beta2
+  kind: FlowSchema
+  deprecated_in: v1.26
+  removed_in: v1.29
+  replacement_api_version: flowcontrol.apiserver.k8s.io/v1beta3
+
+- api_version: flowcontrol.apiserver.k8s.io/v1beta2
+  kind: PriorityLevelConfiguration
+  deprecated_in: v1.26
+  removed_in: v1.29
+  replacement_api_version: flowcontrol.apiserver.k8s.io/v1beta3

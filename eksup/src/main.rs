@@ -1,9 +1,12 @@
+mod cli;
+mod playbook;
+
 use std::process;
 
 use anyhow::*;
 use clap::Parser;
 
-use eksup::{analysis, playbook, Cli, Commands};
+pub use cli::{Cli, Commands};
 
 pub const LATEST: &str = "1.24";
 
@@ -27,8 +30,9 @@ async fn main() -> Result<(), anyhow::Error> {
         }
 
         Commands::Analyze(_args) => {
-            let k8s_client = kube::Client::try_default().await?;
-            analysis::kubernetes::collect_from_nodes(k8s_client).await?;
+            todo!();
+            // let k8s_client = kube::Client::try_default().await?;
+            // analysis::kubernetes::collect_from_nodes(k8s_client).await?;
 
             // let aws_shared_config = aws_config::load_from_env().await;
             // let aws_client = aws_sdk_eks::Client::new(&aws_shared_config);

@@ -1,0 +1,34 @@
+[package]
+name = "eksup"
+version = "0.1.0"
+authors = ["Bryant Biggs <bryantbiggs@gmail.com>"]
+description = "A CLI to aid in upgrading Amazon EKS clusters"
+documentation = "https://github.com/clowdhaus/eksup"
+homepage = "https://github.com/clowdhaus/eksup"
+repository = "https://github.com/clowdhaus/eksup"
+license = "Apache-2.0"
+edition = "2021"
+keywords = [
+  "kubernetes",
+  "eks",
+]
+categories = [
+  "command-line-utilities",
+  "text-processing",
+]
+exclude = ["/.github", ".gitignore", "examples"]
+
+[[bin]]
+name = "eksup"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "^4.0", features = ["derive"] }
+config = "0.13"
+handlebars = { version = "4.3", features = ["rust-embed"] }
+rust-embed = { version = "6.4", features = ["compression"] }
+serde = "1.0"
+serde_json = "1.0"
+strum_macros = "0.24"
+tokio = { version = "1.23", features = ["full"] }
