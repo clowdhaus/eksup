@@ -35,9 +35,9 @@ type Version = String;
 /// upgrade restrictions of one minor version upgrade at a time, return the
 /// next minor Kubernetes version
 /// TODO: This will change in the future when the strategy allows for `BlueGreen` upgrades
-fn get_target_version(cluster_version: &str) -> Result<String, anyhow::Error> {
+fn get_target_version(current_version: &str) -> Result<String, anyhow::Error> {
     let current_minor_version =
-        cluster_version.split('.').collect::<Vec<&str>>()[1].parse::<i32>()?;
+        current_version.split('.').collect::<Vec<&str>>()[1].parse::<i32>()?;
 
     Ok(format!("1.{}", current_minor_version + 1))
 }
@@ -53,7 +53,7 @@ pub struct TemplateData {
     ///
     cluster_name: String,
 
-    cluster_version: String,
+    current_version: String,
 
     target_version: String,
 
@@ -79,15 +79,13 @@ impl TemplateData {
         let data: HashMap<Version, Release> = serde_yaml::from_str(contents)?;
 
         let cluster_name = playbook.cluster_name.as_ref().unwrap();
-        let cluster_version = playbook.cluster_version.to_string();
-        let target_version = get_target_version(&cluster_version)?;
+        let current_version = playbook.cluster_version.to_string();
+        let target_version = get_target_version(&current_version)?;
         let release = data.get(&target_version).unwrap();
-
-        println!("{release:#?}");
 
         Ok(TemplateData {
             cluster_name: cluster_name.to_string(),
-            cluster_version,
+            current_version,
             target_version,
             k8s_release_url: release.release_url.to_string(),
             k8s_deprecation_url: match &release.deprecation_url {
@@ -111,8 +109,6 @@ pub fn create(playbook: &Playbook) -> Result<(), anyhow::Error> {
 
     let mut tmpl_data = TemplateData::new(playbook)?;
 
-    println!("{tmpl_data:#?}");
-
     // Render sub-templates for data plane components
     let eks_managed_node_group = if playbook.compute.contains(&Compute::EksManaged) {
         let rendered = handlebars.render("eks-managed-node-group.md", &tmpl_data)?;
@@ -130,7 +126,7 @@ pub fn create(playbook: &Playbook) -> Result<(), anyhow::Error> {
     };
     tmpl_data.self_managed_node_group = self_managed_node_group;
 
-    let fargate_profile = if playbook.compute.contains(&Compute::EksManaged) {
+    let fargate_profile = if playbook.compute.contains(&Compute::FargateProfile) {
         let rendered = handlebars.render("fargate-profile.md", &tmpl_data)?;
         Some(rendered)
     } else {

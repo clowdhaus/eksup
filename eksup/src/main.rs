@@ -32,7 +32,6 @@ async fn main() -> Result<(), anyhow::Error> {
         }
 
         Commands::Analyze(_args) => {
-            todo!();
             // let k8s_client = kube::Client::try_default().await?;
             // analysis::kubernetes::collect_from_nodes(k8s_client).await?;
 

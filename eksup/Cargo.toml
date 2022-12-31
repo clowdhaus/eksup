@@ -30,5 +30,4 @@ rust-embed = { version = "6.4", features = ["compression"] }
 seq-macro = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
-strum_macros = "0.24"
 tokio = { version = "1.23", features = ["full"] }
