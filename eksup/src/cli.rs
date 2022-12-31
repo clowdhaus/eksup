@@ -1,56 +1,50 @@
+use std::fmt;
 use std::str;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use seq_macro::seq;
 use serde::{Deserialize, Serialize};
-use strum_macros::Display;
 
-#[derive(Clone, Copy, Debug, Display, Serialize, Deserialize)]
-pub enum ClusterVersion {
-    #[strum(serialize = "1.20")]
-    V20,
-    #[strum(serialize = "1.21")]
-    V21,
-    #[strum(serialize = "1.22")]
-    V22,
-    #[strum(serialize = "1.23")]
-    V23,
-    #[strum(serialize = "1.24")]
-    V24,
-    // #[strum(serialize = "1.25")]
-    // V25,
-    // #[strum(serialize = "1.26")]
-    // V26,
-    // #[strum(serialize = "1.27")]
-    // V27,
-}
-
-impl ValueEnum for ClusterVersion {
-    fn value_variants<'a>() -> &'a [Self] {
-        &[
-            Self::V20,
-            Self::V21,
-            Self::V22,
-            Self::V23,
-            Self::V24,
-            // Self::V25,
-            // Self::V26,
-            // Self::V27,
-        ]
+seq!(N in 20..=24 {
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+    pub enum ClusterVersion {
+        #( V~N, )* // V20
     }
 
-    fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
-        match self {
-            Self::V20 => Some(clap::builder::PossibleValue::new("1.20")),
-            Self::V21 => Some(clap::builder::PossibleValue::new("1.21")),
-            Self::V22 => Some(clap::builder::PossibleValue::new("1.22")),
-            Self::V23 => Some(clap::builder::PossibleValue::new("1.23")),
-            Self::V24 => Some(clap::builder::PossibleValue::new("1.24")),
-            // Self::V25 => Some(clap::builder::PossibleValue::new("1.25")),
-            // Self::V26 => Some(clap::builder::PossibleValue::new("1.26")),
-            // Self::V27 => Some(clap::builder::PossibleValue::new("1.27")),
+    impl fmt::Display for ClusterVersion {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match *self {
+                #( ClusterVersion::V~N => write!(f, "1.{}", N), )*
+                // ClusterVersion::V20 => write!(f, "1.{}", 20),
+            }
         }
     }
-}
+
+    impl ValueEnum for ClusterVersion {
+        fn value_variants<'a>() -> &'a [Self] {
+            &[
+                #( Self::V~N, )* // Self::V20,
+            ]
+        }
+
+        // TODO - does not work yet due to format!()
+        // fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
+        //     match self {
+        //         #( Self::V~N => Some(clap::builder::PossibleValue::new(format!("1.{}", N))), )*
+        //         // Self::V20 => Some(clap::builder::PossibleValue::new("1.20")),
+        //     }
+        // }
+        fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
+            match self {
+                Self::V20 => Some(clap::builder::PossibleValue::new("1.20")),
+                Self::V21 => Some(clap::builder::PossibleValue::new("1.21")),
+                Self::V22 => Some(clap::builder::PossibleValue::new("1.22")),
+                Self::V23 => Some(clap::builder::PossibleValue::new("1.23")),
+                Self::V24 => Some(clap::builder::PossibleValue::new("1.24")),
+            }
+        }
+    }
+});
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Compute {

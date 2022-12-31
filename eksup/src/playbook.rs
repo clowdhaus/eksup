@@ -83,7 +83,7 @@ impl TemplateData {
         let target_version = get_target_version(&cluster_version)?;
         let release = data.get(&target_version).unwrap();
 
-        println!("{:#?}", release);
+        println!("{release:#?}");
 
         Ok(TemplateData {
             cluster_name: cluster_name.to_string(),
