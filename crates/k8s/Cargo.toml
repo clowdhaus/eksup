@@ -1,10 +1,10 @@
 [package]
-name = "r8s"
+name = "k8s"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "r8s"
+name = "k8s"
 path = "src/main.rs"
 
 [dependencies]

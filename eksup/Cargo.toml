@@ -18,6 +18,8 @@ categories = [
 ]
 exclude = ["/.github", ".gitignore", "examples"]
 
+default-run = "eksup"
+
 [[bin]]
 name = "eksup"
 path = "src/main.rs"
@@ -26,6 +28,11 @@ path = "src/main.rs"
 anyhow = "1.0"
 clap = { version = "^4.0", features = ["derive"] }
 handlebars = { version = "4.3", features = ["rust-embed"] }
+k8s = { path = "../crates/k8s", version ="*"}
+# https://kube.rs/kubernetes-version/
+k8s-openapi = { version = "0.15.0", default-features = false, features = ["v1_20"] }
+# https://kube.rs/kubernetes-version/
+kube = { version = "0.74.0", default-features = true, features = [ "derive", "runtime", "rustls-tls" ] }
 rust-embed = { version = "6.4", features = ["compression"] }
 seq-macro = "0.3"
 serde = { version = "1.0", features = ["derive"] }

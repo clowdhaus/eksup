@@ -3,5 +3,5 @@ members = [
   "eksup",
 
   "crates/aws",
-  # "crates/k8s",
+  "crates/k8s",
 ]

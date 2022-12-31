@@ -1,4 +1,4 @@
-# r8s
+# k8s
 
 There are three methods that are used by other tools in the ecosystem today to find resources that are utilizing an API version that is no longer served by the API server. They are:
    1. Retrieving the `kubectl.kubernetes.io/last-applied-configuration` and using the API version in that annotation to determine if there is a potential for conflict after an upgrade. This method is highly problematic in that the annotation cannot be fully relied on since not all creation methods will update this annotation and therefore not show all the potential API version conflicts. This method, if used, should be treated as informative but not definitive.

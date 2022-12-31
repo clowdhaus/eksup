@@ -7,6 +7,7 @@ use anyhow::*;
 use clap::Parser;
 
 pub use cli::{Cli, Commands};
+// pub use k8s::{Discovery, Deprecated};
 
 pub const LATEST: &str = "1.24";
 
@@ -23,8 +24,6 @@ async fn main() -> Result<(), anyhow::Error> {
                 return Ok(());
             }
 
-            println!("{args:#?}");
-
             if let Err(err) = playbook::create(args) {
                 eprintln!("{err}");
                 process::exit(2);
@@ -32,8 +31,17 @@ async fn main() -> Result<(), anyhow::Error> {
         }
 
         Commands::Analyze(_args) => {
-            // let k8s_client = kube::Client::try_default().await?;
-            // analysis::kubernetes::collect_from_nodes(k8s_client).await?;
+            let client = kube::Client::try_default().await?;
+
+            let deprecated = k8s::Deprecated::get()?;
+            let discovery = k8s::Discovery::get(&client).await?;
+
+            // Checks if any of the deprecated APIs are still supported by the API server
+            for (key, value) in &deprecated.versions {
+                if discovery.versions.contains_key(key) {
+                    println!("DEPRECATED: {value:#?}");
+                }
+            }
 
             // let aws_shared_config = aws_config::load_from_env().await;
             // let aws_client = aws_sdk_eks::Client::new(&aws_shared_config);
