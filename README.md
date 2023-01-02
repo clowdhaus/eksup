@@ -63,7 +63,7 @@ Helpful commands:
   - AWS
     - [ ] Check that there are enough free IPs to upgrade
       - [ ] At least 5 free IPs to upgrade the control plane
-      - [ ] Give a percentage and number of IPs of the available data plane IP space utilization
+      - [ ] Give a percentage and number of IPs of the available data plane IP space
     - [ ] Check version skew between control plane and data plane
     - [ ] Compare the current version of EKS addons used against next Kubernetes version recommendations (default)
       - ❓ Do we warn/error when a 3rd party addon is not listed in the next Kubernetes version?

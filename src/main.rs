@@ -1,4 +1,4 @@
-// mod aws;
+mod aws;
 mod cli;
 mod k8s;
 mod playbook;
@@ -6,6 +6,7 @@ mod playbook;
 use std::process;
 
 use anyhow::*;
+use aws_config::meta::region::RegionProviderChain;
 use clap::Parser;
 pub use cli::{Cli, Commands};
 // pub use k8s::{Discovery, Deprecated};
@@ -31,7 +32,7 @@ async fn main() -> Result<(), anyhow::Error> {
       }
     }
 
-    Commands::Analyze(_args) => {
+    Commands::Analyze(args) => {
       let client = kube::Client::try_default().await?;
 
       let deprecated = k8s::Deprecated::get()?;
@@ -44,10 +45,14 @@ async fn main() -> Result<(), anyhow::Error> {
         }
       }
 
-      // let aws_shared_config = aws_config::load_from_env().await;
-      // let aws_client = aws_sdk_eks::Client::new(&aws_shared_config);
-      // let cluster = analysis::aws::describe_cluster(&aws_client, &args.cluster_name).await?;
-      // println!("{cluster:#?}");
+      let region_provider =
+        RegionProviderChain::first_try(args.region.clone().map(aws_sdk_eks::Region::new))
+          .or_default_provider();
+
+      let aws_shared_config = aws_config::from_env().region(region_provider).load().await;
+      let aws_client = aws_sdk_eks::Client::new(&aws_shared_config);
+      let cluster = aws::EksCluster::get(&aws_client, args).await?;
+      println!("{cluster:#?}");
     }
   }
 

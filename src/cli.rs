@@ -84,6 +84,10 @@ pub struct Analysis {
   /// The name of the cluster to analyze
   #[arg(long, value_enum)]
   pub cluster_name: String,
+
+  /// The AWS region where the cluster is provisioned
+  #[arg(long)]
+  pub region: Option<String>,
 }
 
 /// Create a playbook for upgrading an Amazon EKS cluster
