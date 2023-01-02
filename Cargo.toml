@@ -30,7 +30,7 @@ aws-config = "0.52"
 aws-sdk-ec2 = "0.22"
 aws-sdk-eks = "0.22"
 aws-types = "0.52"
-clap = { version = "^4.0", features = ["derive"] }
+clap = { version = "^4.0", features = ["derive", "string"] }
 handlebars = { version = "4.3", features = ["rust-embed"] }
 # https://kube.rs/kubernetes-version/
 k8s-openapi = { version = "0.15.0", default-features = false, features = ["v1_20"] }

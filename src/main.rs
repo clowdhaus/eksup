@@ -33,6 +33,9 @@ async fn main() -> Result<(), anyhow::Error> {
     }
 
     Commands::Analyze(args) => {
+      // Query Kubernetes first so that we can get AWS details that require further querying
+      // Or make it where Kubernetes module can query AWS?
+
       let client = kube::Client::try_default().await?;
 
       let deprecated = k8s::Deprecated::get()?;
@@ -50,9 +53,20 @@ async fn main() -> Result<(), anyhow::Error> {
           .or_default_provider();
 
       let aws_shared_config = aws_config::from_env().region(region_provider).load().await;
-      let aws_client = aws_sdk_eks::Client::new(&aws_shared_config);
-      let cluster = aws::EksCluster::get(&aws_client, args).await?;
+
+      let eks_client = aws_sdk_eks::Client::new(&aws_shared_config);
+      let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
       println!("{cluster:#?}");
+
+      let ec2_client = aws_sdk_ec2::Client::new(&aws_shared_config);
+      let subnet_ids = cluster
+        .resources_vpc_config()
+        .unwrap()
+        .subnet_ids
+        .as_ref()
+        .unwrap();
+      let subnets = aws::get_subnets(&ec2_client, subnet_ids.clone()).await?;
+      println!("{subnets:#?}");
     }
   }
 

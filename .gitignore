@@ -12,4 +12,4 @@ Cargo.lock
 .DS_Store
 
 playbook.md
-!eksup/templates/*.md
+!templates/*.md
