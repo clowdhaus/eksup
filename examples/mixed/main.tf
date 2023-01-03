@@ -54,9 +54,23 @@ module "eks" {
   subnet_ids               = module.vpc.private_subnets
   control_plane_subnet_ids = module.vpc.intra_subnets
 
-  # Self managed node groups will not automatically create the aws-auth configmap so we need to
-  create_aws_auth_configmap = true
+  # Required to register the self-managed node groups with the cluster
   manage_aws_auth_configmap = true
+
+  eks_managed_node_group_defaults = {
+    # Demonstrating skew check
+    cluster_version = local.data_plane_version
+  }
+
+  eks_managed_node_groups = {
+    standard = {
+      instance_type = "m6i.large"
+
+      min_size     = 1
+      max_size     = 3
+      desired_size = 1
+    }
+  }
 
   self_managed_node_group_defaults = {
     # Demonstrating skew check
@@ -79,6 +93,19 @@ module "eks" {
       desired_size = 1
     }
   }
+
+
+  fargate_profiles = merge(
+    { for sub in module.vpc.private_subnets :
+      "kube-system-${element(split("-", sub), 2)}" => {
+        selectors = [
+          { namespace = "kube-system" }
+        ]
+        # We want to create a profile per AZ for high availability
+        subnet_ids = [sub]
+      }
+    }
+  )
 
   tags = local.tags
 }

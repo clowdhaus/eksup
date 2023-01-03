@@ -54,23 +54,12 @@ module "eks" {
   subnet_ids               = module.vpc.private_subnets
   control_plane_subnet_ids = module.vpc.intra_subnets
 
-  # Self managed node groups will not automatically create the aws-auth configmap so we need to
-  create_aws_auth_configmap = true
-  manage_aws_auth_configmap = true
-
-  self_managed_node_group_defaults = {
+  eks_managed_node_group_defaults = {
     # Demonstrating skew check
     cluster_version = local.data_plane_version
-
-    # Enable discovery of autoscaling groups by cluster-autoscaler
-    # This mimics behavior provided by EKS managed node groups
-    autoscaling_group_tags = {
-      "k8s.io/cluster-autoscaler/enabled" : true,
-      "k8s.io/cluster-autoscaler/${local.name}" : "owned",
-    }
   }
 
-  self_managed_node_groups = {
+  eks_managed_node_groups = {
     standard = {
       instance_type = "m6i.large"
 

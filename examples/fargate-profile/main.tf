@@ -45,7 +45,11 @@ module "eks" {
   cluster_endpoint_public_access = true
 
   cluster_addons = {
-    coredns    = {}
+    coredns = {
+      configuration_values = jsonencode({
+        computeType = "Fargate"
+      })
+    }
     kube-proxy = {}
     vpc-cni    = {}
   }
@@ -54,31 +58,17 @@ module "eks" {
   subnet_ids               = module.vpc.private_subnets
   control_plane_subnet_ids = module.vpc.intra_subnets
 
-  # Self managed node groups will not automatically create the aws-auth configmap so we need to
-  create_aws_auth_configmap = true
-  manage_aws_auth_configmap = true
-
-  self_managed_node_group_defaults = {
-    # Demonstrating skew check
-    cluster_version = local.data_plane_version
-
-    # Enable discovery of autoscaling groups by cluster-autoscaler
-    # This mimics behavior provided by EKS managed node groups
-    autoscaling_group_tags = {
-      "k8s.io/cluster-autoscaler/enabled" : true,
-      "k8s.io/cluster-autoscaler/${local.name}" : "owned",
+  fargate_profiles = merge(
+    { for sub in module.vpc.private_subnets :
+      "kube-system-${element(split("-", sub), 2)}" => {
+        selectors = [
+          { namespace = "kube-system" }
+        ]
+        # We want to create a profile per AZ for high availability
+        subnet_ids = [sub]
+      }
     }
-  }
-
-  self_managed_node_groups = {
-    standard = {
-      instance_type = "m6i.large"
-
-      min_size     = 1
-      max_size     = 3
-      desired_size = 1
-    }
-  }
+  )
 
   tags = local.tags
 }

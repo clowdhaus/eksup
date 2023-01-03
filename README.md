@@ -60,28 +60,35 @@ Helpful commands:
 
 - `eksup create-playbook` - Creates a cluster upgrade playbook
 - `eksup analyze`(`--cluster`, `--files`) - Analyzes a cluster and provides feedback based on pre-upgrade checks/considerations
-   - Get Kubernetes data first so that we can collect info on things like secondary CIDR for custom networking, etc.
-   - Kubernetes
-    - [ ] Warn on deprecated APIs in use
-    - [ ] Error on APIs that have been removed in the next version
-    - [ ] Detect docker socket use (1.24+ affected) https://github.com/aws-containers/kubectl-detector-for-docker-socket
-    - [ ] Warn on pod security policy use (deprecated 1.21, removed 1.25) https://kubernetes.io/docs/concepts/security/pod-security-policy/
-      - [ ] Advise to switch to pod security admission https://kubernetes.io/docs/concepts/security/pod-security-admission/
-    - [ ] Something for https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/ ?
-    - [ ] The [in-tree Amazon EBS storage provisioner](https://kubernetes.io/docs/concepts/storage/volumes/#awselasticblockstore) is deprecated. If you are upgrading your cluster to version 1.23, then you must first install the Amazon EBS driver before updating your cluster. For more information, see [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html). If you have pods running on a version 1.22 or earlier cluster, then you must install the Amazon EBS driver before updating your cluster to version 1.23 to avoid service interruption. https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html
-      - Blog https://aws.amazon.com/blogs/containers/migrating-amazon-eks-clusters-from-gp2-to-gp3-ebs-volumes/
-  - AWS
-    - [ ] Check that there are enough free IPs to upgrade
-      - [ ] At least 5 free IPs to upgrade the control plane
-      - [ ] Give a percentage and number of IPs of the available data plane IP space
-    - [ ] Check version skew between control plane and data plane
-    - [ ] Compare the current version of EKS addons used against next Kubernetes version recommendations (default)
-      - ❓ Do we warn/error when a 3rd party addon is not listed in the next Kubernetes version?
-    - [ ] Check service limits and utilization for relevant resources
-      - [ ] EC2 instances
-      - [ ] EBS volumes
-  - Mix/Both
-    - [ ] Check version skew between control plane and data plane
+
+## Checks
+
+Get Kubernetes data first so that we can collect info on things like secondary CIDR for custom networking, etc.
+
+### Kubernetes
+
+- [ ] Warn on deprecated APIs in use
+- [ ] Error on APIs that have been removed in the next version
+- [ ] Detect docker socket use (1.24+ affected) https://github.com/aws-containers/kubectl-detector-for-docker-socket
+- [ ] Warn on pod security policy use (deprecated 1.21, removed 1.25) https://kubernetes.io/docs/concepts/security/pod-security-policy/
+  - [ ] Advise to switch to pod security admission https://kubernetes.io/docs/concepts/security/pod-security-admission/
+- [ ] Something for https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/ ?
+- [ ] The [in-tree Amazon EBS storage provisioner](https://kubernetes.io/docs/concepts/storage/volumes/#awselasticblockstore) is deprecated. If you are upgrading your cluster to version 1.23, then you must first install the Amazon EBS driver before updating your cluster. For more information, see [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html). If you have pods running on a version 1.22 or earlier cluster, then you must install the Amazon EBS driver before updating your cluster to version 1.23 to avoid service interruption. https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html
+  - Blog https://aws.amazon.com/blogs/containers/migrating-amazon-eks-clusters-from-gp2-to-gp3-ebs-volumes/
+
+### AWS
+
+- [ ] Check that there are enough free IPs to upgrade
+  - [ ] At least 5 free IPs to upgrade the control plane
+  - [ ] Give a percentage and number of IPs of the available data plane IP space
+- [ ] Compare the current version of EKS addons used against next Kubernetes version recommendations (default)
+- [ ] Check service limits and utilization for relevant resources
+  - [ ] EC2 instances
+  - [ ] EBS volumes
+
+### Mix/Both
+
+- [ ] Check version skew between control plane and data plane
 
 ## Future
 
@@ -90,6 +97,9 @@ Helpful commands:
   - <Select> Version of framework used [`v18.x`, `v19.x`]
 - Add test/example suite for trying out upgrades
   - Give users the ability to test out their upgrade process in a non-production environment
-- Turn into a CronJob
-- Add support to output results in JSON format
+  - This will also double as the test suite for the tool
+- Add image and chart for running `eksup` on the cluster in a continuous fashion (CronJob)
+  - Can log to STDOUT or save to S3 (Athena support)
+- Add support to output results in JSON and CSV formats
   - Multi-cluster scenario - all clusters emitting data back to central location to report on which clusters need components to be upgraded/modified
+  - Can utilize an Athena table to agreggate and summarize data
