@@ -27,6 +27,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0"
 aws-config = "0.52"
+aws-sdk-autoscaling = "0.22"
 aws-sdk-ec2 = "0.22"
 aws-sdk-eks = "0.22"
 aws-types = "0.52"

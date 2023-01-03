@@ -1,6 +1,23 @@
-use aws_sdk_ec2::{model::Filter as Ec2Filter, model::Subnet, Client as Ec2Client};
+use std::env;
+
+use aws_config::meta::region::RegionProviderChain;
+use aws_sdk_autoscaling::{
+  model::AutoScalingGroup, model::Filter as AsgFilter, Client as AsgClient,
+};
+use aws_sdk_ec2::{model::Subnet, Client as Ec2Client};
 use aws_sdk_eks::{model::Cluster as EksCluster, Client as EksClient};
-// use serde::{Deserialize, Serialize};
+use aws_types::region::Region;
+
+pub async fn get_shared_config(region: Option<String>) -> aws_config::SdkConfig {
+  // TODO - fix this ugliness
+  let region_provider = match region {
+    Some(region) => RegionProviderChain::first_try(Region::new(region)).or_default_provider(),
+    None => RegionProviderChain::first_try(env::var("AWS_REGION").ok().map(Region::new))
+      .or_default_provider(),
+  };
+
+  aws_config::from_env().region(region_provider).load().await
+}
 
 pub async fn get_cluster(client: &EksClient, name: &str) -> Result<EksCluster, anyhow::Error> {
   let req = client.describe_cluster().name(name);
@@ -14,31 +31,43 @@ pub async fn get_cluster(client: &EksClient, name: &str) -> Result<EksCluster, a
   Ok(cluster)
 }
 
-// #[derive(Serialize, Deserialize, Debug)]
-// struct Subnet {
-//   id: String,
-
-//   available_ips: u32,
-
-//   total_ips: u32,
-// }
-
 pub async fn get_subnets(
   client: &Ec2Client,
   subnet_ids: Vec<String>,
 ) -> Result<Vec<Subnet>, anyhow::Error> {
-  let filter = Ec2Filter::builder()
-    .set_name(Some("subnet-ids".to_string()))
-    .set_values(Some(subnet_ids))
-    .build();
-
   let subnets = client
     .describe_subnets()
-    .filters(filter)
+    .set_subnet_ids(Some(subnet_ids))
     .send()
     .await?
     .subnets
     .unwrap();
 
   Ok(subnets)
+}
+
+// TODO - querying on tags will return EKS managed node groups as well
+// TODO - We will need to de-dupe
+pub async fn get_self_managed_node_groups(
+  client: &AsgClient,
+  cluster_name: &str,
+) -> Result<Option<Vec<AutoScalingGroup>>, anyhow::Error> {
+  let keys = vec![
+    format!("k8s.io/cluster/{}", cluster_name),
+    format!("kubernetes.io/cluster/{}", cluster_name),
+  ];
+
+  let filter = AsgFilter::builder()
+    .set_name(Some("tag-key".to_string()))
+    .set_values(Some(keys))
+    .build();
+
+  let response = client
+    .describe_auto_scaling_groups()
+    .filters(filter)
+    .send()
+    .await?;
+  let groups = response.auto_scaling_groups().map(|groups| groups.to_vec());
+
+  Ok(groups)
 }

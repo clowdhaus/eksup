@@ -6,6 +6,7 @@
   - [CHECK] Control plane version == data plane version
 - Subnets
   - [CHECK] Number of free IPs > 5
+- IP version (IPv4 or IPv6)
 
 ## Data Plane
 
