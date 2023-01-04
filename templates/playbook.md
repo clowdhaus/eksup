@@ -1,4 +1,4 @@
-# EKS Cluster Upgrade: {{ current_version }} -> {{ target_version }}
+# EKS Cluster Upgrade: Kubernetes `v{{ current_version }}` to `v{{ target_version }}`
 
 |                            |                           Value                           |
 | :------------------------- | :-------------------------------------------------------: |
@@ -11,8 +11,8 @@
 
 ## Table of Contents
 
-- [Caveats](#caveats)
-- [References](#references)
+- [Preface](#preface)
+    - [References](#references)
 - [Pre-Upgrade](#pre-upgrade)
 - [Upgrade](#upgrade)
   - [Upgrade the Control Plane](#upgrade-the-control-plane)
@@ -26,23 +26,18 @@
 {{#if fargate_profile }}
     - [Fargate Profile](#fargate-profile)
 {{/if}}
-  - [Upgrade Addons](#upgrade-addons)
+  - [Upgrade EKS Addons](#upgrade-eks-addons)
 - [Post-Upgrade](#post-upgrade)
 
-## Caveats
+## Preface
 
 - Unless otherwise stated, the phrase `Amazon EKS cluster` or just `cluster` throughout this document typically refers to the control plane.
-- In-place cluster upgrades can only be upgraded to the next incremental minor version. For example, you can upgrade from Kubernetes version 1.20 to 1.21, but not from 1.20 to 1.22.
+- In-place cluster upgrades can only be upgraded to the next incremental minor version. For example, you can upgrade from Kubernetes version `1.20` to `1.21`, but not from `1.20` to `1.22`.
 - Reverting an upgrade, or downgrading the Kubernetes version of a cluster, is not supported. If you upgrade your cluster to a new Kubernetes version and then want to revert to the previous version, you must create a new cluster and migrate your workloads.
 - If the Amazon EKS cluster primary security group has been deleted, the only course of action to upgrade is to create a new cluster and migrate your workloads.
-    - The following should return the details of the cluster primary security group. If not, the security group may no longer exist:
+- Generally speaking, how well your cluster is configured from a high-availability perspective will determine how well your cluster handles the upgrade process. Ensuring that you have properly configured pod disruption budgets, multiple replicas specified in your deployments or statefulsets, properly configured liveness and readiness probes, etc., will help to mitigate disruptions during an upgrade. You can read more about EKS best practices for reliability [here](https://aws.github.io/aws-eks-best-practices/reliability/docs/)
 
-        ```sh
-        aws ec2 describe-security-groups --group-ids $(aws eks describe-cluster --name {{ cluster_name }} \
-            --query 'cluster.resourcesVpcConfig.clusterSecurityGroupId' --output text)
-        ```
-
-## References
+### References
 
 Prior to upgrading, review the following resources for affected changes in the next version of Kubernetes:
 
@@ -165,9 +160,6 @@ The control plane should be upgraded first to meet the [Kubernetes version skew 
 {{/if}}
 
 ## Upgrade EKS Addons
-
-
-⚠️ TODO - how to get the default version of an addon for a given cluster version, JMESPATH is hard!
 
 1. For each EKS addon deployed in the cluster, ensure the addon is compatible with the target Kubernetes version. If the addon is not compatible, upgrade the addon to a version that is compatible with the target Kubernetes version. You can run the following to get information on the addons used with respect to current versions:
 

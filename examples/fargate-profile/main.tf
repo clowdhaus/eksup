@@ -59,15 +59,15 @@ module "eks" {
   control_plane_subnet_ids = module.vpc.intra_subnets
 
   fargate_profiles = merge(
-    { for sub in module.vpc.private_subnets :
-      "kube-system-${element(split("-", sub), 2)}" => {
+    { for i in range(3) :
+      "kube-system-${element(split("-", local.azs[i]), 2)}" => {
         selectors = [
           { namespace = "kube-system" }
         ]
         # We want to create a profile per AZ for high availability
-        subnet_ids = [sub]
+        subnet_ids = [element(module.vpc.private_subnets, i)]
       }
-    }
+    },
   )
 
   tags = local.tags
