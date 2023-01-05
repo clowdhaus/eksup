@@ -56,11 +56,6 @@ async fn main() -> Result<(), anyhow::Error> {
       let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
       // println!("{cluster:#?}");
 
-      let asg_client = aws_sdk_autoscaling::Client::new(&aws_shared_config);
-      let self_managed_node_groups =
-        aws::get_self_managed_node_groups(&asg_client, &args.cluster_name).await?;
-      println!("{self_managed_node_groups:#?}");
-
       let ec2_client = aws_sdk_ec2::Client::new(&aws_shared_config);
       let subnet_ids = cluster
         .resources_vpc_config()
@@ -74,6 +69,14 @@ async fn main() -> Result<(), anyhow::Error> {
       let eks_managed_node_groups =
         aws::get_eks_managed_node_groups(&eks_client, &args.cluster_name).await?;
       println!("{eks_managed_node_groups:#?}");
+
+      let asg_client = aws_sdk_autoscaling::Client::new(&aws_shared_config);
+      let self_managed_node_groups =
+        aws::get_self_managed_node_groups(&asg_client, &args.cluster_name).await?;
+      println!("{self_managed_node_groups:#?}");
+
+      let fargate_profiles = aws::get_fargate_profiles(&eks_client, &args.cluster_name).await?;
+      println!("{fargate_profiles:#?}");
     }
   }
 

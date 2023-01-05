@@ -1,11 +1,11 @@
 use std::env;
 
 use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_autoscaling::{
-  model::AutoScalingGroup, model::Filter as AsgFilter, Client as AsgClient,
-};
+use aws_sdk_autoscaling::model::{AutoScalingGroup, Filter as AsgFilter};
+use aws_sdk_autoscaling::Client as AsgClient;
 use aws_sdk_ec2::{model::Subnet, Client as Ec2Client};
-use aws_sdk_eks::{model::Cluster as EksCluster, model::Nodegroup, Client as EksClient};
+use aws_sdk_eks::model::{Cluster, FargateProfile, Nodegroup};
+use aws_sdk_eks::Client as EksClient;
 use aws_types::region::Region;
 
 pub async fn get_shared_config(region: Option<String>) -> aws_config::SdkConfig {
@@ -19,7 +19,7 @@ pub async fn get_shared_config(region: Option<String>) -> aws_config::SdkConfig 
   aws_config::from_env().region(region_provider).load().await
 }
 
-pub async fn get_cluster(client: &EksClient, name: &str) -> Result<EksCluster, anyhow::Error> {
+pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster, anyhow::Error> {
   let req = client.describe_cluster().name(name);
   let resp = req.send().await?;
 
@@ -53,6 +53,7 @@ pub async fn get_eks_managed_node_groups(
   let nodegroup_names = client
     .list_nodegroups()
     .cluster_name(cluster_name)
+    // TODO - paginate this
     .max_results(100)
     .send()
     .await?
@@ -102,4 +103,37 @@ pub async fn get_self_managed_node_groups(
   let groups = response.auto_scaling_groups().map(|groups| groups.to_vec());
 
   Ok(groups)
+}
+
+pub async fn get_fargate_profiles(
+  client: &EksClient,
+  cluster_name: &str,
+) -> Result<Option<Vec<FargateProfile>>, anyhow::Error> {
+  let profile_names = client
+    .list_fargate_profiles()
+    .cluster_name(cluster_name)
+    // TODO - paginate this
+    .max_results(100)
+    .send()
+    .await?
+    .fargate_profile_names
+    .unwrap_or_default();
+
+  let mut profiles = Vec::new();
+
+  for profile_name in &profile_names {
+    let response = client
+      .describe_fargate_profile()
+      .cluster_name(cluster_name)
+      .fargate_profile_name(profile_name)
+      .send()
+      .await?
+      .fargate_profile;
+
+    if let Some(profile) = response {
+      profiles.push(profile);
+    }
+  }
+
+  Ok(Some(profiles))
 }
