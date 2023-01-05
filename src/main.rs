@@ -70,6 +70,10 @@ async fn main() -> Result<(), anyhow::Error> {
         .unwrap();
       let _subnets = aws::get_subnets(&ec2_client, subnet_ids.clone()).await?;
       // println!("{subnets:#?}");
+
+      let eks_managed_node_groups =
+        aws::get_eks_managed_node_groups(&eks_client, &args.cluster_name).await?;
+      println!("{eks_managed_node_groups:#?}");
     }
   }
 

@@ -5,7 +5,7 @@ use aws_sdk_autoscaling::{
   model::AutoScalingGroup, model::Filter as AsgFilter, Client as AsgClient,
 };
 use aws_sdk_ec2::{model::Subnet, Client as Ec2Client};
-use aws_sdk_eks::{model::Cluster as EksCluster, Client as EksClient};
+use aws_sdk_eks::{model::Cluster as EksCluster, model::Nodegroup, Client as EksClient};
 use aws_types::region::Region;
 
 pub async fn get_shared_config(region: Option<String>) -> aws_config::SdkConfig {
@@ -44,6 +44,38 @@ pub async fn get_subnets(
     .unwrap();
 
   Ok(subnets)
+}
+
+pub async fn get_eks_managed_node_groups(
+  client: &EksClient,
+  cluster_name: &str,
+) -> Result<Option<Vec<Nodegroup>>, anyhow::Error> {
+  let nodegroup_names = client
+    .list_nodegroups()
+    .cluster_name(cluster_name)
+    .max_results(100)
+    .send()
+    .await?
+    .nodegroups
+    .unwrap_or_default();
+
+  let mut nodegroups = Vec::new();
+
+  for nodegroup_name in nodegroup_names {
+    let response = client
+      .describe_nodegroup()
+      .cluster_name(cluster_name)
+      .nodegroup_name(nodegroup_name)
+      .send()
+      .await?
+      .nodegroup;
+
+    if let Some(nodegroup) = response {
+      nodegroups.push(nodegroup);
+    }
+  }
+
+  Ok(Some(nodegroups))
 }
 
 // TODO - querying on tags will return EKS managed node groups as well
