@@ -6,19 +6,19 @@ use serde::{Deserialize, Serialize};
 
 seq!(N in 20..=24 {
     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-    pub enum ClusterVersion {
+    pub enum KubernetesVersion {
         #( V~N, )*
     }
 
-    impl fmt::Display for ClusterVersion {
+    impl fmt::Display for KubernetesVersion {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match *self {
-                #( ClusterVersion::V~N => write!(f, "1.{}", N), )*
+                #( KubernetesVersion::V~N => write!(f, "1.{}", N), )*
             }
         }
     }
 
-    impl ValueEnum for ClusterVersion {
+    impl ValueEnum for KubernetesVersion {
         fn value_variants<'a>() -> &'a [Self] {
             &[
                 #( Self::V~N, )*
@@ -87,7 +87,7 @@ pub struct Playbook {
 
   /// The cluster's current Kubernetes version
   #[arg(long, value_enum)]
-  pub cluster_version: ClusterVersion,
+  pub cluster_version: KubernetesVersion,
 
   /// Array of compute types used in the data plane
   #[arg(long, value_enum, num_args = 1..=3)]

@@ -68,15 +68,15 @@ async fn main() -> Result<(), anyhow::Error> {
 
       let eks_managed_node_groups =
         aws::get_eks_managed_node_groups(&eks_client, &args.cluster_name).await?;
-      println!("{eks_managed_node_groups:#?}");
+      println!("EKS MNG:{eks_managed_node_groups:#?}");
 
       let asg_client = aws_sdk_autoscaling::Client::new(&aws_shared_config);
       let self_managed_node_groups =
         aws::get_self_managed_node_groups(&asg_client, &args.cluster_name).await?;
-      println!("{self_managed_node_groups:#?}");
+      println!("Self MNG:{self_managed_node_groups:#?}");
 
       let fargate_profiles = aws::get_fargate_profiles(&eks_client, &args.cluster_name).await?;
-      println!("{fargate_profiles:#?}");
+      println!("Fargate:{fargate_profiles:#?}");
     }
   }
 
