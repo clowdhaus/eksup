@@ -5,7 +5,7 @@
 - Version
   - [x] [CHECK] Version skew between control plane and data plane
 - Subnets
-  - [ ] [CHECK] Number of free IPs > 5
+  - [x] [CHECK] Number of free IPs > 5
 
 ## Data Plane
 

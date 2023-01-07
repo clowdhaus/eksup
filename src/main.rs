@@ -37,23 +37,12 @@ async fn main() -> Result<(), anyhow::Error> {
 
       let aws_shared_config = aws::get_shared_config(args.region.clone()).await;
       let eks_client = aws_sdk_eks::Client::new(&aws_shared_config);
-      let ec2_client = aws_sdk_ec2::Client::new(&aws_shared_config);
       let asg_client = aws_sdk_autoscaling::Client::new(&aws_shared_config);
 
       let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
       // println!("{cluster:#?}");
 
       if false {
-        let control_plane_subnet_ids = cluster
-          .resources_vpc_config()
-          .unwrap()
-          .subnet_ids
-          .as_ref()
-          .unwrap();
-        let control_plane_subnet_ids =
-          aws::get_subnets(&ec2_client, control_plane_subnet_ids.clone()).await?;
-        println!("{control_plane_subnet_ids:#?}");
-
         let eks_managed_node_groups =
           aws::get_eks_managed_node_groups(&eks_client, &args.cluster_name).await?;
         println!("EKS MNG:{eks_managed_node_groups:#?}");
@@ -69,7 +58,7 @@ async fn main() -> Result<(), anyhow::Error> {
       let nodes = k8s::get_nodes(&k8s_client).await?;
       // println!("Nodes:{nodes:#?}");
 
-      checks::execute(&cluster, &nodes).await?;
+      checks::execute(&aws_shared_config, &cluster, &nodes).await?;
     }
   }
 

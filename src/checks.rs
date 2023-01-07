@@ -1,9 +1,21 @@
+use super::aws;
+
 use aws_sdk_eks::model::Cluster;
 use k8s_openapi::api::core::v1::NodeSystemInfo;
 use std::collections::BTreeMap;
 
-pub async fn execute(cluster: &Cluster, nodes: &Vec<NodeSystemInfo>) -> Result<(), anyhow::Error> {
+pub async fn execute(
+  aws_shared_config: &aws_config::SdkConfig,
+  cluster: &Cluster,
+  nodes: &Vec<NodeSystemInfo>,
+) -> Result<(), anyhow::Error> {
+  // let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
+  let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
+  // let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
+
   version_skew(cluster.version.as_ref().unwrap(), nodes).await?;
+
+  ips_available_for_control_plane(cluster, &ec2_client).await?;
 
   Ok(())
 }
@@ -60,6 +72,26 @@ async fn version_skew(
   Ok(())
 }
 
-fn _control_plane_ips() -> Result<Vec<String>, anyhow::Error> {
-  todo!()
+/// Check if there are enough IPs available for the control plane to use (> 5 IPs)
+async fn ips_available_for_control_plane(
+  cluster: &Cluster,
+  client: &aws_sdk_ec2::Client,
+) -> Result<(), anyhow::Error> {
+  let control_plane_subnet_ids = cluster
+    .resources_vpc_config()
+    .unwrap()
+    .subnet_ids
+    .as_ref()
+    .unwrap();
+
+  let control_plane_subnets = aws::get_subnets(client, control_plane_subnet_ids.clone()).await?;
+
+  let available_ips: i32 = control_plane_subnets
+    .iter()
+    .map(|subnet| subnet.available_ip_address_count.unwrap())
+    .sum();
+
+  println!("There are {available_ips:#?} available IPs for the control plane to use");
+
+  Ok(())
 }
