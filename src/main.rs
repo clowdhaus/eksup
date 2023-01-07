@@ -1,5 +1,5 @@
 mod aws;
-mod check;
+mod checks;
 mod cli;
 mod k8s;
 mod playbook;
@@ -67,12 +67,9 @@ async fn main() -> Result<(), anyhow::Error> {
       }
 
       let nodes = k8s::get_nodes(&k8s_client).await?;
-      println!("Nodes:{nodes:#?}");
+      // println!("Nodes:{nodes:#?}");
 
-      let cluster_version = &cluster.version.unwrap();
-      println!("{cluster_version}");
-      // println!("{}", args.cluster_version.major());
-      // println!("{}", args.cluster_version.minor());
+      checks::execute(&cluster, &nodes).await?;
     }
   }
 

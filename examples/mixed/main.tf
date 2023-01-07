@@ -45,7 +45,11 @@ module "eks" {
   cluster_endpoint_public_access = true
 
   cluster_addons = {
-    coredns    = {}
+    coredns = {
+      configuration_values = jsonencode({
+        computeType = "Fargate"
+      })
+    }
     kube-proxy = {}
     vpc-cni    = {}
   }
