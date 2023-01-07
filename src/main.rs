@@ -1,14 +1,14 @@
 mod aws;
+mod check;
 mod cli;
-// mod k8s;
+mod k8s;
 mod playbook;
 
 use std::process;
 
 use anyhow::*;
 use clap::Parser;
-pub use cli::{Cli, Commands};
-// pub use k8s::{Discovery, Deprecated};
+use cli::{Cli, Commands};
 
 pub const LATEST: &str = "1.24";
 
@@ -33,50 +33,46 @@ async fn main() -> Result<(), anyhow::Error> {
 
     Commands::Analyze(args) => {
       // // Query Kubernetes first so that we can get AWS details that require further querying
-      // // Or make it where Kubernetes module can query AWS?
-      // let client = kube::Client::try_default().await?;
-
-      // let deprecated = k8s::Deprecated::get()?;
-      // let discovery = k8s::Discovery::get(&client).await?;
-
-      // // Checks if any of the deprecated APIs are still supported by the API server
-      // for (key, value) in &deprecated.versions {
-      //   if discovery.versions.contains_key(key) {
-      //     println!("DEPRECATED: {value:#?}");
-      //   }
-      // }
-
-      // let region_provider =
-      //   RegionProviderChain::first_try(args.region.clone().map(aws_sdk_eks::Region::new))
-      //     .or_default_provider();
+      let k8s_client = kube::Client::try_default().await?;
 
       let aws_shared_config = aws::get_shared_config(args.region.clone()).await;
-
       let eks_client = aws_sdk_eks::Client::new(&aws_shared_config);
+      let ec2_client = aws_sdk_ec2::Client::new(&aws_shared_config);
+      let asg_client = aws_sdk_autoscaling::Client::new(&aws_shared_config);
+
       let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
       // println!("{cluster:#?}");
 
-      let ec2_client = aws_sdk_ec2::Client::new(&aws_shared_config);
-      let subnet_ids = cluster
-        .resources_vpc_config()
-        .unwrap()
-        .subnet_ids
-        .as_ref()
-        .unwrap();
-      let _subnets = aws::get_subnets(&ec2_client, subnet_ids.clone()).await?;
-      // println!("{subnets:#?}");
+      if false {
+        let control_plane_subnet_ids = cluster
+          .resources_vpc_config()
+          .unwrap()
+          .subnet_ids
+          .as_ref()
+          .unwrap();
+        let control_plane_subnet_ids =
+          aws::get_subnets(&ec2_client, control_plane_subnet_ids.clone()).await?;
+        println!("{control_plane_subnet_ids:#?}");
 
-      let eks_managed_node_groups =
-        aws::get_eks_managed_node_groups(&eks_client, &args.cluster_name).await?;
-      println!("EKS MNG:{eks_managed_node_groups:#?}");
+        let eks_managed_node_groups =
+          aws::get_eks_managed_node_groups(&eks_client, &args.cluster_name).await?;
+        println!("EKS MNG:{eks_managed_node_groups:#?}");
 
-      let asg_client = aws_sdk_autoscaling::Client::new(&aws_shared_config);
-      let self_managed_node_groups =
-        aws::get_self_managed_node_groups(&asg_client, &args.cluster_name).await?;
-      println!("Self MNG:{self_managed_node_groups:#?}");
+        let self_managed_node_groups =
+          aws::get_self_managed_node_groups(&asg_client, &args.cluster_name).await?;
+        println!("Self MNG:{self_managed_node_groups:#?}");
 
-      let fargate_profiles = aws::get_fargate_profiles(&eks_client, &args.cluster_name).await?;
-      println!("Fargate:{fargate_profiles:#?}");
+        let fargate_profiles = aws::get_fargate_profiles(&eks_client, &args.cluster_name).await?;
+        println!("Fargate:{fargate_profiles:#?}");
+      }
+
+      let nodes = k8s::get_nodes(&k8s_client).await?;
+      println!("Nodes:{nodes:#?}");
+
+      let cluster_version = &cluster.version.unwrap();
+      println!("{cluster_version}");
+      // println!("{}", args.cluster_version.major());
+      // println!("{}", args.cluster_version.minor());
     }
   }
 

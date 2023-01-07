@@ -38,7 +38,7 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.0"
+  version = "~> 19.5"
 
   cluster_name                   = local.name
   cluster_version                = local.control_plane_version
@@ -64,7 +64,7 @@ module "eks" {
 
   eks_managed_node_groups = {
     standard = {
-      instance_type = "m6i.large"
+      instance_type = "c6i.large"
 
       min_size     = 1
       max_size     = 3

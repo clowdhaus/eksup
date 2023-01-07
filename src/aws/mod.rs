@@ -1,11 +1,15 @@
 use std::env;
 
 use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_autoscaling::model::{AutoScalingGroup, Filter as AsgFilter};
-use aws_sdk_autoscaling::Client as AsgClient;
+use aws_sdk_autoscaling::{
+  model::{AutoScalingGroup, Filter as AsgFilter},
+  Client as AsgClient,
+};
 use aws_sdk_ec2::{model::Subnet, Client as Ec2Client};
-use aws_sdk_eks::model::{Cluster, FargateProfile, Nodegroup};
-use aws_sdk_eks::Client as EksClient;
+use aws_sdk_eks::{
+  model::{Cluster, FargateProfile, Nodegroup},
+  Client as EksClient,
+};
 use aws_types::region::Region;
 
 pub async fn get_shared_config(region: Option<String>) -> aws_config::SdkConfig {
@@ -26,7 +30,7 @@ pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster, anyh
   // TODO - handle error check here for cluster not found
   let cluster = resp
     .cluster
-    .unwrap_or_else(|| panic!("Cluster {} not found", name));
+    .unwrap_or_else(|| panic!("Cluster {name} not found"));
 
   Ok(cluster)
 }
@@ -86,8 +90,8 @@ pub async fn get_self_managed_node_groups(
   cluster_name: &str,
 ) -> Result<Option<Vec<AutoScalingGroup>>, anyhow::Error> {
   let keys = vec![
-    format!("k8s.io/cluster/{}", cluster_name),
-    format!("kubernetes.io/cluster/{}", cluster_name),
+    format!("k8s.io/cluster/{cluster_name}"),
+    format!("kubernetes.io/cluster/{cluster_name}"),
   ];
 
   let filter = AsgFilter::builder()

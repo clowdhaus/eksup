@@ -1,5 +1,3 @@
 mod cluster;
-mod deprecated;
 
-pub use cluster::Discovery;
-pub use deprecated::Deprecated;
+pub use cluster::get_nodes;

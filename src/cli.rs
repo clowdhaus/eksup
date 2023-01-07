@@ -5,11 +5,13 @@ use seq_macro::seq;
 use serde::{Deserialize, Serialize};
 
 seq!(N in 20..=24 {
+    /// Kubernetes version(s) supported
     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
     pub enum KubernetesVersion {
         #( V~N, )*
     }
 
+    /// Formats the Kubernetes version as a string in the form of "1.X"
     impl fmt::Display for KubernetesVersion {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match *self {
@@ -18,6 +20,7 @@ seq!(N in 20..=24 {
         }
     }
 
+    /// Used by clap for acceptable values and converting from input to enum
     impl ValueEnum for KubernetesVersion {
         fn value_variants<'a>() -> &'a [Self] {
             &[
@@ -33,6 +36,23 @@ seq!(N in 20..=24 {
     }
 });
 
+impl KubernetesVersion {
+  pub(crate) fn _major(&self) -> Result<i32, anyhow::Error> {
+    let version = self.to_string();
+    let mut components = version.split('.');
+
+    Ok(components.next().unwrap().parse::<i32>()?)
+  }
+
+  pub(crate) fn _minor(&self) -> Result<i32, anyhow::Error> {
+    let version = self.to_string();
+    let mut components = version.split('.');
+
+    Ok(components.nth(1).unwrap().parse::<i32>()?)
+  }
+}
+
+/// Compute constructs supported by Amazon EKS the data plane
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Compute {
   EksManaged,
@@ -40,6 +60,7 @@ pub enum Compute {
   FargateProfile,
 }
 
+/// Used by clap for acceptable values and converting from input to enum
 impl ValueEnum for Compute {
   fn value_variants<'a>() -> &'a [Self] {
     &[Self::EksManaged, Self::SelfManaged, Self::FargateProfile]
@@ -54,12 +75,18 @@ impl ValueEnum for Compute {
   }
 }
 
+/// The different types of strategies for upgrading a cluster
+///
+/// `InPlace`: the control plane is updated in-place by Amazon EKS
+/// `BlueGreen`: an entirely new cluster is created alongside the existing
+/// and the workloads+traffic will need to be migrated to the new cluster
 #[derive(Clone, Copy, Debug, ValueEnum, Serialize, Deserialize)]
 pub enum Strategy {
   InPlace,
   // BlueGreen,
 }
 
+/// The default cluster upgrade strategy is `InPlace`
 impl Default for Strategy {
   fn default() -> Self {
     Self::InPlace
@@ -104,17 +131,6 @@ pub struct Playbook {
   /// The cluster upgrade strategy
   #[arg(short, long, value_enum, default_value_t)]
   pub strategy: Strategy,
-  // /// Render output to stdout
-  // #[arg(long)]
-  // pub stdout: bool,
-
-  // /// The cluster hosts stateful workloads
-  // #[arg(long)]
-  // pub stateful: bool,
-
-  // /// The cluster hosts multi-tenant teams
-  // #[arg(long)]
-  // pub multi_tenant: bool,
 }
 
 #[derive(Subcommand, Debug)]
