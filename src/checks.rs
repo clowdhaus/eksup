@@ -2,20 +2,22 @@ use super::aws;
 
 use aws_sdk_eks::model::Cluster;
 use k8s_openapi::api::core::v1::NodeSystemInfo;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 pub async fn execute(
   aws_shared_config: &aws_config::SdkConfig,
   cluster: &Cluster,
   nodes: &Vec<NodeSystemInfo>,
 ) -> Result<(), anyhow::Error> {
-  // let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
+  let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
-  // let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
+  let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
 
   version_skew(cluster.version.as_ref().unwrap(), nodes).await?;
 
   ips_available_for_control_plane(cluster, &ec2_client).await?;
+
+  ips_available_for_data_plane(cluster, &asg_client, &ec2_client, &eks_client).await?;
 
   Ok(())
 }
@@ -77,21 +79,77 @@ async fn ips_available_for_control_plane(
   cluster: &Cluster,
   client: &aws_sdk_ec2::Client,
 ) -> Result<(), anyhow::Error> {
-  let control_plane_subnet_ids = cluster
+  let subnet_ids = cluster
     .resources_vpc_config()
     .unwrap()
     .subnet_ids
     .as_ref()
     .unwrap();
 
-  let control_plane_subnets = aws::get_subnets(client, control_plane_subnet_ids.clone()).await?;
+  let subnets = aws::get_subnets(client, subnet_ids.clone()).await?;
 
-  let available_ips: i32 = control_plane_subnets
+  let available_ips: i32 = subnets
     .iter()
     .map(|subnet| subnet.available_ip_address_count.unwrap())
     .sum();
 
   println!("There are {available_ips:#?} available IPs for the control plane to use");
+
+  Ok(())
+}
+
+async fn ips_available_for_data_plane(
+  cluster: &Cluster,
+  asg_client: &aws_sdk_autoscaling::Client,
+  ec2_client: &aws_sdk_ec2::Client,
+  eks_client: &aws_sdk_eks::Client,
+) -> Result<(), anyhow::Error> {
+  let mut subnet_ids = HashSet::new();
+
+  // EKS managed node group subnets
+  let eks_mngs =
+    aws::get_eks_managed_node_groups(eks_client, cluster.name.as_ref().unwrap()).await?;
+  if let Some(nodegroups) = eks_mngs {
+    for group in nodegroups {
+      let subnets = group.subnets.unwrap();
+      for subnet in subnets {
+        subnet_ids.insert(subnet);
+      }
+    }
+  }
+
+  // Self managed node group subnets
+  let self_mngs =
+    aws::get_self_managed_node_groups(asg_client, cluster.name.as_ref().unwrap()).await?;
+  if let Some(nodegroups) = self_mngs {
+    for group in nodegroups {
+      let subnets = group.vpc_zone_identifier.unwrap();
+      for subnet in subnets.split(',') {
+        subnet_ids.insert(subnet.to_string());
+      }
+    }
+  }
+
+  // Fargate profile subnets
+  let fargate_profiles =
+    aws::get_fargate_profiles(eks_client, cluster.name.as_ref().unwrap()).await?;
+  if let Some(profiles) = fargate_profiles {
+    for profile in profiles {
+      let subnets = profile.subnets.unwrap();
+      for subnet in subnets {
+        subnet_ids.insert(subnet);
+      }
+    }
+  }
+
+  let subnets = aws::get_subnets(ec2_client, subnet_ids.into_iter().collect()).await?;
+
+  let available_ips: i32 = subnets
+    .iter()
+    .map(|subnet| subnet.available_ip_address_count.unwrap())
+    .sum();
+
+  println!("There are {available_ips:#?} available IPs for the data plane to use");
 
   Ok(())
 }
