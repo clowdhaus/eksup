@@ -19,7 +19,7 @@ data "aws_availability_zones" "available" {}
 
 locals {
   name                  = "test-${basename(path.cwd)}"
-  control_plane_version = "1.22"
+  control_plane_version = "1.21" # Update after deploy to create skew
   data_plane_version    = "1.21"
   region                = "us-east-1"
 
@@ -46,12 +46,20 @@ module "eks" {
 
   cluster_addons = {
     coredns = {
+      # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name coredns
+      addon_version = "v1.8.3-eksbuild.1"
       configuration_values = jsonencode({
         computeType = "Fargate"
       })
     }
-    kube-proxy = {}
-    vpc-cni    = {}
+    kube-proxy = {
+      # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name kube-proxy
+      addon_version = "v1.19.6-eksbuild.2"
+    }
+    vpc-cni = {
+      # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name vpc-cni
+      addon_version = "v1.6.3-eksbuild.2"
+    }
   }
 
   vpc_id                   = module.vpc.vpc_id
@@ -67,37 +75,31 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
+    # This uses a custom launch template (custom as in module/user supplied)
     standard = {
-      instance_type = "c6i.large"
-
-      pre_bootstrap_user_data = <<-EOT
-        #!/bin/bash
-
-        echo "Hello from user data!"
-      EOT
+      # pre_bootstrap_user_data = <<-EOT
+      #   #!/bin/bash
+      #   echo "Hello from user data!"
+      # EOT
 
       min_size     = 1
       max_size     = 3
       desired_size = 1
+    }
+
+    # This uses the default launch template created by EKS MNG
+    default = {
+      use_custom_launch_template = false
     }
   }
 
   self_managed_node_group_defaults = {
     # Demonstrating skew check
     cluster_version = local.data_plane_version
-
-    # Enable discovery of autoscaling groups by cluster-autoscaler
-    # This mimics behavior provided by EKS managed node groups
-    autoscaling_group_tags = {
-      "k8s.io/cluster-autoscaler/enabled" : true,
-      "k8s.io/cluster-autoscaler/${local.name}" : "owned",
-    }
   }
 
   self_managed_node_groups = {
     standard = {
-      instance_type = "m6i.large"
-
       min_size     = 1
       max_size     = 3
       desired_size = 1

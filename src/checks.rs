@@ -1,10 +1,11 @@
-use super::aws;
+use std::collections::HashSet;
 
 use aws_sdk_autoscaling::model::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::model::{Cluster, FargateProfile, Nodegroup, NodegroupIssueCode};
 use k8s_openapi::api::core::v1::Node;
-use std::collections::HashSet;
+
+use super::aws;
 
 pub async fn execute(
   aws_shared_config: &aws_config::SdkConfig,
@@ -263,3 +264,28 @@ async fn eks_managed_node_group_health(
 
   Ok(Some(health_issues))
 }
+
+// async fn pending_launch_template_updates() -> Result<Option<Vec<String>>, anyhow::Error> {
+//   let mut pending_updates: Vec<String> = Vec::new();
+
+//   let asg_client = aws::asg_client().await?;
+//   let asgs = aws::get_asgs(&asg_client).await?;
+
+//   for asg in asgs {
+//     if let Some(launch_template) = asg.launch_template {
+//       if let Some(launch_template_version) = launch_template.version {
+//         if launch_template_version == "$Latest" {
+//           pending_updates.push(asg.auto_scaling_group_name.unwrap());
+//         }
+//       }
+//     }
+//   }
+
+//   if pending_updates.is_empty() {
+//     return Ok(None);
+//   }
+
+//   println!("Pending launch template updates: {pending_updates:#?}");
+
+//   Ok(Some(pending_updates))
+// }
