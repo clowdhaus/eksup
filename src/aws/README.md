@@ -12,7 +12,7 @@
 - Subnets
   - [x] [CHECK] Percentage of total IPs available
 - EKS managed node group(s)
-  - [ ] [CHECK] Node group health
+  - [x] [CHECK] Node group health
   - [ ] [CHECK] Pending updates (launch template version to be deployed)
   - [ ] [CHECK] AMI is custom or EKS optimized
 - Self-managed node group(s)

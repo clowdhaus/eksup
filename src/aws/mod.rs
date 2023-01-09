@@ -104,9 +104,24 @@ pub async fn get_self_managed_node_groups(
     .filters(filter)
     .send()
     .await?;
-  let groups = response.auto_scaling_groups().map(|groups| groups.to_vec());
 
-  Ok(groups)
+  // Filter out EKS managed node groups by the EKS MNG applied tag
+  if let Some(groups) = response.auto_scaling_groups().map(|groups| groups.to_vec()) {
+    let filtered = groups
+      .into_iter()
+      .filter(|group| {
+        group
+          .tags()
+          .unwrap_or_default()
+          .iter()
+          .all(|tag| tag.key().unwrap_or_default() != "eks:nodegroup-name")
+      })
+      .collect();
+
+    return Ok(Some(filtered));
+  }
+
+  Ok(None)
 }
 
 pub async fn get_fargate_profiles(
