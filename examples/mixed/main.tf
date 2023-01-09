@@ -70,6 +70,12 @@ module "eks" {
     standard = {
       instance_type = "c6i.large"
 
+      pre_bootstrap_user_data = <<-EOT
+        #!/bin/bash
+
+        echo "Hello from user data!"
+      EOT
+
       min_size     = 1
       max_size     = 3
       desired_size = 1

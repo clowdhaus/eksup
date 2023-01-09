@@ -1,6 +1,8 @@
 use super::aws;
 
-use aws_sdk_eks::model::Cluster;
+use aws_sdk_autoscaling::model::AutoScalingGroup;
+use aws_sdk_ec2::Client as Ec2Client;
+use aws_sdk_eks::model::{Cluster, FargateProfile, Nodegroup, NodegroupIssueCode};
 use k8s_openapi::api::core::v1::NodeSystemInfo;
 use std::collections::{BTreeMap, HashSet};
 
@@ -9,15 +11,33 @@ pub async fn execute(
   cluster: &Cluster,
   nodes: &Vec<NodeSystemInfo>,
 ) -> Result<(), anyhow::Error> {
+  // Construct clients once
   let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
   let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
 
+  let cluster_name = cluster.name.as_ref().unwrap();
+
+  // Get data plane components once
+  let eks_managed_node_groups = aws::get_eks_managed_node_groups(&eks_client, cluster_name).await?;
+  let self_managed_node_groups =
+    aws::get_self_managed_node_groups(&asg_client, cluster_name).await?;
+  let fargate_profiles = aws::get_fargate_profiles(&eks_client, cluster_name).await?;
+
+  // Checks
   version_skew(cluster.version.as_ref().unwrap(), nodes).await?;
-
   ips_available_for_control_plane(cluster, &ec2_client).await?;
+  ips_available_for_data_plane(
+    &ec2_client,
+    eks_managed_node_groups.clone(),
+    fargate_profiles.clone(),
+    self_managed_node_groups.clone(),
+  )
+  .await?;
 
-  ips_available_for_data_plane(cluster, &asg_client, &ec2_client, &eks_client).await?;
+  if let Some(eks_managed_node_groups) = eks_managed_node_groups {
+    eks_managed_node_group_health(eks_managed_node_groups).await?;
+  }
 
   Ok(())
 }
@@ -99,17 +119,15 @@ async fn ips_available_for_control_plane(
 }
 
 async fn ips_available_for_data_plane(
-  cluster: &Cluster,
-  asg_client: &aws_sdk_autoscaling::Client,
-  ec2_client: &aws_sdk_ec2::Client,
-  eks_client: &aws_sdk_eks::Client,
+  ec2_client: &Ec2Client,
+  eks_managed_node_groups: Option<Vec<Nodegroup>>,
+  fargate_profiles: Option<Vec<FargateProfile>>,
+  self_managed_node_groups: Option<Vec<AutoScalingGroup>>,
 ) -> Result<(), anyhow::Error> {
   let mut subnet_ids = HashSet::new();
 
   // EKS managed node group subnets
-  let eks_mngs =
-    aws::get_eks_managed_node_groups(eks_client, cluster.name.as_ref().unwrap()).await?;
-  if let Some(nodegroups) = eks_mngs {
+  if let Some(nodegroups) = eks_managed_node_groups {
     for group in nodegroups {
       let subnets = group.subnets.unwrap();
       for subnet in subnets {
@@ -119,9 +137,7 @@ async fn ips_available_for_data_plane(
   }
 
   // Self managed node group subnets
-  let self_mngs =
-    aws::get_self_managed_node_groups(asg_client, cluster.name.as_ref().unwrap()).await?;
-  if let Some(nodegroups) = self_mngs {
+  if let Some(nodegroups) = self_managed_node_groups {
     for group in nodegroups {
       let subnets = group.vpc_zone_identifier.unwrap();
       for subnet in subnets.split(',') {
@@ -131,8 +147,6 @@ async fn ips_available_for_data_plane(
   }
 
   // Fargate profile subnets
-  let fargate_profiles =
-    aws::get_fargate_profiles(eks_client, cluster.name.as_ref().unwrap()).await?;
   if let Some(profiles) = fargate_profiles {
     for profile in profiles {
       let subnets = profile.subnets.unwrap();
@@ -151,5 +165,21 @@ async fn ips_available_for_data_plane(
 
   println!("There are {available_ips:#?} available IPs for the data plane to use");
 
+  Ok(())
+}
+
+pub async fn eks_managed_node_group_health(node_groups: Vec<Nodegroup>) -> Result<(), anyhow::Error> {
+  for group in node_groups {
+    let name = group.nodegroup_name.unwrap();
+    if let Some(health) = group.health {
+      if let Some(issues) = health.issues {
+        for issue in issues {
+          let code = issue.code().unwrap_or(&NodegroupIssueCode::InternalFailure);
+          let message = issue.message().unwrap_or("");
+          println!("EKS managed node group {name} has an issue:\n{code:#?}: {message}");
+        }
+      }
+    }
+  }
   Ok(())
 }
