@@ -2,7 +2,10 @@ use std::collections::HashSet;
 
 use aws_sdk_autoscaling::model::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
-use aws_sdk_eks::model::{Cluster, FargateProfile, Nodegroup, NodegroupIssueCode};
+use aws_sdk_eks::{
+  model::{AddonIssue, Cluster, FargateProfile, Nodegroup, NodegroupIssueCode},
+  Client as EksClient,
+};
 use k8s_openapi::api::core::v1::Node;
 
 use super::aws;
@@ -18,6 +21,7 @@ pub async fn execute(
   let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
 
   let cluster_name = cluster.name.as_ref().unwrap();
+  let cluster_version = cluster.version.as_ref().unwrap();
 
   // Get data plane components once
   let eks_managed_node_groups = aws::get_eks_managed_node_groups(&eks_client, cluster_name).await?;
@@ -26,7 +30,7 @@ pub async fn execute(
   let fargate_profiles = aws::get_fargate_profiles(&eks_client, cluster_name).await?;
 
   // Checks
-  version_skew(cluster.version.as_ref().unwrap(), nodes).await?;
+  version_skew(cluster_version, nodes).await?;
   ips_available_for_control_plane(cluster, &ec2_client).await?;
   ips_available_for_data_plane(
     &ec2_client,
@@ -39,6 +43,8 @@ pub async fn execute(
   if let Some(eks_managed_node_groups) = eks_managed_node_groups {
     eks_managed_node_group_health(eks_managed_node_groups).await?;
   }
+
+  update_addon_version(&eks_client, cluster_name, cluster_version).await?;
 
   Ok(())
 }
@@ -263,6 +269,64 @@ async fn eks_managed_node_group_health(
   println!("Nodegroup health issues: {health_issues:#?}");
 
   Ok(Some(health_issues))
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+struct AddonStatus {
+  name: String,
+  /// The version of the add-on
+  version: String,
+  /// The add-on default and latest version for the current Kubernetes version
+  current_kubernetes_version: aws::AddonVersion,
+  /// The add-on default and latest version for the target Kubernetes version
+  target_kubnernetes_version: aws::AddonVersion,
+  /// Add-on health issues
+  issues: Option<Vec<AddonIssue>>,
+}
+
+async fn update_addon_version(
+  client: &EksClient,
+  cluster_name: &str,
+  cluster_version: &str,
+) -> Result<Option<Vec<AddonStatus>>, anyhow::Error> {
+  let mut addon_versions: Vec<AddonStatus> = Vec::new();
+
+  let target_version = format!("1.{}", parse_minor_version(cluster_version)? + 1);
+  let addons = aws::get_addons(client, cluster_name).await?;
+
+  if let Some(addons) = addons {
+    for addon in addons {
+      let name = addon.addon_name.unwrap();
+
+      let issues = if let Some(health) = addon.health {
+        health.issues
+      } else {
+        None
+      };
+
+      let current_kubernetes_version =
+        aws::get_addon_versions(client, &name, cluster_version).await?;
+      let target_kubnernetes_version =
+        aws::get_addon_versions(client, &name, &target_version).await?;
+
+      addon_versions.push(AddonStatus {
+        name,
+        version: addon.addon_version.unwrap(),
+        current_kubernetes_version,
+        target_kubnernetes_version,
+        issues,
+      })
+    }
+  }
+
+  if addon_versions.is_empty() {
+    return Ok(None);
+  }
+
+  println!("Addon versions: {addon_versions:#?}");
+
+  Ok(Some(addon_versions))
 }
 
 // async fn pending_launch_template_updates() -> Result<Option<Vec<String>>, anyhow::Error> {

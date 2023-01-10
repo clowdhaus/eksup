@@ -14,10 +14,8 @@
 - EKS managed node group(s)
   - [x] [CHECK] Node group health
   - [ ] [CHECK] Pending updates (launch template version to be deployed)
-  - [ ] [CHECK] AMI is custom or EKS optimized
 - Self-managed node group(s)
   - [ ] [CHECK] Pending updates (launch template version to be deployed)
-  - [ ] [CHECK] AMI is custom or EKS optimized
 - Fargate Profile(s)
 
 ## Addons

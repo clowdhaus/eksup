@@ -7,7 +7,7 @@ use aws_sdk_autoscaling::{
 };
 use aws_sdk_ec2::{model::Subnet, Client as Ec2Client};
 use aws_sdk_eks::{
-  model::{Cluster, FargateProfile, Nodegroup},
+  model::{Addon, Cluster, FargateProfile, Nodegroup},
   Client as EksClient,
 };
 use aws_types::region::Region;
@@ -155,4 +155,83 @@ pub async fn get_fargate_profiles(
   }
 
   Ok(Some(profiles))
+}
+
+pub(crate) async fn get_addons(
+  client: &EksClient,
+  cluster_name: &str,
+) -> Result<Option<Vec<Addon>>, anyhow::Error> {
+  let addon_names = client
+    .list_addons()
+    .cluster_name(cluster_name)
+    // TODO - paginate this
+    .max_results(100)
+    .send()
+    .await?
+    .addons
+    .unwrap_or_default();
+
+  let mut addons = Vec::new();
+
+  for addon_name in &addon_names {
+    let response = client
+      .describe_addon()
+      .cluster_name(cluster_name)
+      .addon_name(addon_name)
+      .send()
+      .await?
+      .addon;
+
+    if let Some(addon) = response {
+      addons.push(addon);
+    }
+  }
+
+  Ok(Some(addons))
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub(crate) struct AddonVersion {
+  pub(crate) latest: String,
+  pub(crate) default: String,
+  pub(crate) kubernetes_version: String,
+}
+
+pub(crate) async fn get_addon_versions(
+  client: &EksClient,
+  name: &str,
+  kubernetes_version: &str,
+) -> Result<AddonVersion, anyhow::Error> {
+  let addon = client
+    .describe_addon_versions()
+    .addon_name(name)
+    .kubernetes_version(kubernetes_version)
+    .send()
+    .await?;
+
+  let cur_info = addon.addons().unwrap().get(0).unwrap();
+  let cur_version_info = cur_info.addon_versions.as_ref().unwrap().get(0).unwrap();
+  let cur_latest_version = cur_version_info.addon_version.as_ref().unwrap();
+  let cur_default_version = cur_info
+    .addon_versions
+    .as_ref()
+    .unwrap()
+    .iter()
+    .filter(|v| {
+      v.compatibilities
+        .as_ref()
+        .unwrap()
+        .iter()
+        .any(|c| c.default_version)
+    })
+    .map(|v| v.addon_version.as_ref().unwrap())
+    .next()
+    .unwrap();
+
+  Ok(AddonVersion {
+    latest: cur_latest_version.to_owned(),
+    default: cur_default_version.to_owned(),
+    kubernetes_version: kubernetes_version.to_owned(),
+  })
 }

@@ -42,18 +42,21 @@ async fn main() -> Result<(), anyhow::Error> {
       let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
       // println!("{cluster:#?}");
 
-      let eks_managed_node_groups =
-        aws::get_eks_managed_node_groups(&eks_client, &args.cluster_name).await?;
-      println!("EKS MNG:{eks_managed_node_groups:#?}");
-
-      let self_managed_node_groups =
-        aws::get_self_managed_node_groups(&asg_client, &args.cluster_name).await?;
-      println!("Self MNG:{self_managed_node_groups:#?}");
-
       if false {
+        let eks_managed_node_groups =
+          aws::get_eks_managed_node_groups(&eks_client, &args.cluster_name).await?;
+        println!("EKS MNG:{eks_managed_node_groups:#?}");
+
+        let self_managed_node_groups =
+          aws::get_self_managed_node_groups(&asg_client, &args.cluster_name).await?;
+        println!("Self MNG:{self_managed_node_groups:#?}");
+
         let fargate_profiles = aws::get_fargate_profiles(&eks_client, &args.cluster_name).await?;
         println!("Fargate:{fargate_profiles:#?}");
       }
+
+      // let addons = aws::get_addons(&eks_client, &args.cluster_name).await?;
+      // println!("Addons:{addons:#?}");
 
       let nodes = k8s::get_nodes(&k8s_client).await?;
       // println!("Nodes:{nodes:#?}");
