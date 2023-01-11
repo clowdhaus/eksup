@@ -12,7 +12,7 @@ use aws_sdk_eks::{
 };
 use aws_types::region::Region;
 
-pub async fn get_shared_config(region: Option<String>) -> aws_config::SdkConfig {
+pub async fn get_config(region: Option<String>) -> aws_config::SdkConfig {
   // TODO - fix this ugliness
   let region_provider = match region {
     Some(region) => RegionProviderChain::first_try(Region::new(region)).or_default_provider(),
@@ -50,7 +50,7 @@ pub async fn get_subnets(
   Ok(subnets)
 }
 
-pub async fn get_eks_managed_node_groups(
+pub async fn get_eks_managed_nodegroups(
   client: &EksClient,
   cluster_name: &str,
 ) -> Result<Option<Vec<Nodegroup>>, anyhow::Error> {
@@ -85,7 +85,7 @@ pub async fn get_eks_managed_node_groups(
 
 // TODO - querying on tags will return EKS managed node groups as well
 // TODO - We will need to de-dupe
-pub async fn get_self_managed_node_groups(
+pub async fn get_self_managed_nodegroups(
   client: &AsgClient,
   cluster_name: &str,
 ) -> Result<Option<Vec<AutoScalingGroup>>, anyhow::Error> {

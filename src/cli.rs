@@ -36,22 +36,6 @@ seq!(N in 20..=24 {
     }
 });
 
-impl KubernetesVersion {
-  pub(crate) fn _major(&self) -> Result<i32, anyhow::Error> {
-    let version = self.to_string();
-    let mut components = version.split('.');
-
-    Ok(components.next().unwrap().parse::<i32>()?)
-  }
-
-  pub(crate) fn _minor(&self) -> Result<i32, anyhow::Error> {
-    let version = self.to_string();
-    let mut components = version.split('.');
-
-    Ok(components.nth(1).unwrap().parse::<i32>()?)
-  }
-}
-
 /// Compute constructs supported by Amazon EKS the data plane
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Compute {

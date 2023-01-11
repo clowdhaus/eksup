@@ -21,8 +21,8 @@
 ## Addons
 
 - Version(s)
-  - [ ] [CHECK] Pending updates
-  - [ ] [CHECK] Default version for target Kubernetes version
+  - [x] [CHECK] Pending updates
+  - [x] [CHECK] Default version for target Kubernetes version
 
 ## Misc
 

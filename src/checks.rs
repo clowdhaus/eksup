@@ -8,7 +8,7 @@ use aws_sdk_eks::{
 };
 use k8s_openapi::api::core::v1::Node;
 
-use super::aws;
+use crate::{aws, version};
 
 pub async fn execute(
   aws_shared_config: &aws_config::SdkConfig,
@@ -24,52 +24,33 @@ pub async fn execute(
   let cluster_version = cluster.version.as_ref().unwrap();
 
   // Get data plane components once
-  let eks_managed_node_groups = aws::get_eks_managed_node_groups(&eks_client, cluster_name).await?;
-  let self_managed_node_groups =
-    aws::get_self_managed_node_groups(&asg_client, cluster_name).await?;
+  let eks_managed_nodegroups = aws::get_eks_managed_nodegroups(&eks_client, cluster_name).await?;
+  let self_managed_nodegroups = aws::get_self_managed_nodegroups(&asg_client, cluster_name).await?;
   let fargate_profiles = aws::get_fargate_profiles(&eks_client, cluster_name).await?;
 
   // Checks
   version_skew(cluster_version, nodes).await?;
-  ips_available_for_control_plane(cluster, &ec2_client).await?;
-  ips_available_for_data_plane(
+  control_plane_subnets(cluster, &ec2_client).await?;
+  node_subnets(
     &ec2_client,
-    eks_managed_node_groups.clone(),
+    eks_managed_nodegroups.clone(),
     fargate_profiles.clone(),
-    self_managed_node_groups.clone(),
+    self_managed_nodegroups.clone(),
   )
   .await?;
 
-  if let Some(eks_managed_node_groups) = eks_managed_node_groups {
-    eks_managed_node_group_health(eks_managed_node_groups).await?;
+  if let Some(eks_managed_nodegroups) = eks_managed_nodegroups {
+    eks_managed_node_group_health(eks_managed_nodegroups).await?;
   }
 
-  update_addon_version(&eks_client, cluster_name, cluster_version).await?;
+  addon_version_compatibility(&eks_client, cluster_name, cluster_version).await?;
 
   Ok(())
 }
 
-/// Given a version, parse the minor version
+/// Node details as viewed from the Kubernetes API
 ///
-/// For example, the format Amazon EKS of v1.20.7-eks-123456 returns 20
-/// Or the format of v1.22.7 returns 22
-fn parse_minor_version(version: &str) -> Result<u32, anyhow::Error> {
-  let version = version.split('.').collect::<Vec<&str>>();
-  let minor_version = version[1].parse::<u32>()?;
-
-  Ok(minor_version)
-}
-
-/// Given a version, normalize to a consistent format
-///
-/// For example, the format Amazon EKS uses is v1.20.7-eks-123456 which is normalized to 1.20
-fn normalize_version(version: &str) -> Result<String, anyhow::Error> {
-  let version = version.split('.').collect::<Vec<&str>>();
-  let normalized_version = format!("{}.{}", version[0].replace('v', ""), version[1]);
-
-  Ok(normalized_version)
-}
-
+/// Contains information related to the Kubernetes component versions
 #[allow(dead_code)]
 #[derive(Debug)]
 struct NodeDetail {
@@ -86,14 +67,11 @@ struct NodeDetail {
 ///
 /// Report on the nodes that do not match the same minor version as the control plane
 /// so that users can remediate before upgrading.
-///
-/// TODO - how to make check results consistent and not one-offs? Needs to align with
-/// the goal of multiple return types (JSON, CSV, etc.)
 async fn version_skew(
   control_plane_version: &str,
   nodes: &Vec<Node>,
 ) -> Result<Option<Vec<NodeDetail>>, anyhow::Error> {
-  let control_plane_minor_version = parse_minor_version(control_plane_version)?;
+  let control_plane_minor_version = version::parse_minor(control_plane_version)?;
 
   let mut skewed: Vec<NodeDetail> = Vec::new();
 
@@ -102,7 +80,7 @@ async fn version_skew(
     let node_info = status.node_info.as_ref().unwrap();
     let kubelet_version = node_info.kubelet_version.to_owned();
 
-    let node_minor_version = parse_minor_version(&kubelet_version)?;
+    let node_minor_version = version::parse_minor(&kubelet_version)?;
     if control_plane_minor_version != node_minor_version {
       let node_detail = NodeDetail {
         name: node.metadata.name.as_ref().unwrap().to_owned(),
@@ -110,7 +88,7 @@ async fn version_skew(
         kernel_version: node_info.kernel_version.to_owned(),
         kube_proxy_version: node_info.kube_proxy_version.to_owned(),
         kublet_version: kubelet_version.to_owned(),
-        kubernetes_version: normalize_version(&kubelet_version)?,
+        kubernetes_version: version::normalize(&kubelet_version)?,
         control_plane_version: control_plane_version.to_owned(),
       };
       skewed.push(node_detail);
@@ -122,11 +100,10 @@ async fn version_skew(
   }
 
   println!("Skewed node versions: {skewed:#?}");
-
   Ok(Some(skewed))
 }
 
-/// Data of significance with regards to subnets and cluster upgrade
+/// Subnet details that can affect upgrade behavior
 #[allow(dead_code)]
 #[derive(Debug)]
 struct Subnet {
@@ -137,8 +114,12 @@ struct Subnet {
   cidr_block: String,
 }
 
-/// Reports IPs by subnet for the data plane
-async fn ips_available_for_control_plane(
+/// Check if the subnets used by the control plane will support an upgrade
+///
+/// The control plane requires at least 5 free IPs to support an upgrade
+/// in order to accommodate the additional set of cross account ENIs created
+/// during an upgrade
+async fn control_plane_subnets(
   cluster: &Cluster,
   client: &aws_sdk_ec2::Client,
 ) -> Result<Vec<Subnet>, anyhow::Error> {
@@ -165,22 +146,32 @@ async fn ips_available_for_control_plane(
   }
 
   println!("Conctrol plane subnets: {subnets:#?}");
-
   Ok(subnets)
 }
 
-/// Reports IPs by subnet for the data plane
-async fn ips_available_for_data_plane(
+/// Check if the subnets used by the data plane nodes will support an upgrade
+///
+/// This is more of a cautionary "you should be aware" type check to give
+/// users the information to understand how their upgrade may be affected
+/// if running in an IP constrained network. For example, they may need to
+/// reduce the amount of nodes that are being updated at any point of time
+/// to reduce the number of IPs being consumed - this also means that it will
+/// take more time to update the nodes in the data plane.
+///
+/// There is a separate check for pods specifically for the scenario where
+/// custom networking is used and the pods are consuming IPs from a potentially
+/// different set of subnets
+async fn node_subnets(
   ec2_client: &Ec2Client,
-  eks_managed_node_groups: Option<Vec<Nodegroup>>,
+  eks_managed_nodegroups: Option<Vec<Nodegroup>>,
   fargate_profiles: Option<Vec<FargateProfile>>,
-  self_managed_node_groups: Option<Vec<AutoScalingGroup>>,
+  self_managed_nodegroups: Option<Vec<AutoScalingGroup>>,
 ) -> Result<Vec<Subnet>, anyhow::Error> {
   // Dedupe subnet IDs that are shared across different compute constructs
   let mut subnet_ids = HashSet::new();
 
   // EKS managed node group subnets
-  if let Some(nodegroups) = eks_managed_node_groups {
+  if let Some(nodegroups) = eks_managed_nodegroups {
     for group in nodegroups {
       let subnets = group.subnets.unwrap();
       for subnet in subnets {
@@ -190,7 +181,7 @@ async fn ips_available_for_data_plane(
   }
 
   // Self managed node group subnets
-  if let Some(nodegroups) = self_managed_node_groups {
+  if let Some(nodegroups) = self_managed_nodegroups {
     for group in nodegroups {
       let subnets = group.vpc_zone_identifier.unwrap();
       for subnet in subnets.split(',') {
@@ -226,11 +217,13 @@ async fn ips_available_for_data_plane(
   }
 
   println!("Data plane subnets: {subnets:#?}");
-
   Ok(subnets)
 }
 
 /// Nodegroup health issue data
+///
+/// Nearly similar to the SDK's `NodegroupHealth` but flattened
+/// and without `Option()`s to make it a bit more ergonomic here
 #[allow(dead_code)]
 #[derive(Debug)]
 struct NodegroupHealthIssue {
@@ -241,11 +234,11 @@ struct NodegroupHealthIssue {
 
 /// Check for any reported health issues on EKS managed node groups
 async fn eks_managed_node_group_health(
-  node_groups: Vec<Nodegroup>,
+  nodegroups: Vec<Nodegroup>,
 ) -> Result<Option<Vec<NodegroupHealthIssue>>, anyhow::Error> {
   let mut health_issues: Vec<NodegroupHealthIssue> = Vec::new();
 
-  for group in node_groups {
+  for group in nodegroups {
     let name = group.nodegroup_name.unwrap();
     if let Some(health) = group.health {
       if let Some(issues) = health.issues {
@@ -267,32 +260,48 @@ async fn eks_managed_node_group_health(
   }
 
   println!("Nodegroup health issues: {health_issues:#?}");
-
   Ok(Some(health_issues))
 }
 
+/// Details of the addon as viewed from an upgrade perspective
+///
+/// Contains the associated version information to compare the current version
+/// of the addon relative to the current "desired" version, as well as
+/// relative to the target Kubernetes version "desired" version. It
+/// also contains any potential health issues as reported by the EKS API.
+/// The intended goal is to be able to plot a path of what steps a user either
+/// needs to take to upgrade the cluster, or should consider taking in terms
+/// of a recommendation to update to the latest supported version.
 #[allow(dead_code)]
 #[derive(Debug)]
-struct AddonStatus {
+struct AddonDetail {
   name: String,
-  /// The version of the add-on
+  /// The current version of the add-on
   version: String,
-  /// The add-on default and latest version for the current Kubernetes version
+  /// The default and latest add-on versions for the current Kubernetes version
   current_kubernetes_version: aws::AddonVersion,
-  /// The add-on default and latest version for the target Kubernetes version
+  /// The default and latest add-on versions for the target Kubernetes version
   target_kubnernetes_version: aws::AddonVersion,
   /// Add-on health issues
   issues: Option<Vec<AddonIssue>>,
 }
 
-async fn update_addon_version(
+/// Check for any verson compatibility issues for the EKS addons enabled
+///
+/// TODO - what course of action to take if users do NOT opt into addons
+/// via the API. The "core" addons of VPC CNI, CoreDNS, and kube-proxy are
+/// all automatically deployed by EKS, what happens to those during an
+/// upgrade if users have not "opted in" to managing via the API? Should we
+/// fall back to scanning the "core" addons from the cluster itself if
+/// they are not present in the API list response?
+async fn addon_version_compatibility(
   client: &EksClient,
   cluster_name: &str,
   cluster_version: &str,
-) -> Result<Option<Vec<AddonStatus>>, anyhow::Error> {
-  let mut addon_versions: Vec<AddonStatus> = Vec::new();
+) -> Result<Option<Vec<AddonDetail>>, anyhow::Error> {
+  let mut addon_versions: Vec<AddonDetail> = Vec::new();
 
-  let target_version = format!("1.{}", parse_minor_version(cluster_version)? + 1);
+  let target_version = format!("1.{}", version::parse_minor(cluster_version)? + 1);
   let addons = aws::get_addons(client, cluster_name).await?;
 
   if let Some(addons) = addons {
@@ -310,7 +319,7 @@ async fn update_addon_version(
       let target_kubnernetes_version =
         aws::get_addon_versions(client, &name, &target_version).await?;
 
-      addon_versions.push(AddonStatus {
+      addon_versions.push(AddonDetail {
         name,
         version: addon.addon_version.unwrap(),
         current_kubernetes_version,
@@ -325,7 +334,6 @@ async fn update_addon_version(
   }
 
   println!("Addon versions: {addon_versions:#?}");
-
   Ok(Some(addon_versions))
 }
 

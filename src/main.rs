@@ -3,6 +3,7 @@ mod checks;
 mod cli;
 mod k8s;
 mod playbook;
+mod version;
 
 use std::process;
 
@@ -35,21 +36,21 @@ async fn main() -> Result<(), anyhow::Error> {
       // // Query Kubernetes first so that we can get AWS details that require further querying
       let k8s_client = kube::Client::try_default().await?;
 
-      let aws_shared_config = aws::get_shared_config(args.region.clone()).await;
-      let eks_client = aws_sdk_eks::Client::new(&aws_shared_config);
-      let asg_client = aws_sdk_autoscaling::Client::new(&aws_shared_config);
+      let aws_config = aws::get_config(args.region.clone()).await;
+      let eks_client = aws_sdk_eks::Client::new(&aws_config);
+      let asg_client = aws_sdk_autoscaling::Client::new(&aws_config);
 
       let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
       // println!("{cluster:#?}");
 
       if false {
-        let eks_managed_node_groups =
-          aws::get_eks_managed_node_groups(&eks_client, &args.cluster_name).await?;
-        println!("EKS MNG:{eks_managed_node_groups:#?}");
+        let eks_managed_nodegroups =
+          aws::get_eks_managed_nodegroups(&eks_client, &args.cluster_name).await?;
+        println!("EKS MNG:{eks_managed_nodegroups:#?}");
 
-        let self_managed_node_groups =
-          aws::get_self_managed_node_groups(&asg_client, &args.cluster_name).await?;
-        println!("Self MNG:{self_managed_node_groups:#?}");
+        let self_managed_nodegroups =
+          aws::get_self_managed_nodegroups(&asg_client, &args.cluster_name).await?;
+        println!("Self MNG:{self_managed_nodegroups:#?}");
 
         let fargate_profiles = aws::get_fargate_profiles(&eks_client, &args.cluster_name).await?;
         println!("Fargate:{fargate_profiles:#?}");
@@ -59,9 +60,7 @@ async fn main() -> Result<(), anyhow::Error> {
       // println!("Addons:{addons:#?}");
 
       let nodes = k8s::get_nodes(&k8s_client).await?;
-      // println!("Nodes:{nodes:#?}");
-
-      checks::execute(&aws_shared_config, &cluster, &nodes).await?;
+      checks::execute(&aws_config, &cluster, &nodes).await?;
     }
   }
 
