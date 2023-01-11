@@ -193,27 +193,40 @@ pub(crate) async fn get_addons(
 #[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) struct AddonVersion {
+  /// Latest supported version of the addon
   pub(crate) latest: String,
+  /// Default version of the addon used by the service
   pub(crate) default: String,
+  /// Supported versions for the given Kubernetes version
+  /// This maintains the ordering of latest version to oldest
+  pub(crate) supported: Vec<String>,
+  /// Associated Kubernetes version for compatibility
   pub(crate) kubernetes_version: String,
 }
 
+/// Get the addon version details for the given addon and Kubernetes version
+///
+/// Returns associated version details for a given addon that, primarily used
+/// for version compatibility checks and/or updgrade recommendations
 pub(crate) async fn get_addon_versions(
   client: &EksClient,
   name: &str,
   kubernetes_version: &str,
 ) -> Result<AddonVersion, anyhow::Error> {
-  let addon = client
+  // Get all of the addon versions supported for the given addon and Kubernetes version
+  let describe = client
     .describe_addon_versions()
     .addon_name(name)
     .kubernetes_version(kubernetes_version)
     .send()
     .await?;
 
-  let cur_info = addon.addons().unwrap().get(0).unwrap();
-  let cur_version_info = cur_info.addon_versions.as_ref().unwrap().get(0).unwrap();
-  let cur_latest_version = cur_version_info.addon_version.as_ref().unwrap();
-  let cur_default_version = cur_info
+  // Since we are providing an addon name, we are only concerned with the first and only item
+  let addon = describe.addons().unwrap().get(0).unwrap();
+  let latest_version_info = addon.addon_versions.as_ref().unwrap().get(0).unwrap();
+  let latest_version = latest_version_info.addon_version.as_ref().unwrap();
+  // The default version as specified by the EKS API for a given addon and Kubenrnetes version
+  let default_version = addon
     .addon_versions
     .as_ref()
     .unwrap()
@@ -229,9 +242,20 @@ pub(crate) async fn get_addon_versions(
     .next()
     .unwrap();
 
+  // Get the list of ALL supported version for this addon and Kubernetes version
+  // The results maintain the oder of latest version to oldest
+  let supported: Vec<String> = addon
+    .addon_versions
+    .as_ref()
+    .unwrap()
+    .iter()
+    .map(|v| v.addon_version.as_ref().unwrap().to_owned())
+    .collect();
+
   Ok(AddonVersion {
-    latest: cur_latest_version.to_owned(),
-    default: cur_default_version.to_owned(),
+    latest: latest_version.to_owned(),
+    default: default_version.to_owned(),
+    supported,
     kubernetes_version: kubernetes_version.to_owned(),
   })
 }

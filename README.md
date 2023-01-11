@@ -81,7 +81,8 @@ Get Kubernetes data first so that we can collect info on things like secondary C
 - [ ] Check that there are enough free IPs to upgrade
   - [ ] At least 5 free IPs to upgrade the control plane
   - [ ] Give a percentage and number of IPs of the available data plane IP space
-- [ ] Compare the current version of EKS addons used against next Kubernetes version recommendations (default)
+    - [ ] Ensure enough IPs both at the node/instance level as well as at the pod level (in the case of custom networking)
+- [ ] Compare the current version of EKS addons used against next Kubernetes version recommendations
 - [ ] Check service limits and utilization for relevant resources
   - [ ] EC2 instances
   - [ ] EBS volumes
