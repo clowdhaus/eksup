@@ -42,8 +42,7 @@ Helpful commands:
 
 - What is the guidance for batch workloads?
 - What is the recommended way to manage the lifecycle of Fargate profiles?
-  - Should users have one profile per AZ?
-  - Should users name their profile with the Kubernetes version to aid in upgrades (deploy profiles with next version, remove prior version)?
+  - Best way to "roll" profiles after the control plane Kubernetes version has been upgraded
 - What is the churn calculation for updating node groups?
   - When updating a self-managed node group, how many instances are spun up before instances are terminated, whats the lifecycle, etc.
   - Same for EKS managed node group - how much do we surge to (max), etc.
@@ -54,53 +53,70 @@ Helpful commands:
     - How can users influence the amount of churn - why should they, what recommendations or guidance do we have?
 - Do we have different guidance for large clusters?
   - See note on [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity)
-- What is the impact on a large/busy cluster when scanning with tools for deprecated APIs, etc.?
 
 ## Commands
 
 - `eksup create-playbook` - Creates a cluster upgrade playbook
-- `eksup analyze`(`--cluster`, `--files`) - Analyzes a cluster and provides feedback based on pre-upgrade checks/considerations
+- `eksup analyze` - Analyzes a cluster and provides feedback based on pre-upgrade checks/considerations
 
-## Checks
+### Checks
 
 Get Kubernetes data first so that we can collect info on things like secondary CIDR for custom networking, etc.
 
-### Kubernetes
+- The control plane version matches the version used by the data plane.
+  - Hard requirement
+- There are at least 5 avaialable IPs for the control plane to upgrade; requried for cross account ENI creation
+  - Hard requirement
+- There are sufficient available IPs for the nodes to support the surge, in-place rolling upgrade. Irrespective of Kubernetes, each EC2 instance requires at least 1 IP to launch.
+  - Informational notice
+- There are sufficient available IPs for the pods to support the surge, in-place rolling upgrade. This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves.
+  - Informational notice
+- The current EKS addon(s) are compatible with the next Kubernetes version
+  - Hard requirement
+  - This will also show where the addon version stands relative to the default and latest versions for the current Kubernetes version as well as the Kubernetes version the upgrade is targetting
+- There are no health issues reported for the EKS cluster (control plane)
+  - Hard requirement
+- There are no health issues reported for the EKS managed node groups. There aren't any available health statuses available from the AWS API for self-managed node groups or Fargate profiles at this time
+  - Hard requirement
+- There are no health issues reported for the EKS addons
+  - Hard requirement
 
-- [ ] Warn on deprecated APIs in use
-- [ ] Error on APIs that have been removed in the next version
+#### TBD Checks
+
+- APIs deprecated and/or removed in the next Kubernetes version
+  - For now, recommend `pluto` or `kubent`
+  - Add section on how those tools work, what to watch out for (asking the API Server is not trustworthy, scanning manifests directly is the most accurate)
+
+### Output Levels
+
+1. `--quiet` - suppress all output
+2. (default, no flags) - show failed checks on hard requirements
+3. `--warn` - in addition to failed, show warnings (low number of IPs available for nodes/pods, addon version older than current default, etc.)
+4. `--info` - in addition to failed and warnings, show informational notices (number of IPs available for nodes/pods, addon version relative to current default and latest, etc.)
+
+### ToDo
+
+- [ ] PDBs set on deployments/replicasets and statefulsets
+- [ ] Multiple replicas specified on deployments/replicasets and statefulsets
 - [ ] Detect docker socket use (1.24+ affected) https://github.com/aws-containers/kubectl-detector-for-docker-socket
 - [ ] Warn on pod security policy use (deprecated 1.21, removed 1.25) https://kubernetes.io/docs/concepts/security/pod-security-policy/
   - [ ] Advise to switch to pod security admission https://kubernetes.io/docs/concepts/security/pod-security-admission/
 - [ ] Something for https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/ ?
 - [ ] The [in-tree Amazon EBS storage provisioner](https://kubernetes.io/docs/concepts/storage/volumes/#awselasticblockstore) is deprecated. If you are upgrading your cluster to version 1.23, then you must first install the Amazon EBS driver before updating your cluster. For more information, see [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html). If you have pods running on a version 1.22 or earlier cluster, then you must install the Amazon EBS driver before updating your cluster to version 1.23 to avoid service interruption. https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html
   - Blog https://aws.amazon.com/blogs/containers/migrating-amazon-eks-clusters-from-gp2-to-gp3-ebs-volumes/
-
-### AWS
-
-- [ ] Check that there are enough free IPs to upgrade
-  - [ ] At least 5 free IPs to upgrade the control plane
-  - [ ] Give a percentage and number of IPs of the available data plane IP space
-    - [ ] Ensure enough IPs both at the node/instance level as well as at the pod level (in the case of custom networking)
-- [ ] Compare the current version of EKS addons used against next Kubernetes version recommendations
-- [ ] Check service limits and utilization for relevant resources
+- [ ] Check AWS service limits and utilization for relevant resources
   - [ ] EC2 instances
   - [ ] EBS volumes
 
-### Mix/Both
-
-- [ ] Check version skew between control plane and data plane
-
-## Future
-
-- Add snippets for commonly used provisioning tools to explain how those fit into the guidance
-  - <Select> Framework used to managed EKS cluster [`terraform-aws-eks`, `eksctl`]
-  - <Select> Version of framework used [`v18.x`, `v19.x`]
-- Add test/example suite for trying out upgrades
+- [ ] Add snippets/information for commonly used provisioning tools to explain how those fit into the guidance
+  - `terraform-aws-eks`/`eksctl` - how to upgrade a cluster with these tools, what will they do for the user (ensure addon versions are aligned with the Kubernetes version, the ordering of upgrade steps, etc.)
+- [ ] Add test/example suite for trying out upgrades
   - Give users the ability to test out their upgrade process in a non-production environment
   - This will also double as the test suite for the tool
-- Add image and chart for running `eksup` on the cluster in a continuous fashion (CronJob)
+- [ ] Add image and chart for running `eksup` on the cluster in a continuous fashion (CronJob)
   - Can log to STDOUT or save to S3 (Athena support)
-- Add support to output results in JSON and CSV formats
+- [ ] Add support to output results in JSON and CSV formats
   - Multi-cluster scenario - all clusters emitting data back to central location to report on which clusters need components to be upgraded/modified
   - Can utilize an Athena table to agreggate and summarize data
+
+- [ ] Converting from one resource API version to another (where possible)
