@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use aws_sdk_autoscaling::model::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{
-  model::{AddonIssue, Cluster, FargateProfile, Nodegroup, NodegroupIssueCode},
+  model::{AddonIssue, Cluster, ClusterIssue, FargateProfile, Nodegroup, NodegroupIssueCode},
   Client as EksClient,
 };
 use k8s_openapi::api::core::v1::Node;
@@ -45,6 +45,7 @@ pub async fn execute(
   if !eks_managed_nodegroups.is_empty() {
     eks_managed_node_group_health(eks_managed_nodegroups).await?;
   }
+  cluster_health(cluster).await?;
 
   addon_version_compatibility(&eks_client, cluster_name, cluster_version).await?;
 
@@ -293,6 +294,20 @@ async fn eks_managed_node_group_health(
   Ok(health_issues)
 }
 
+/// Check for any reported health issues on the cluster control plane
+async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterIssue>, anyhow::Error> {
+  let health = cluster.health.as_ref();
+
+  if let Some(health) = health {
+    let issues = health.issues.as_ref().unwrap().to_owned();
+
+    println!("Control plane health issues: {issues:#?}");
+    return Ok(issues);
+  };
+
+  Ok(vec![])
+}
+
 /// Details of the addon as viewed from an upgrade perspective
 ///
 /// Contains the associated version information to compare the current version
@@ -338,10 +353,8 @@ async fn addon_version_compatibility(
     let name = addon.addon_name.as_ref().unwrap();
     let issues = addon.health.as_ref().unwrap().issues.as_ref();
 
-    let current_kubernetes_version =
-      aws::get_addon_versions(client, name, cluster_version).await?;
-    let target_kubnernetes_version =
-      aws::get_addon_versions(client, name, &target_version).await?;
+    let current_kubernetes_version = aws::get_addon_versions(client, name, cluster_version).await?;
+    let target_kubnernetes_version = aws::get_addon_versions(client, name, &target_version).await?;
 
     addon_versions.push(AddonDetail {
       name: name.to_owned(),
