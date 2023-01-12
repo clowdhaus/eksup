@@ -35,6 +35,7 @@ async fn main() -> Result<(), anyhow::Error> {
     Commands::Analyze(args) => {
       // // Query Kubernetes first so that we can get AWS details that require further querying
       let k8s_client = kube::Client::try_default().await?;
+      k8s::get_eniconfigs(&k8s_client).await?;
 
       let aws_config = aws::get_config(args.region.clone()).await;
       let eks_client = aws_sdk_eks::Client::new(&aws_config);
