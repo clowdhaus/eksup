@@ -53,7 +53,7 @@ pub async fn get_subnets(
 pub async fn get_eks_managed_nodegroups(
   client: &EksClient,
   cluster_name: &str,
-) -> Result<Option<Vec<Nodegroup>>, anyhow::Error> {
+) -> Result<Vec<Nodegroup>, anyhow::Error> {
   let nodegroup_names = client
     .list_nodegroups()
     .cluster_name(cluster_name)
@@ -80,7 +80,7 @@ pub async fn get_eks_managed_nodegroups(
     }
   }
 
-  Ok(Some(nodegroups))
+  Ok(nodegroups)
 }
 
 // TODO - querying on tags will return EKS managed node groups as well
@@ -88,7 +88,7 @@ pub async fn get_eks_managed_nodegroups(
 pub async fn get_self_managed_nodegroups(
   client: &AsgClient,
   cluster_name: &str,
-) -> Result<Option<Vec<AutoScalingGroup>>, anyhow::Error> {
+) -> Result<Vec<AutoScalingGroup>, anyhow::Error> {
   let keys = vec![
     format!("k8s.io/cluster/{cluster_name}"),
     format!("kubernetes.io/cluster/{cluster_name}"),
@@ -118,16 +118,16 @@ pub async fn get_self_managed_nodegroups(
       })
       .collect();
 
-    return Ok(Some(filtered));
+    return Ok(filtered);
   }
 
-  Ok(None)
+  Ok(vec![])
 }
 
 pub async fn get_fargate_profiles(
   client: &EksClient,
   cluster_name: &str,
-) -> Result<Option<Vec<FargateProfile>>, anyhow::Error> {
+) -> Result<Vec<FargateProfile>, anyhow::Error> {
   let profile_names = client
     .list_fargate_profiles()
     .cluster_name(cluster_name)
@@ -154,13 +154,13 @@ pub async fn get_fargate_profiles(
     }
   }
 
-  Ok(Some(profiles))
+  Ok(profiles)
 }
 
 pub(crate) async fn get_addons(
   client: &EksClient,
   cluster_name: &str,
-) -> Result<Option<Vec<Addon>>, anyhow::Error> {
+) -> Result<Vec<Addon>, anyhow::Error> {
   let addon_names = client
     .list_addons()
     .cluster_name(cluster_name)
@@ -187,7 +187,7 @@ pub(crate) async fn get_addons(
     }
   }
 
-  Ok(Some(addons))
+  Ok(addons)
 }
 
 #[allow(dead_code)]

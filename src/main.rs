@@ -36,7 +36,6 @@ async fn main() -> Result<(), anyhow::Error> {
       // // Query Kubernetes first so that we can get AWS details that require further querying
       let aws_config = aws::get_config(args.region.clone()).await;
       let eks_client = aws_sdk_eks::Client::new(&aws_config);
-
       let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
 
       if false {

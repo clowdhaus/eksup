@@ -36,13 +36,9 @@ pub struct EniConfigSpec {
 ///
 /// This is used to extract the subnet ID(s) to retrieve the number of
 /// available IPs in the subnet(s) when custom networking is enabled
-pub async fn get_eniconfigs(client: &Client) -> Result<Option<Vec<ENIConfig>>, anyhow::Error> {
+pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>, anyhow::Error> {
   let api = Api::<ENIConfig>::all(client.clone());
-  let configs: Vec<ENIConfig> = api.list(&Default::default()).await?.items;
+  let eniconfigs: Vec<ENIConfig> = api.list(&Default::default()).await?.items;
 
-  if configs.is_empty() {
-    return Ok(None);
-  }
-
-  Ok(Some(configs))
+  Ok(eniconfigs)
 }

@@ -42,7 +42,7 @@ pub async fn execute(
   .await?;
   pod_subnets(&ec2_client, &k8s_client).await?;
 
-  if let Some(eks_managed_nodegroups) = eks_managed_nodegroups {
+  if !eks_managed_nodegroups.is_empty() {
     eks_managed_node_group_health(eks_managed_nodegroups).await?;
   }
 
@@ -72,38 +72,35 @@ struct NodeDetail {
 /// so that users can remediate before upgrading.
 async fn version_skew(
   control_plane_version: &str,
-  nodes: &Vec<Node>,
-) -> Result<Option<Vec<NodeDetail>>, anyhow::Error> {
+  nodes: &[Node],
+) -> Result<Vec<NodeDetail>, anyhow::Error> {
   let control_plane_minor_version = version::parse_minor(control_plane_version)?;
 
-  let mut skewed: Vec<NodeDetail> = Vec::new();
+  let nodes = nodes
+    .iter()
+    .map(|node| {
+      let status = node.status.as_ref().unwrap();
+      let node_info = status.node_info.as_ref().unwrap();
+      let kubelet_version = node_info.kubelet_version.to_owned();
 
-  for node in nodes {
-    let status = node.status.as_ref().unwrap();
-    let node_info = status.node_info.as_ref().unwrap();
-    let kubelet_version = node_info.kubelet_version.to_owned();
-
-    let node_minor_version = version::parse_minor(&kubelet_version)?;
-    if control_plane_minor_version != node_minor_version {
-      let node_detail = NodeDetail {
+      NodeDetail {
         name: node.metadata.name.as_ref().unwrap().to_owned(),
         container_runtime: node_info.container_runtime_version.to_owned(),
         kernel_version: node_info.kernel_version.to_owned(),
         kube_proxy_version: node_info.kube_proxy_version.to_owned(),
         kublet_version: kubelet_version.to_owned(),
-        kubernetes_version: version::normalize(&kubelet_version)?,
+        kubernetes_version: version::normalize(&kubelet_version).unwrap(),
         control_plane_version: control_plane_version.to_owned(),
-      };
-      skewed.push(node_detail);
-    }
-  }
+      }
+    })
+    .filter(|node| {
+      let node_minor_version = version::parse_minor(&node.kublet_version).unwrap();
+      control_plane_minor_version != node_minor_version
+    })
+    .collect();
 
-  if skewed.is_empty() {
-    return Ok(None);
-  }
-
-  println!("Skewed node versions: {skewed:#?}");
-  Ok(Some(skewed))
+  println!("Skewed node versions: {nodes:#?}");
+  Ok(nodes)
 }
 
 /// Subnet details that can affect upgrade behavior
@@ -133,20 +130,22 @@ async fn control_plane_subnets(
     .as_ref()
     .unwrap();
 
-  let aws_subnets = aws::get_subnets(client, subnet_ids.clone()).await?;
-  let mut subnets: Vec<Subnet> = Vec::new();
+  let subnet_details = aws::get_subnets(client, subnet_ids.clone()).await?;
 
-  for subnet in aws_subnets.iter() {
-    let id = subnet.subnet_id.as_ref().unwrap();
+  let subnets = subnet_details
+    .iter()
+    .map(|subnet| {
+      let id = subnet.subnet_id.as_ref().unwrap();
 
-    subnets.push(Subnet {
-      id: id.to_owned(),
-      availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
-      availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
-      available_ips: subnet.available_ip_address_count.unwrap(),
-      cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
+      Subnet {
+        id: id.to_owned(),
+        availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
+        availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
+        available_ips: subnet.available_ip_address_count.unwrap(),
+        cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
+      }
     })
-  }
+    .collect();
 
   println!("Conctrol plane subnets: {subnets:#?}");
   Ok(subnets)
@@ -166,83 +165,76 @@ async fn control_plane_subnets(
 /// different set of subnets
 async fn node_subnets(
   ec2_client: &Ec2Client,
-  eks_managed_nodegroups: Option<Vec<Nodegroup>>,
-  fargate_profiles: Option<Vec<FargateProfile>>,
-  self_managed_nodegroups: Option<Vec<AutoScalingGroup>>,
+  eks_managed_nodegroups: Vec<Nodegroup>,
+  fargate_profiles: Vec<FargateProfile>,
+  self_managed_nodegroups: Vec<AutoScalingGroup>,
 ) -> Result<Vec<Subnet>, anyhow::Error> {
   // Dedupe subnet IDs that are shared across different compute constructs
   let mut subnet_ids = HashSet::new();
 
   // EKS managed node group subnets
-  if let Some(nodegroups) = eks_managed_nodegroups {
-    for group in nodegroups {
-      let subnets = group.subnets.unwrap();
-      for subnet in subnets {
-        subnet_ids.insert(subnet.to_owned());
-      }
+  for group in eks_managed_nodegroups {
+    let subnets = group.subnets.as_ref().unwrap();
+    for subnet in subnets {
+      subnet_ids.insert(subnet.to_owned());
     }
   }
 
   // Self managed node group subnets
-  if let Some(nodegroups) = self_managed_nodegroups {
-    for group in nodegroups {
-      let subnets = group.vpc_zone_identifier.unwrap();
-      for subnet in subnets.split(',') {
-        subnet_ids.insert(subnet.to_owned());
-      }
+  for group in self_managed_nodegroups {
+    let subnets = group.vpc_zone_identifier.unwrap();
+    for subnet in subnets.split(',') {
+      subnet_ids.insert(subnet.to_owned());
     }
   }
 
   // Fargate profile subnets
-  if let Some(profiles) = fargate_profiles {
-    for profile in profiles {
-      let subnets = profile.subnets.unwrap();
-      for subnet in subnets {
-        subnet_ids.insert(subnet.to_owned());
-      }
+  for profile in fargate_profiles {
+    let subnets = profile.subnets.unwrap();
+    for subnet in subnets {
+      subnet_ids.insert(subnet.to_owned());
     }
   }
 
   // Send one query of all the subnets used in the data plane
-  let aws_subnets = aws::get_subnets(ec2_client, subnet_ids.into_iter().collect()).await?;
-  let mut subnets: Vec<Subnet> = Vec::new();
+  let subnet_details = aws::get_subnets(ec2_client, subnet_ids.into_iter().collect()).await?;
 
-  for subnet in aws_subnets.iter() {
-    let id = subnet.subnet_id.as_ref().unwrap();
+  let subnets = subnet_details
+    .iter()
+    .map(|subnet| {
+      let id = subnet.subnet_id.as_ref().unwrap();
 
-    subnets.push(Subnet {
-      id: id.to_owned(),
-      availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
-      availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
-      available_ips: subnet.available_ip_address_count.unwrap(),
-      cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
+      Subnet {
+        id: id.to_owned(),
+        availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
+        availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
+        available_ips: subnet.available_ip_address_count.unwrap(),
+        cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
+      }
     })
-  }
+    .collect();
 
   println!("Data plane subnets: {subnets:#?}");
   Ok(subnets)
 }
 
+/// Check if the subnets used by the pods will support an upgrade
+///
+/// This checks for the `ENIConfig` custom resource that is used to configure
+/// the AWS VPC CNI for custom networking. The subnet listed for each ENIConfig
+/// is queried for its relevant data used to report on the available IPs
 async fn pod_subnets(
   ec2_client: &Ec2Client,
   k8s_client: &K8s_Client,
 ) -> Result<Vec<Subnet>, anyhow::Error> {
-  let eniconfigs_response = k8s::get_eniconfigs(k8s_client).await?;
-
-  let eniconfigs = if let Some(eniconfigs_response) = eniconfigs_response {
-    eniconfigs_response
-  } else {
-    return Ok(vec![]);
-  };
-
+  let eniconfigs = k8s::get_eniconfigs(k8s_client).await?;
   let eniconfig_subnets = eniconfigs
     .iter()
     .map(|eniconfig| eniconfig.spec.subnet.as_ref().unwrap().to_owned())
     .collect();
 
-  let aws_subnets = aws::get_subnets(ec2_client, eniconfig_subnets).await?;
-
-  let subnets = aws_subnets
+  let subnet_details = aws::get_subnets(ec2_client, eniconfig_subnets).await?;
+  let subnets = subnet_details
     .iter()
     .map(|subnet| {
       let id = subnet.subnet_id.as_ref().unwrap();
@@ -276,32 +268,29 @@ struct NodegroupHealthIssue {
 /// Check for any reported health issues on EKS managed node groups
 async fn eks_managed_node_group_health(
   nodegroups: Vec<Nodegroup>,
-) -> Result<Option<Vec<NodegroupHealthIssue>>, anyhow::Error> {
-  let mut health_issues: Vec<NodegroupHealthIssue> = Vec::new();
+) -> Result<Vec<NodegroupHealthIssue>, anyhow::Error> {
+  let health_issues = nodegroups
+    .iter()
+    .flat_map(|nodegroup| {
+      let name = nodegroup.nodegroup_name.as_ref().unwrap();
+      let health = nodegroup.health.as_ref().unwrap();
+      let issues = health.issues.as_ref().unwrap();
 
-  for group in nodegroups {
-    let name = group.nodegroup_name.unwrap();
-    if let Some(health) = group.health {
-      if let Some(issues) = health.issues {
-        for issue in issues {
-          let code = issue.code().unwrap_or(&NodegroupIssueCode::InternalFailure);
-          let message = issue.message().unwrap_or("");
-          health_issues.push(NodegroupHealthIssue {
-            name: name.to_owned(),
-            code: code.as_ref().to_string(),
-            message: message.to_owned(),
-          });
+      issues.iter().map(|issue| {
+        let code = issue.code().unwrap_or(&NodegroupIssueCode::InternalFailure);
+        let message = issue.message().unwrap_or("");
+
+        NodegroupHealthIssue {
+          name: name.to_owned(),
+          code: code.as_ref().to_string(),
+          message: message.to_owned(),
         }
-      }
-    }
-  }
-
-  if health_issues.is_empty() {
-    return Ok(None);
-  }
+      })
+    })
+    .collect();
 
   println!("Nodegroup health issues: {health_issues:#?}");
-  Ok(Some(health_issues))
+  Ok(health_issues)
 }
 
 /// Details of the addon as viewed from an upgrade perspective
@@ -339,43 +328,32 @@ async fn addon_version_compatibility(
   client: &EksClient,
   cluster_name: &str,
   cluster_version: &str,
-) -> Result<Option<Vec<AddonDetail>>, anyhow::Error> {
+) -> Result<Vec<AddonDetail>, anyhow::Error> {
   let mut addon_versions: Vec<AddonDetail> = Vec::new();
 
   let target_version = format!("1.{}", version::parse_minor(cluster_version)? + 1);
   let addons = aws::get_addons(client, cluster_name).await?;
 
-  if let Some(addons) = addons {
-    for addon in addons {
-      let name = addon.addon_name.unwrap();
+  for addon in addons {
+    let name = addon.addon_name.as_ref().unwrap();
+    let issues = addon.health.as_ref().unwrap().issues.as_ref();
 
-      let issues = if let Some(health) = addon.health {
-        health.issues
-      } else {
-        None
-      };
+    let current_kubernetes_version =
+      aws::get_addon_versions(client, name, cluster_version).await?;
+    let target_kubnernetes_version =
+      aws::get_addon_versions(client, name, &target_version).await?;
 
-      let current_kubernetes_version =
-        aws::get_addon_versions(client, &name, cluster_version).await?;
-      let target_kubnernetes_version =
-        aws::get_addon_versions(client, &name, &target_version).await?;
-
-      addon_versions.push(AddonDetail {
-        name,
-        version: addon.addon_version.unwrap(),
-        current_kubernetes_version,
-        target_kubnernetes_version,
-        issues,
-      })
-    }
-  }
-
-  if addon_versions.is_empty() {
-    return Ok(None);
+    addon_versions.push(AddonDetail {
+      name: name.to_owned(),
+      version: addon.addon_version.as_ref().unwrap().to_owned(),
+      current_kubernetes_version,
+      target_kubnernetes_version,
+      issues: issues.cloned(),
+    })
   }
 
   println!("Addon versions: {addon_versions:#?}");
-  Ok(Some(addon_versions))
+  Ok(addon_versions)
 }
 
 // async fn pending_launch_template_updates() -> Result<Option<Vec<String>>, anyhow::Error> {
