@@ -61,8 +61,6 @@ Helpful commands:
 
 ### Checks
 
-Get Kubernetes data first so that we can collect info on things like secondary CIDR for custom networking, etc.
-
 - The control plane version matches the version used by the data plane.
   - Hard requirement
 - There are at least 5 avaialable IPs for the control plane to upgrade; requried for cross account ENI creation

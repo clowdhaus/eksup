@@ -34,17 +34,14 @@ async fn main() -> Result<(), anyhow::Error> {
 
     Commands::Analyze(args) => {
       // // Query Kubernetes first so that we can get AWS details that require further querying
-      let k8s_client = kube::Client::try_default().await?;
-      k8s::get_eniconfigs(&k8s_client).await?;
-
       let aws_config = aws::get_config(args.region.clone()).await;
       let eks_client = aws_sdk_eks::Client::new(&aws_config);
-      let asg_client = aws_sdk_autoscaling::Client::new(&aws_config);
 
       let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
-      // println!("{cluster:#?}");
 
       if false {
+        let asg_client = aws_sdk_autoscaling::Client::new(&aws_config);
+
         let eks_managed_nodegroups =
           aws::get_eks_managed_nodegroups(&eks_client, &args.cluster_name).await?;
         println!("EKS MNG:{eks_managed_nodegroups:#?}");
@@ -57,11 +54,7 @@ async fn main() -> Result<(), anyhow::Error> {
         println!("Fargate:{fargate_profiles:#?}");
       }
 
-      // let addons = aws::get_addons(&eks_client, &args.cluster_name).await?;
-      // println!("Addons:{addons:#?}");
-
-      let nodes = k8s::get_nodes(&k8s_client).await?;
-      checks::execute(&aws_config, &cluster, &nodes).await?;
+      checks::execute(&aws_config, &cluster).await?;
     }
   }
 

@@ -11,6 +11,10 @@ pub async fn get_nodes(client: &Client) -> Result<Vec<Node>, anyhow::Error> {
   Ok(nodes.items)
 }
 
+/// Custom resource definition for ENIConfig as specified in the AWS VPC CNI
+///
+/// This makes it possible to query the custom resources in the cluster
+/// for extracting information from the ENIConfigs (if present)
 /// https://github.com/aws/amazon-vpc-cni-k8s/blob/master/charts/aws-vpc-cni/crds/customresourcedefinition.yaml
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[kube(
@@ -24,15 +28,21 @@ pub async fn get_nodes(client: &Client) -> Result<Vec<Node>, anyhow::Error> {
   version = "v1alpha1"
 )]
 pub struct EniConfigSpec {
-  subnet: Option<String>,
-  security_groups: Option<Vec<String>>,
+  pub subnet: Option<String>,
+  pub security_groups: Option<Vec<String>>,
 }
 
-pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>, anyhow::Error> {
+/// Returns all of the ENIConfigs in the cluster, if any are present
+///
+/// This is used to extract the subnet ID(s) to retrieve the number of
+/// available IPs in the subnet(s) when custom networking is enabled
+pub async fn get_eniconfigs(client: &Client) -> Result<Option<Vec<ENIConfig>>, anyhow::Error> {
   let api = Api::<ENIConfig>::all(client.clone());
-
   let configs: Vec<ENIConfig> = api.list(&Default::default()).await?.items;
-  print!("{configs:#?}");
 
-  Ok(configs)
+  if configs.is_empty() {
+    return Ok(None);
+  }
+
+  Ok(Some(configs))
 }

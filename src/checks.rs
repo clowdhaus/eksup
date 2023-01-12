@@ -7,21 +7,23 @@ use aws_sdk_eks::{
   Client as EksClient,
 };
 use k8s_openapi::api::core::v1::Node;
+use kube::Client as K8s_Client;
 
-use crate::{aws, version};
+use crate::{aws, k8s, version};
 
 pub async fn execute(
   aws_shared_config: &aws_config::SdkConfig,
   cluster: &Cluster,
-  nodes: &Vec<Node>,
 ) -> Result<(), anyhow::Error> {
   // Construct clients once
   let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
   let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
+  let k8s_client = kube::Client::try_default().await?;
 
   let cluster_name = cluster.name.as_ref().unwrap();
   let cluster_version = cluster.version.as_ref().unwrap();
+  let nodes = k8s::get_nodes(&k8s_client).await?;
 
   // Get data plane components once
   let eks_managed_nodegroups = aws::get_eks_managed_nodegroups(&eks_client, cluster_name).await?;
@@ -29,7 +31,7 @@ pub async fn execute(
   let fargate_profiles = aws::get_fargate_profiles(&eks_client, cluster_name).await?;
 
   // Checks
-  version_skew(cluster_version, nodes).await?;
+  version_skew(cluster_version, &nodes).await?;
   control_plane_subnets(cluster, &ec2_client).await?;
   node_subnets(
     &ec2_client,
@@ -38,6 +40,7 @@ pub async fn execute(
     self_managed_nodegroups.clone(),
   )
   .await?;
+  pod_subnets(&ec2_client, &k8s_client).await?;
 
   if let Some(eks_managed_nodegroups) = eks_managed_nodegroups {
     eks_managed_node_group_health(eks_managed_nodegroups).await?;
@@ -217,6 +220,44 @@ async fn node_subnets(
   }
 
   println!("Data plane subnets: {subnets:#?}");
+  Ok(subnets)
+}
+
+async fn pod_subnets(
+  ec2_client: &Ec2Client,
+  k8s_client: &K8s_Client,
+) -> Result<Vec<Subnet>, anyhow::Error> {
+  let eniconfigs_response = k8s::get_eniconfigs(k8s_client).await?;
+
+  let eniconfigs = if let Some(eniconfigs_response) = eniconfigs_response {
+    eniconfigs_response
+  } else {
+    return Ok(vec![]);
+  };
+
+  let eniconfig_subnets = eniconfigs
+    .iter()
+    .map(|eniconfig| eniconfig.spec.subnet.as_ref().unwrap().to_owned())
+    .collect();
+
+  let aws_subnets = aws::get_subnets(ec2_client, eniconfig_subnets).await?;
+
+  let subnets = aws_subnets
+    .iter()
+    .map(|subnet| {
+      let id = subnet.subnet_id.as_ref().unwrap();
+
+      Subnet {
+        id: id.to_owned(),
+        availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
+        availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
+        available_ips: subnet.available_ip_address_count.unwrap(),
+        cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
+      }
+    })
+    .collect();
+
+  println!("Pod subnets: {subnets:#?}");
   Ok(subnets)
 }
 
