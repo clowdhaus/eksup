@@ -39,7 +39,6 @@ async fn main() -> Result<(), anyhow::Error> {
       let eks_client = aws_sdk_eks::Client::new(&aws_config);
       let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
 
-      let results = analysis::execute(&aws_config, &cluster).await?;
       let filename = match &args.output_type {
         output::OutputType::File => args
           .output_filename
@@ -47,6 +46,9 @@ async fn main() -> Result<(), anyhow::Error> {
           .expect("--output-file is required when --output-type is `file`"),
         _ => "",
       };
+
+      // All checks and validations on input should happen above/before running the analysis
+      let results = analysis::execute(&aws_config, &cluster).await?;
 
       output::output(&results, &args.output_format, &args.output_type, filename).await?;
     }
