@@ -1,7 +1,8 @@
+mod analysis;
 mod aws;
-mod checks;
 mod cli;
 mod k8s;
+mod output;
 mod playbook;
 mod version;
 
@@ -33,27 +34,21 @@ async fn main() -> Result<(), anyhow::Error> {
     }
 
     Commands::Analyze(args) => {
-      // // Query Kubernetes first so that we can get AWS details that require further querying
+      // Query Kubernetes first so that we can get AWS details that require them
       let aws_config = aws::get_config(args.region.clone()).await;
       let eks_client = aws_sdk_eks::Client::new(&aws_config);
       let cluster = aws::get_cluster(&eks_client, &args.cluster_name).await?;
 
-      if false {
-        let asg_client = aws_sdk_autoscaling::Client::new(&aws_config);
+      let results = analysis::execute(&aws_config, &cluster).await?;
+      let filename = match &args.output_type {
+        output::OutputType::File => args
+          .output_filename
+          .as_ref()
+          .expect("--output-file is required when --output-type is `file`"),
+        _ => "",
+      };
 
-        let eks_managed_nodegroups =
-          aws::get_eks_managed_nodegroups(&eks_client, &args.cluster_name).await?;
-        println!("EKS MNG:{eks_managed_nodegroups:#?}");
-
-        let self_managed_nodegroups =
-          aws::get_self_managed_nodegroups(&asg_client, &args.cluster_name).await?;
-        println!("Self MNG:{self_managed_nodegroups:#?}");
-
-        let fargate_profiles = aws::get_fargate_profiles(&eks_client, &args.cluster_name).await?;
-        println!("Fargate:{fargate_profiles:#?}");
-      }
-
-      checks::execute(&aws_config, &cluster).await?;
+      output::output(&results, &args.output_format, &args.output_type, filename).await?;
     }
   }
 

@@ -3,18 +3,31 @@ use std::collections::HashSet;
 use aws_sdk_autoscaling::model::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{
-  model::{AddonIssue, Cluster, ClusterIssue, FargateProfile, Nodegroup, NodegroupIssueCode},
+  model::{Cluster, FargateProfile, Nodegroup, NodegroupIssueCode},
   Client as EksClient,
 };
 use k8s_openapi::api::core::v1::Node;
 use kube::Client as K8s_Client;
+use serde::{Deserialize, Serialize};
 
 use crate::{aws, k8s, version};
 
-pub async fn execute(
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct Results {
+  pub(crate) version_skew: Vec<NodeDetail>,
+  pub(crate) control_plane_subnets: Vec<Subnet>,
+  pub(crate) node_subnets: Vec<Subnet>,
+  pub(crate) pod_subnets: Vec<Subnet>,
+  pub(crate) eks_managed_node_group_health: Vec<NodegroupHealthIssue>,
+  pub(crate) cluster_health: Vec<ClusterHealthIssue>,
+  pub(crate) addon_version_compatibility: Vec<AddonDetail>,
+}
+
+pub(crate) async fn execute(
   aws_shared_config: &aws_config::SdkConfig,
   cluster: &Cluster,
-) -> Result<(), anyhow::Error> {
+) -> Result<Results, anyhow::Error> {
   // Construct clients once
   let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
@@ -31,33 +44,40 @@ pub async fn execute(
   let fargate_profiles = aws::get_fargate_profiles(&eks_client, cluster_name).await?;
 
   // Checks
-  version_skew(cluster_version, &nodes).await?;
-  control_plane_subnets(cluster, &ec2_client).await?;
-  node_subnets(
+  let version_skew = version_skew(cluster_version, &nodes).await?;
+  let control_plane_subnets = control_plane_subnets(cluster, &ec2_client).await?;
+  let node_subnets = node_subnets(
     &ec2_client,
     eks_managed_nodegroups.clone(),
     fargate_profiles.clone(),
     self_managed_nodegroups.clone(),
   )
   .await?;
-  pod_subnets(&ec2_client, &k8s_client).await?;
+  let pod_subnets = pod_subnets(&ec2_client, &k8s_client).await?;
 
-  if !eks_managed_nodegroups.is_empty() {
-    eks_managed_node_group_health(eks_managed_nodegroups).await?;
-  }
-  cluster_health(cluster).await?;
+  let eks_managed_node_group_health = eks_managed_node_group_health(eks_managed_nodegroups).await?;
+  let cluster_health = cluster_health(cluster).await?;
 
-  addon_version_compatibility(&eks_client, cluster_name, cluster_version).await?;
+  let addon_version_compatibility =
+    addon_version_compatibility(&eks_client, cluster_name, cluster_version).await?;
 
-  Ok(())
+  Ok(Results {
+    version_skew,
+    control_plane_subnets,
+    node_subnets,
+    pod_subnets,
+    eks_managed_node_group_health,
+    cluster_health,
+    addon_version_compatibility,
+  })
 }
 
 /// Node details as viewed from the Kubernetes API
 ///
 /// Contains information related to the Kubernetes component versions
 #[allow(dead_code)]
-#[derive(Debug)]
-struct NodeDetail {
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct NodeDetail {
   name: String,
   container_runtime: String,
   kernel_version: String,
@@ -100,14 +120,13 @@ async fn version_skew(
     })
     .collect();
 
-  println!("Skewed node versions: {nodes:#?}");
   Ok(nodes)
 }
 
 /// Subnet details that can affect upgrade behavior
 #[allow(dead_code)]
-#[derive(Debug)]
-struct Subnet {
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct Subnet {
   id: String,
   availability_zone: String,
   availability_zone_id: String,
@@ -148,7 +167,6 @@ async fn control_plane_subnets(
     })
     .collect();
 
-  println!("Conctrol plane subnets: {subnets:#?}");
   Ok(subnets)
 }
 
@@ -215,7 +233,6 @@ async fn node_subnets(
     })
     .collect();
 
-  println!("Data plane subnets: {subnets:#?}");
   Ok(subnets)
 }
 
@@ -250,7 +267,6 @@ async fn pod_subnets(
     })
     .collect();
 
-  println!("Pod subnets: {subnets:#?}");
   Ok(subnets)
 }
 
@@ -259,8 +275,8 @@ async fn pod_subnets(
 /// Nearly similar to the SDK's `NodegroupHealth` but flattened
 /// and without `Option()`s to make it a bit more ergonomic here
 #[allow(dead_code)]
-#[derive(Debug)]
-struct NodegroupHealthIssue {
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct NodegroupHealthIssue {
   name: String,
   code: String,
   message: String,
@@ -290,22 +306,57 @@ async fn eks_managed_node_group_health(
     })
     .collect();
 
-  println!("Nodegroup health issues: {health_issues:#?}");
   Ok(health_issues)
 }
 
+/// Cluster health issue data
+///
+/// Nearly identical to the SDK's `ClusterIssue` but allows us to serialize/deserialize
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct ClusterHealthIssue {
+  code: String,
+  message: String,
+  resource_ids: Vec<String>,
+}
+
 /// Check for any reported health issues on the cluster control plane
-async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterIssue>, anyhow::Error> {
+async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue>, anyhow::Error> {
   let health = cluster.health.as_ref();
 
   if let Some(health) = health {
-    let issues = health.issues.as_ref().unwrap().to_owned();
+    let issues = health
+      .issues
+      .as_ref()
+      .unwrap()
+      .to_owned()
+      .iter()
+      .map(|issue| {
+        let code = &issue.code.as_ref().unwrap().to_owned();
 
-    println!("Control plane health issues: {issues:#?}");
+        ClusterHealthIssue {
+          code: code.as_str().to_string(),
+          message: issue.message.as_ref().unwrap().to_string(),
+          resource_ids: issue.resource_ids.as_ref().unwrap().to_owned(),
+        }
+      })
+      .collect();
+
     return Ok(issues);
   };
 
   Ok(vec![])
+}
+
+/// Addon health issue data
+///
+/// Nearly identical to the SDK's `AddonIssue` but allows us to serialize/deserialize
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct AddonHealthIssue {
+  code: String,
+  message: String,
+  resource_ids: Vec<String>,
 }
 
 /// Details of the addon as viewed from an upgrade perspective
@@ -318,8 +369,8 @@ async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterIssue>, anyhow::
 /// needs to take to upgrade the cluster, or should consider taking in terms
 /// of a recommendation to update to the latest supported version.
 #[allow(dead_code)]
-#[derive(Debug)]
-struct AddonDetail {
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct AddonDetail {
   name: String,
   /// The current version of the add-on
   version: String,
@@ -328,7 +379,7 @@ struct AddonDetail {
   /// The default and latest add-on versions for the target Kubernetes version
   target_kubnernetes_version: aws::AddonVersion,
   /// Add-on health issues
-  issues: Option<Vec<AddonIssue>>,
+  issues: Vec<AddonHealthIssue>,
 }
 
 /// Check for any verson compatibility issues for the EKS addons enabled
@@ -351,21 +402,40 @@ async fn addon_version_compatibility(
 
   for addon in addons {
     let name = addon.addon_name.as_ref().unwrap();
-    let issues = addon.health.as_ref().unwrap().issues.as_ref();
+    let health = addon.health.as_ref();
 
     let current_kubernetes_version = aws::get_addon_versions(client, name, cluster_version).await?;
     let target_kubnernetes_version = aws::get_addon_versions(client, name, &target_version).await?;
+
+    let issues: Vec<AddonHealthIssue> = match health {
+      Some(health) => health
+        .issues
+        .as_ref()
+        .unwrap()
+        .to_owned()
+        .iter()
+        .map(|issue| {
+          let code = issue.code.as_ref().unwrap().to_owned();
+
+          AddonHealthIssue {
+            code: code.as_str().to_string(),
+            message: issue.message.as_ref().unwrap().to_string(),
+            resource_ids: issue.resource_ids.as_ref().unwrap().to_owned(),
+          }
+        })
+        .collect(),
+      None => vec![],
+    };
 
     addon_versions.push(AddonDetail {
       name: name.to_owned(),
       version: addon.addon_version.as_ref().unwrap().to_owned(),
       current_kubernetes_version,
       target_kubnernetes_version,
-      issues: issues.cloned(),
+      issues,
     })
   }
 
-  println!("Addon versions: {addon_versions:#?}");
   Ok(addon_versions)
 }
 
@@ -388,8 +458,6 @@ async fn addon_version_compatibility(
 //   if pending_updates.is_empty() {
 //     return Ok(None);
 //   }
-
-//   println!("Pending launch template updates: {pending_updates:#?}");
 
 //   Ok(Some(pending_updates))
 // }

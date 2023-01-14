@@ -4,6 +4,8 @@ use clap::{Parser, Subcommand, ValueEnum};
 use seq_macro::seq;
 use serde::{Deserialize, Serialize};
 
+use crate::output;
+
 seq!(N in 20..=24 {
     /// Kubernetes version(s) supported
     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -81,12 +83,21 @@ impl Default for Strategy {
 #[derive(Parser, Debug, Serialize, Deserialize)]
 pub struct Analysis {
   /// The name of the cluster to analyze
-  #[arg(long, value_enum)]
+  #[arg(long, alias = "name", value_enum)]
   pub cluster_name: String,
 
   /// The AWS region where the cluster is provisioned
   #[arg(long)]
   pub region: Option<String>,
+
+  #[arg(long, alias = "ofmt", value_enum, default_value_t)]
+  pub output_format: output::OutputFormat,
+
+  #[arg(long, alias = "otype", value_enum, default_value_t)]
+  pub output_type: output::OutputType,
+
+  #[arg(long, alias = "ofile")]
+  pub output_filename: Option<String>,
 }
 
 /// Create a playbook for upgrading an Amazon EKS cluster

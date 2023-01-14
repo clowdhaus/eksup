@@ -11,6 +11,7 @@ use aws_sdk_eks::{
   Client as EksClient,
 };
 use aws_types::region::Region;
+use serde::{Deserialize, Serialize};
 
 pub async fn get_config(region: Option<String>) -> aws_config::SdkConfig {
   // TODO - fix this ugliness
@@ -39,6 +40,10 @@ pub async fn get_subnets(
   client: &Ec2Client,
   subnet_ids: Vec<String>,
 ) -> Result<Vec<Subnet>, anyhow::Error> {
+  if subnet_ids.is_empty() {
+    return Ok(Vec::new());
+  }
+
   let subnets = client
     .describe_subnets()
     .set_subnet_ids(Some(subnet_ids))
@@ -191,7 +196,7 @@ pub(crate) async fn get_addons(
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AddonVersion {
   /// Latest supported version of the addon
   pub(crate) latest: String,
