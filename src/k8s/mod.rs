@@ -2,63 +2,144 @@ use k8s_openapi::api::{
   apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet},
   batch::v1::{CronJob, Job},
   core::v1::{Namespace, Node},
+  policy::v1beta1::PodSecurityPolicy,
 };
 pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ListMeta, ObjectMeta};
-use kube::{api::Api, Client, CustomResource};
+use kube::{
+  api::{Api, DynamicObject, ResourceExt},
+  discovery::{verbs, Discovery, Scope},
+  Client, CustomResource,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tracing::*;
+
+pub async fn _discover_all(client: &Client) -> Result<(), anyhow::Error> {
+  let discovery = Discovery::new(client.clone()).run().await?;
+  for group in discovery.groups() {
+    for (ar, caps) in group.recommended_resources() {
+      if !caps.supports_operation(verbs::LIST) {
+        continue;
+      }
+      let api: Api<DynamicObject> = if caps.scope == Scope::Cluster {
+        Api::all_with(client.clone(), &ar)
+      } else {
+        Api::default_namespaced_with(client.clone(), &ar)
+      };
+
+      info!("{}/{} : {}", group.name(), ar.version, ar.kind);
+      println!("{}/{} : {}", group.name(), ar.version, ar.kind);
+
+      let list = api.list(&Default::default()).await?;
+      for item in list.items {
+        let name = item.name_any();
+        let ns = item.metadata.namespace.map(|s| s + "/").unwrap_or_default();
+        info!("\t\t{}{}", ns, name);
+        println!("\t\t{}{}", ns, name);
+      }
+    }
+  }
+
+  Ok(())
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Resources {
+  pub nodes: Vec<Node>,
+  pub namespaces: Vec<Namespace>,
+  pub podsecuritypolicies: Vec<PodSecurityPolicy>,
+  pub cronjobs: Vec<CronJob>,
+  pub daemonsets: Vec<DaemonSet>,
+  pub deployments: Vec<Deployment>,
+  pub jobs: Vec<Job>,
+  pub replicasets: Vec<ReplicaSet>,
+  pub statefulsets: Vec<StatefulSet>,
+}
+
+pub async fn get_all_resources(client: &Client) -> Result<Resources, anyhow::Error> {
+  let nodes = get_nodes(client).await?;
+  let namespaces = get_namespaces(client).await?;
+  let podsecuritypolicies = get_podsecuritypolicies(client).await?;
+  let cronjobs = get_cronjobs(client).await?;
+  let daemonsets = get_daemonset(client).await?;
+  let deployments = get_deployments(client).await?;
+  let jobs = get_jobs(client).await?;
+  let replicasets = get_replicasets(client).await?;
+  let statefulsets = get_statefulsets(client).await?;
+
+  let resources = Resources {
+    nodes,
+    namespaces,
+    podsecuritypolicies,
+    cronjobs,
+    daemonsets,
+    deployments,
+    jobs,
+    replicasets,
+    statefulsets,
+  };
+
+  Ok(resources)
+}
 
 /// Returns all of the nodes in the cluster
-pub async fn get_nodes(client: &Client) -> Result<Vec<Node>, anyhow::Error> {
+async fn get_nodes(client: &Client) -> Result<Vec<Node>, anyhow::Error> {
   let api: Api<Node> = Api::all(client.clone());
   let nodes = api.list(&Default::default()).await?;
 
   Ok(nodes.items)
 }
 
-pub async fn _get_namespaces(client: &Client) -> Result<Vec<Namespace>, anyhow::Error> {
+async fn get_namespaces(client: &Client) -> Result<Vec<Namespace>, anyhow::Error> {
   let api: Api<Namespace> = Api::all(client.clone());
   let namespaces = api.list(&Default::default()).await?;
 
   Ok(namespaces.items)
 }
 
-pub async fn _get_cronjobs(client: &Client) -> Result<Vec<CronJob>, anyhow::Error> {
+async fn get_podsecuritypolicies(client: &Client) -> Result<Vec<PodSecurityPolicy>, anyhow::Error> {
+  let api: Api<PodSecurityPolicy> = Api::all(client.clone());
+  let nodes = api.list(&Default::default()).await?;
+
+  Ok(nodes.items)
+}
+
+async fn get_cronjobs(client: &Client) -> Result<Vec<CronJob>, anyhow::Error> {
   let api: Api<CronJob> = Api::all(client.clone());
   let cronjobs = api.list(&Default::default()).await?;
 
   Ok(cronjobs.items)
 }
 
-pub async fn _get_daemonset(client: &Client) -> Result<Vec<DaemonSet>, anyhow::Error> {
+async fn get_daemonset(client: &Client) -> Result<Vec<DaemonSet>, anyhow::Error> {
   let api: Api<DaemonSet> = Api::all(client.clone());
   let daemonsets = api.list(&Default::default()).await?;
 
   Ok(daemonsets.items)
 }
 
-pub async fn _get_deployments(client: &Client) -> Result<Vec<Deployment>, anyhow::Error> {
+async fn get_deployments(client: &Client) -> Result<Vec<Deployment>, anyhow::Error> {
   let api: Api<Deployment> = Api::all(client.clone());
   let deployments = api.list(&Default::default()).await?;
 
   Ok(deployments.items)
 }
 
-pub async fn _get_jobs(client: &Client) -> Result<Vec<Job>, anyhow::Error> {
+async fn get_jobs(client: &Client) -> Result<Vec<Job>, anyhow::Error> {
   let api: Api<Job> = Api::all(client.clone());
   let jobs = api.list(&Default::default()).await?;
 
   Ok(jobs.items)
 }
 
-pub async fn _get_replicasets(client: &Client) -> Result<Vec<ReplicaSet>, anyhow::Error> {
+async fn get_replicasets(client: &Client) -> Result<Vec<ReplicaSet>, anyhow::Error> {
   let api: Api<ReplicaSet> = Api::all(client.clone());
   let replicasets = api.list(&Default::default()).await?;
 
   Ok(replicasets.items)
 }
 
-pub async fn _get_statefulsets(client: &Client) -> Result<Vec<StatefulSet>, anyhow::Error> {
+async fn get_statefulsets(client: &Client) -> Result<Vec<StatefulSet>, anyhow::Error> {
   let api: Api<StatefulSet> = Api::all(client.clone());
   let statefulsets = api.list(&Default::default()).await?;
 

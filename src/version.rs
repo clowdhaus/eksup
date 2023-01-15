@@ -1,3 +1,44 @@
+use std::fmt;
+
+use clap::ValueEnum;
+use seq_macro::seq;
+use serde::{Deserialize, Serialize};
+
+/// Latest support version
+pub const LATEST: &str = "1.24";
+
+seq!(N in 20..=24 {
+    /// Kubernetes version(s) supported
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+    pub enum KubernetesVersion {
+        #( V~N, )*
+    }
+
+    /// Formats the Kubernetes version as a string in the form of "1.X"
+    impl fmt::Display for KubernetesVersion {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match *self {
+                #( KubernetesVersion::V~N => write!(f, "1.{}", N), )*
+            }
+        }
+    }
+
+    /// Used by clap for acceptable values and converting from input to enum
+    impl ValueEnum for KubernetesVersion {
+        fn value_variants<'a>() -> &'a [Self] {
+            &[
+                #( Self::V~N, )*
+            ]
+        }
+
+        fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
+            match self {
+                #( Self::V~N => Some(clap::builder::PossibleValue::new(format!("1.{}", N))), )*
+            }
+        }
+    }
+});
+
 /// Given a version, parse the minor version
 ///
 /// For example, the format Amazon EKS of v1.20.7-eks-123456 returns 20

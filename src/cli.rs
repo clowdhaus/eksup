@@ -1,42 +1,9 @@
-use std::{fmt, str};
+use std::str;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use seq_macro::seq;
 use serde::{Deserialize, Serialize};
 
-use crate::output;
-
-seq!(N in 20..=24 {
-    /// Kubernetes version(s) supported
-    #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-    pub enum KubernetesVersion {
-        #( V~N, )*
-    }
-
-    /// Formats the Kubernetes version as a string in the form of "1.X"
-    impl fmt::Display for KubernetesVersion {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            match *self {
-                #( KubernetesVersion::V~N => write!(f, "1.{}", N), )*
-            }
-        }
-    }
-
-    /// Used by clap for acceptable values and converting from input to enum
-    impl ValueEnum for KubernetesVersion {
-        fn value_variants<'a>() -> &'a [Self] {
-            &[
-                #( Self::V~N, )*
-            ]
-        }
-
-        fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
-            match self {
-                #( Self::V~N => Some(clap::builder::PossibleValue::new(format!("1.{}", N))), )*
-            }
-        }
-    }
-});
+use crate::{output, version};
 
 /// The different types of strategies for upgrading a cluster
 ///
@@ -107,7 +74,7 @@ pub struct Playbook {
 
   /// The cluster's current Kubernetes version
   #[arg(long, value_enum)]
-  pub cluster_version: KubernetesVersion,
+  pub cluster_version: version::KubernetesVersion,
 
   /// Array of compute types used in the data plane
   #[arg(long, value_enum, num_args = 1..=3)]
@@ -128,7 +95,6 @@ pub struct Playbook {
 
 #[derive(Clone, Debug, Subcommand, Serialize, Deserialize)]
 pub enum CreateCommands {
-  Analysis(Analysis),
   Playbook(Playbook),
 }
 
@@ -149,6 +115,7 @@ pub struct Create {
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Commands {
+  Analyze(Analysis),
   Create(Create),
 }
 

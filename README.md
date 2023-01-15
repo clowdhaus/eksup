@@ -32,13 +32,12 @@ The end goal of this tool is a playbook that you and your team feel confident in
 
 ## Commands & SubCommands
 
-- `create`
-  - `analysis`
-    - text stdout for quick analysis from CLI
-    - `--output-format json --output-type file`: JSON stdout for data collection and reporting from a central location (CronJob), text stdout for quick analysis from CLI
-  - `playbook`
-    - a playbook with generic upgrade steps; informative process on cluster upgrade without need to have a cluster or access a cluster
-    - `--with-analysis`: playbook with the analysis results; most concrete set of information on the current cluster state with guidance
+- `analyze`
+  - text stdout for quick analysis from CLI
+  - `--output-format json --output-type file`: JSON stdout for data collection and reporting from a central location (CronJob), text stdout for quick analysis from CLI
+- `playbook`
+  - a playbook with generic upgrade steps; informative process on cluster upgrade without need to have a cluster or access a cluster
+  - `--with-analysis`: playbook with the analysis results; most concrete set of information on the current cluster state with guidance
 - `migrate` or `transform`
   - [Future - TBD]
 

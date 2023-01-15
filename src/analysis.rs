@@ -36,7 +36,9 @@ pub(crate) async fn execute(
 
   let cluster_name = cluster.name.as_ref().unwrap();
   let cluster_version = cluster.version.as_ref().unwrap();
-  let nodes = k8s::get_nodes(&k8s_client).await?;
+
+  let k8s_resources = k8s::get_all_resources(&k8s_client).await?;
+  // println!("K8s Resources: {k8s_resources:#?}");
 
   // Get data plane components once
   let eks_managed_nodegroups = aws::get_eks_managed_nodegroups(&eks_client, cluster_name).await?;
@@ -44,7 +46,7 @@ pub(crate) async fn execute(
   let fargate_profiles = aws::get_fargate_profiles(&eks_client, cluster_name).await?;
 
   // Checks
-  let version_skew = version_skew(cluster_version, &nodes).await?;
+  let version_skew = version_skew(cluster_version, &k8s_resources.nodes).await?;
   let control_plane_subnets = control_plane_subnets(cluster, &ec2_client).await?;
   let node_subnets = node_subnets(
     &ec2_client,
