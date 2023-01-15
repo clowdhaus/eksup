@@ -4,7 +4,26 @@ use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 
-use crate::cli::{Compute, Playbook};
+use crate::cli::{Compute, KubernetesVersion, Strategy};
+
+/// Create a playbook for upgrading an Amazon EKS cluster
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Playbook {
+  /// The name of the cluster
+  pub cluster_name: Option<String>,
+
+  /// The cluster's current Kubernetes version
+  pub cluster_version: KubernetesVersion,
+
+  /// Array of compute types used in the data plane
+  pub compute: Vec<Compute>,
+
+  /// Name of the output file
+  pub filename: String,
+
+  /// The cluster upgrade strategy
+  pub strategy: Strategy,
+}
 
 /// Embeds the contents of the `templates/` directory into the binary
 ///
@@ -60,8 +79,6 @@ pub struct TemplateData {
 
   k8s_deprecation_url: String,
 
-  custom_ami: bool,
-
   eks_managed_node_group: Option<String>,
 
   self_managed_node_group: Option<String>,
@@ -97,41 +114,40 @@ impl TemplateData {
       eks_managed_node_group: None,
       self_managed_node_group: None,
       fargate_profile: None,
-      custom_ami: playbook.custom_ami,
     })
   }
 }
 
-pub fn create(playbook: &Playbook) -> Result<(), anyhow::Error> {
+pub fn _create(playbook: &Playbook) -> Result<(), anyhow::Error> {
   let mut handlebars = Handlebars::new();
   handlebars.register_embed_templates::<Templates>()?;
 
-  let mut tmpl_data = TemplateData::new(playbook)?;
+  let tmpl_data = TemplateData::new(playbook)?;
 
-  // Render sub-templates for data plane components
-  let eks_managed_node_group = if playbook.compute.contains(&Compute::EksManaged) {
-    let rendered = handlebars.render("eks-managed-node-group.md", &tmpl_data)?;
-    Some(rendered)
-  } else {
-    None
-  };
-  tmpl_data.eks_managed_node_group = eks_managed_node_group;
+  // // Render sub-templates for data plane components
+  // let eks_managed_node_group = if playbook.compute.contains(&Compute::EksManaged) {
+  //   let rendered = handlebars.render("eks-managed-node-group.md", &tmpl_data)?;
+  //   Some(rendered)
+  // } else {
+  //   None
+  // };
+  // tmpl_data.eks_managed_node_group = eks_managed_node_group;
 
-  let self_managed_node_group = if playbook.compute.contains(&Compute::SelfManaged) {
-    let rendered = handlebars.render("self-managed-node-group.md", &tmpl_data)?;
-    Some(rendered)
-  } else {
-    None
-  };
-  tmpl_data.self_managed_node_group = self_managed_node_group;
+  // let self_managed_node_group = if playbook.compute.contains(&Compute::SelfManaged) {
+  //   let rendered = handlebars.render("self-managed-node-group.md", &tmpl_data)?;
+  //   Some(rendered)
+  // } else {
+  //   None
+  // };
+  // tmpl_data.self_managed_node_group = self_managed_node_group;
 
-  let fargate_profile = if playbook.compute.contains(&Compute::FargateProfile) {
-    let rendered = handlebars.render("fargate-profile.md", &tmpl_data)?;
-    Some(rendered)
-  } else {
-    None
-  };
-  tmpl_data.fargate_profile = fargate_profile;
+  // let fargate_profile = if playbook.compute.contains(&Compute::FargateProfile) {
+  //   let rendered = handlebars.render("fargate-profile.md", &tmpl_data)?;
+  //   Some(rendered)
+  // } else {
+  //   None
+  // };
+  // tmpl_data.fargate_profile = fargate_profile;
 
   // TODO = handlebars should be able to handle backticks and apostrophes
   // Need to figure out why this isn't the case currently
