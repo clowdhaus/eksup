@@ -4,26 +4,7 @@ use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 
-use crate::cli::{Compute, KubernetesVersion, Strategy};
-
-/// Create a playbook for upgrading an Amazon EKS cluster
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Playbook {
-  /// The name of the cluster
-  pub cluster_name: Option<String>,
-
-  /// The cluster's current Kubernetes version
-  pub cluster_version: KubernetesVersion,
-
-  /// Array of compute types used in the data plane
-  pub compute: Vec<Compute>,
-
-  /// Name of the output file
-  pub filename: String,
-
-  /// The cluster upgrade strategy
-  pub strategy: Strategy,
-}
+use crate::cli::Playbook;
 
 /// Embeds the contents of the `templates/` directory into the binary
 ///
@@ -108,7 +89,7 @@ impl TemplateData {
         Some(url) => url.to_string(),
         None => "".to_string(),
       },
-      // TODO: Should this be a separate data structur since we are mutating
+      // TODO: Should this be a separate data structure since we are mutating
       // it after the fact? Plus, these are templates that are rendered with
       // the same data passed to the playbook template (in this very struct)
       eks_managed_node_group: None,
@@ -118,7 +99,7 @@ impl TemplateData {
   }
 }
 
-pub fn _create(playbook: &Playbook) -> Result<(), anyhow::Error> {
+pub fn create(playbook: &Playbook) -> Result<(), anyhow::Error> {
   let mut handlebars = Handlebars::new();
   handlebars.register_embed_templates::<Templates>()?;
 

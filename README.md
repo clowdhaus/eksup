@@ -32,31 +32,32 @@ The end goal of this tool is a playbook that you and your team feel confident in
 
 ## Commands & SubCommands
 
-- `eksup create-playbook` - Creates a cluster upgrade playbook
-- `eksup analyze` - Analyzes a cluster and provides feedback based on pre-upgrade checks/considerations
-
 - `create`
-  - `analysis --output-format json|text --output-type stdout|file`: JSON stdout for data collection and reporting from a central location (CronJob), text stdout for quick analysis from CLI
-  - `playbook --with-analysis`: playbook with the analysis results; most concrete set of information on the current cluster state with guidance
-  - `playbook` a playbook with generic upgrade steps; informative process on cluster upgrade without need to have a cluster or access a cluster
-- `migrate` [Future - TBD]
+  - `analysis`
+    - text stdout for quick analysis from CLI
+    - `--output-format json --output-type file`: JSON stdout for data collection and reporting from a central location (CronJob), text stdout for quick analysis from CLI
+  - `playbook`
+    - a playbook with generic upgrade steps; informative process on cluster upgrade without need to have a cluster or access a cluster
+    - `--with-analysis`: playbook with the analysis results; most concrete set of information on the current cluster state with guidance
+- `migrate` or `transform`
+  - [Future - TBD]
 
 ### Checks
 
 | Icon | Description          | Notes                                                                                   |
 | :--: | :------------------- | :-------------------------------------------------------------------------------------- |
 |  ℹ️  | Informational notice | Users should be aware, but it is not a hard requirement for upgrading                   |
-|  🛑  | Hard requirement     | Users are strongly encouraged to address prior to upgrade to avoid any potential issues |
+|  🚫  | Hard requirement     | Users are strongly encouraged to address prior to upgrade to avoid any potential issues |
 
-- 🛑 The control plane version matches the version used by the data plane.
-- 🛑 There are at least 5 available IPs for the control plane to upgrade; required for cross account ENI creation
+- 🚫 The control plane version matches the version used by the data plane.
+- 🚫 There are at least 5 available IPs for the control plane to upgrade; required for cross account ENI creation
 - ℹ️ There are sufficient available IPs for the nodes to support the surge, in-place rolling upgrade. Irrespective of Kubernetes, each EC2 instance
 - ℹ️ There are sufficient available IPs for the pods to support the surge, in-place rolling upgrade. This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves.
-- 🛑 The current EKS addon(s) are compatible with the next Kubernetes version
+- 🚫 The current EKS addon(s) are compatible with the next Kubernetes version
   - This will also show where the addon version stands relative to the default and latest versions for the current Kubernetes version as well as the Kubernetes version the upgrade is targeting
-- 🛑 There are no health issues reported for the EKS cluster (control plane)
-- 🛑 There are no health issues reported for the EKS managed node groups. There aren't any available health statuses available from the AWS API for self-managed node groups or Fargate profiles at this time
-- 🛑 There are no health issues reported for the EKS addons
+- 🚫 There are no health issues reported for the EKS cluster (control plane)
+- 🚫 There are no health issues reported for the EKS managed node groups. There aren't any available health statuses available from the AWS API for self-managed node groups or Fargate profiles at this time
+- 🚫 There are no health issues reported for the EKS addons
 
 #### TBD Checks
 

@@ -8,7 +8,7 @@ Note: Fargate profiles are immutable and therefore cannot be changed. However, y
 
 - Ensure PDBs set
 - Ensure a profile in more than one availability zone (spread across all AZs is preferred)
-- Use a mutating webhook to inject `nodeSelector: failure-domain.beta.kubernetes.io/zone: <AZ>` into pods created to distribute across the AZs. (EKS Faragte does not natively do this today - see https://github.com/aws/containers-roadmap/issues/824)
+- Use a mutating webhook to inject `nodeSelector: failure-domain.beta.kubernetes.io/zone: <AZ>` into pods created to distribute across the AZs. (EKS Fargate does not natively do this today - see https://github.com/aws/containers-roadmap/issues/824)
 - You cannot set the version of a profile; it is pulled from the control plane version. Once the control plane has been updated, any new virtual nodes created will use the latest patch version for the associated control plane version. This means the virtual nodes will need to be rolled to update
 - `kubectl drain <VIRTUAL_NODE> --delete-emptydir-data` will respect PDBs and drain the pod and delete the virtual node
   - How to do this at scale in a rolling fashion?

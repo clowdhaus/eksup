@@ -70,7 +70,7 @@ impl Default for CreateOptions {
 }
 
 /// Compute constructs supported by Amazon EKS the data plane
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, ValueEnum)]
 pub enum Compute {
   EksManaged,
   SelfManaged,
@@ -79,9 +79,7 @@ pub enum Compute {
 
 /// Analyze an Amazon EKS cluster prior to upgrading
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
-pub struct Create {
-  pub option: CreateOptions,
-
+pub struct Analysis {
   /// The name of the cluster to analyze
   #[arg(long, alias = "name", value_enum)]
   pub cluster_name: String,
@@ -98,6 +96,55 @@ pub struct Create {
 
   #[arg(long, alias = "ofile")]
   pub output_filename: Option<String>,
+}
+
+/// Create a playbook for upgrading an Amazon EKS cluster
+#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+pub struct Playbook {
+  /// The name of the cluster
+  #[arg(long, default_value = "<CLUSTER_NAME>")]
+  pub cluster_name: Option<String>,
+
+  /// The cluster's current Kubernetes version
+  #[arg(long, value_enum)]
+  pub cluster_version: KubernetesVersion,
+
+  /// Array of compute types used in the data plane
+  #[arg(long, value_enum, num_args = 1..=3)]
+  pub compute: Option<Vec<Compute>>,
+
+  /// Whether the AMI used is custom or not (provided by AWS)
+  #[arg(long)]
+  pub custom_ami: bool,
+
+  /// Name of the output file
+  #[arg(short, long, default_value = "playbook.md")]
+  pub filename: String,
+
+  /// The cluster upgrade strategy
+  #[arg(short, long, value_enum, default_value_t)]
+  pub strategy: Strategy,
+}
+
+#[derive(Clone, Debug, Subcommand, Serialize, Deserialize)]
+pub enum CreateCommands {
+  Analysis(Analysis),
+  Playbook(Playbook),
+}
+
+/// Analyze an Amazon EKS cluster prior to upgrading
+#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+pub struct Create {
+  #[command(subcommand)]
+  pub command: CreateCommands,
+
+  /// The name of the cluster to analyze
+  #[arg(long, alias = "name", value_enum)]
+  pub cluster_name: String,
+
+  /// The AWS region where the cluster is provisioned
+  #[arg(long)]
+  pub region: Option<String>,
 }
 
 #[derive(Clone, Debug, Subcommand)]
