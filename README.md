@@ -59,3 +59,5 @@ The end goal of this tool is a playbook that you and your team feel confident in
 | ❌ | No health issues reported for the EKS cluster (control plane) |
 | ❌ | No health issues reported for the EKS managed node groups. There aren't any available health statuses available from the AWS API for self-managed node groups or Fargate profiles at this time |
 | ❌ | No health issues reported for the EKS addons |
+| ℹ️ | EKS managed node group(s) are using latest launch template version; no pending updates |
+| ℹ️ | Self-managed node group(s) are using latest launch template version; no pending updates |

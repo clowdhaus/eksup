@@ -39,6 +39,19 @@ seq!(N in 20..=24 {
     }
 });
 
+/// Get the Kubernetes version the cluster is intended to be upgraded to
+///
+/// Given the current Kubernetes version and the default behavior based on Kubernetes
+/// upgrade restrictions of one minor version upgrade at a time, return the
+/// next minor Kubernetes version
+/// TODO: This will change in the future when the strategy allows for `BlueGreen` upgrades
+pub(crate) fn get_target_version(current_version: &str) -> Result<String, anyhow::Error> {
+  let current_minor_version =
+    current_version.split('.').collect::<Vec<&str>>()[1].parse::<i32>()?;
+
+  Ok(format!("1.{}", current_minor_version + 1))
+}
+
 /// Given a version, parse the minor version
 ///
 /// For example, the format Amazon EKS of v1.20.7-eks-123456 returns 20

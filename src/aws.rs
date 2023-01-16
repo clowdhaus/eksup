@@ -1,5 +1,6 @@
 use std::env;
 
+use anyhow::bail;
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_autoscaling::{
   model::{AutoScalingGroup, Filter as AsgFilter},
@@ -88,8 +89,6 @@ pub async fn get_eks_managed_nodegroups(
   Ok(nodegroups)
 }
 
-// TODO - querying on tags will return EKS managed node groups as well
-// TODO - We will need to de-dupe
 pub async fn get_self_managed_nodegroups(
   client: &AsgClient,
   cluster_name: &str,
@@ -263,4 +262,45 @@ pub(crate) async fn get_addon_versions(
     supported,
     kubernetes_version: kubernetes_version.to_owned(),
   })
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct LaunchTemplate {
+  /// Name of the launch template
+  pub(crate) name: String,
+  /// The ID of the launch template
+  pub(crate) id: String,
+  /// The version of the launch template currently used/specified in the autoscaling group
+  pub(crate) current_version: String,
+  /// The latest version of the launch template
+  pub(crate) latest_version: String,
+}
+
+pub(crate) async fn get_launch_template(
+  client: &Ec2Client,
+  id: String,
+) -> Result<LaunchTemplate, anyhow::Error> {
+  let output = client
+    .describe_launch_templates()
+    .set_launch_template_ids(Some(vec![id.clone()]))
+    .send()
+    .await?;
+
+  let template = output
+    .launch_templates
+    .unwrap()
+    .into_iter()
+    .map(|lt| LaunchTemplate {
+      name: lt.launch_template_name.unwrap(),
+      id: lt.launch_template_id.unwrap(),
+      current_version: lt.default_version_number.unwrap().to_string(),
+      latest_version: lt.latest_version_number.unwrap().to_string(),
+    })
+    .next();
+
+  match template {
+    Some(t) => Ok(t),
+    None => bail!("Unable to find launch template with id: {id}"),
+  }
 }

@@ -4,7 +4,7 @@ use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 
-use crate::cli::Playbook;
+use crate::{cli::Playbook, version};
 
 /// Embeds the contents of the `templates/` directory into the binary
 ///
@@ -27,19 +27,6 @@ struct Release {
 
 /// Type alias for Kubernetes version string (i.e. - "1.21")
 type Version = String;
-
-/// Get the Kubernetes version the cluster is intended to be upgraded to
-///
-/// Given the current Kubernetes version and the default behavior based on Kubernetes
-/// upgrade restrictions of one minor version upgrade at a time, return the
-/// next minor Kubernetes version
-/// TODO: This will change in the future when the strategy allows for `BlueGreen` upgrades
-fn get_target_version(current_version: &str) -> Result<String, anyhow::Error> {
-  let current_minor_version =
-    current_version.split('.').collect::<Vec<&str>>()[1].parse::<i32>()?;
-
-  Ok(format!("1.{}", current_minor_version + 1))
-}
 
 /// Data to populate the template(s) for rendering the upgrade playbook
 ///
@@ -77,7 +64,7 @@ impl TemplateData {
 
     let cluster_name = playbook.cluster_name.as_ref().unwrap();
     let current_version = playbook.cluster_version.to_string();
-    let target_version = get_target_version(&current_version)?;
+    let target_version = version::get_target_version(&current_version)?;
     let release = data.get(&target_version).unwrap();
 
     Ok(TemplateData {

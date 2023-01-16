@@ -33,7 +33,7 @@ data "aws_availability_zones" "available" {}
 
 locals {
   name                  = "test-${basename(path.cwd)}"
-  control_plane_version = "1.21" # Update after deploy to create skew
+  control_plane_version = "1.22"
   data_plane_version    = "1.21"
   region                = "us-east-1"
 
@@ -100,10 +100,12 @@ module "eks" {
   eks_managed_node_groups = {
     # This uses a custom launch template (custom as in module/user supplied)
     standard = {
-      # pre_bootstrap_user_data = <<-EOT
-      #   #!/bin/bash
-      #   echo "Hello from user data!"
-      # EOT
+      pre_bootstrap_user_data = <<-EOT
+        #!/bin/bash
+        echo "Hello from user data!"
+      EOT
+
+      update_launch_template_default_version = false
 
       min_size     = 1
       max_size     = 3

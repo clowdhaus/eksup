@@ -11,8 +11,8 @@
 - [x] EKS managed node group(s) are free of health issues
 - [x] EKS addon(s) are free of health issues
 - [x] EKS addon version is within supported range; recommend upgrading if target Kubernetes version default addon version is newer
-- [ ] EKS managed node group(s): report if the launch template version is not the latest
-- [ ] Self-managed node group(s): report if the launch template version is not the latest
+- [x] EKS managed node group(s): report if the launch template version is not the latest
+- [x] Self-managed node group(s): report if the launch template version is not the latest
 - [ ] Check AWS service limits and utilization for relevant resources
   - Requires premium support https://docs.aws.amazon.com/awssupport/latest/user/service-limits.html
   - [ ] EC2 instance service limits

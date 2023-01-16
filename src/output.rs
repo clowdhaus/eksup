@@ -19,11 +19,16 @@ impl Default for OutputFormat {
   }
 }
 
+// TODO - replace this with standalone flags
+// --stdout will output to stdout
+// --filename <FILENAME> indicates writing to file under the defined name passed
+// Need to write out all combination of commands and flags for intended use cases
+// to see what makes the most sense and is the most intuitive/ergonomical
 #[derive(Clone, Copy, Debug, ValueEnum, Serialize, Deserialize)]
 pub enum OutputType {
   /// JSON format used for logging or writing to a *.json file
   Stdout,
-  /// Output to file
+  /// Write to file
   File,
 }
 

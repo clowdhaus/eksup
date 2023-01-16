@@ -22,6 +22,7 @@ pub(crate) struct Results {
   pub(crate) eks_managed_node_group_health: Vec<NodegroupHealthIssue>,
   pub(crate) cluster_health: Vec<ClusterHealthIssue>,
   pub(crate) addon_version_compatibility: Vec<AddonDetail>,
+  pub(crate) autoscaling_group_updates: Vec<AutoscalingGroupUpdate>,
 }
 
 pub(crate) async fn execute(
@@ -44,6 +45,22 @@ pub(crate) async fn execute(
   let eks_managed_nodegroups = aws::get_eks_managed_nodegroups(&eks_client, cluster_name).await?;
   let self_managed_nodegroups = aws::get_self_managed_nodegroups(&asg_client, cluster_name).await?;
   let fargate_profiles = aws::get_fargate_profiles(&eks_client, cluster_name).await?;
+
+  let mut autoscaling_group_updates: Vec<AutoscalingGroupUpdate> = Vec::new();
+  for mng in eks_managed_nodegroups.clone() {
+    let lt_updates =
+      pending_autoscaling_group_updates(&ec2_client, &NodeGroupType::EksManaged(mng)).await?;
+    for update in lt_updates {
+      autoscaling_group_updates.push(update)
+    }
+  }
+  for asg in self_managed_nodegroups.clone() {
+    let lt_updates =
+      pending_autoscaling_group_updates(&ec2_client, &NodeGroupType::SelfManaged(asg)).await?;
+    for update in lt_updates {
+      autoscaling_group_updates.push(update)
+    }
+  }
 
   // Checks
   let version_skew = version_skew(cluster_version, &k8s_resources.nodes).await?;
@@ -71,6 +88,7 @@ pub(crate) async fn execute(
     eks_managed_node_group_health,
     cluster_health,
     addon_version_compatibility,
+    autoscaling_group_updates,
   })
 }
 
@@ -441,25 +459,103 @@ async fn addon_version_compatibility(
   Ok(addon_versions)
 }
 
-// async fn pending_launch_template_updates() -> Result<Option<Vec<String>>, anyhow::Error> {
-//   let mut pending_updates: Vec<String> = Vec::new();
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct AutoscalingGroupUpdate {
+  /// Autoscaling group name
+  pub(crate) name: String,
+  /// Name of the EKS managed node group if the ASG is associated with one
+  pub(crate) nodegroup_name: Option<String>,
+  /// Launch template controlled by users that influences the autoscaling group
+  ///
+  /// This distinction is important because we only consider the launch templates
+  /// provided by users and not provided by EKS
+  pub(crate) launch_template: aws::LaunchTemplate,
+  // We do not consider launch configurations because you cannot determine if any
+  // updates are pending like with launch templats and beacuse they are being deprecated
+  // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
+  // launch_configuration_name: Option<String>,
+}
 
-//   let asg_client = aws::asg_client().await?;
-//   let asgs = aws::get_asgs(&asg_client).await?;
+#[allow(dead_code)]
+#[derive(Debug)]
+enum NodeGroupType {
+  /// Amazon EKS managed node group
+  EksManaged(Nodegroup),
+  /// Self managed autoscaling group
+  SelfManaged(AutoScalingGroup),
+}
 
-//   for asg in asgs {
-//     if let Some(launch_template) = asg.launch_template {
-//       if let Some(launch_template_version) = launch_template.version {
-//         if launch_template_version == "$Latest" {
-//           pending_updates.push(asg.auto_scaling_group_name.unwrap());
-//         }
-//       }
-//     }
-//   }
+/// Returns the autoscaling groups that are not using the latest launch template version
+///
+/// If there are pending changes, users do not necessarily need to make any changes prior to upgrading.
+/// They should, however, be aware of the version currently in use and any changes that may be
+/// deployed when updating the launch template for the new Kubernetes version. For example, if the
+/// current launch template version is 3 and the latest version is 5, the user should be aware that
+/// there may, or may not, be additional changes that were introduced in version 4 and 5 that might be
+/// deployed when the launch template is updated to version 6 for the Kubernetes version upgrade. Ideally,
+/// users should be on the latest version of the launch template prior to upgrading to avoid any surprises
+/// or unexpected changes.
+async fn pending_autoscaling_group_updates(
+  client: &Ec2Client,
+  nodegroup: &NodeGroupType,
+) -> Result<Vec<AutoscalingGroupUpdate>, anyhow::Error> {
+  let updates = match nodegroup {
+    NodeGroupType::EksManaged(nodegroup) => {
+      match &nodegroup.launch_template {
+        // On EKS managed node groups, there are between 1 and 2 launch templates that influence the node group.
+        // If the user does not specify a launch template, EKS will provide its own template.
+        // If the user does specify a launch template, EKS will merge the values from that template with its own template.
+        // Therefore, the launch template shown on the autoscaling group is managed by EKS and reflective of showing
+        // whether there are pending changes or not (pending changes due to launch template changes). Instead, we will only
+        // check the launch template field of the EKS managed node group which is the user provided template, if there is one.
+        Some(lt) => {
+          let lt_id = lt.id.as_ref().unwrap().to_owned();
+          let launch_template = aws::get_launch_template(client, lt_id.clone()).await?;
 
-//   if pending_updates.is_empty() {
-//     return Ok(None);
-//   }
+          nodegroup
+            .resources
+            .as_ref()
+            .unwrap()
+            .auto_scaling_groups()
+            .unwrap()
+            .iter()
+            .map(|asg| AutoscalingGroupUpdate {
+              name: asg.name.as_ref().unwrap().to_owned(),
+              nodegroup_name: Some(nodegroup.nodegroup_name.as_ref().unwrap().to_owned()),
+              launch_template: launch_template.clone(),
+            })
+            // Only interested in those that are not using the latest version
+            .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
+            .collect()
+        }
+        None => vec![],
+      }
+    }
+    NodeGroupType::SelfManaged(asg) => {
+      let name = asg.auto_scaling_group_name.as_ref().unwrap().to_owned();
+      let lt_id = asg
+        .launch_template
+        .as_ref()
+        .unwrap()
+        .launch_template_id
+        .as_ref()
+        .unwrap()
+        .to_owned();
+      let launch_template = aws::get_launch_template(client, lt_id.clone()).await?;
 
-//   Ok(Some(pending_updates))
-// }
+      // Only interested in those that are not using the latest version
+      if launch_template.current_version != launch_template.latest_version {
+        vec![AutoscalingGroupUpdate {
+          name,
+          nodegroup_name: None,
+          launch_template,
+        }]
+      } else {
+        vec![]
+      }
+    }
+  };
+
+  Ok(updates)
+}

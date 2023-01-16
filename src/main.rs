@@ -31,7 +31,6 @@ async fn main() -> Result<(), anyhow::Error> {
 
       // All checks and validations on input should happen above/before running the analysis
       let results = analysis::execute(&aws_config, &cluster).await?;
-
       output::output(&results, &args.output_format, &args.output_type, filename).await?;
     }
     Commands::Create(args) => {
