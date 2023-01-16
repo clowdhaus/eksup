@@ -34,8 +34,8 @@ pub async fn _discover_all(client: &Client) -> Result<(), anyhow::Error> {
       for item in list.items {
         let name = item.name_any();
         let ns = item.metadata.namespace.map(|s| s + "/").unwrap_or_default();
-        info!("\t\t{}{}", ns, name);
-        println!("\t\t{}{}", ns, name);
+        info!("\t\t{ns}{name}");
+        println!("\t\t{ns}{name}");
       }
     }
   }

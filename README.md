@@ -1,6 +1,6 @@
 # eksup
 
-## Why is this needed
+## Why Is This Needed
 
 Kubernetes releases a new version [approximately every 4 months](https://kubernetes.io/releases/release/). Each minor version is supported for 12 months after it's first released by the Kubernetes community, and Amazon EKS supports a Kubernetes version for 14 months once made available on Amazon EKS. In line with the Kubernetes community support for Kubernetes versions, Amazon EKS is committed to supporting at least four versions of Kubernetes at any given time. This means that Amazon EKS users need to be prepared to upgrade their cluster version(s) at least once a year. However, there are a number of factors that can make each upgrade different and unique. Factors that can change between each upgrade cycle include:
 
@@ -10,7 +10,7 @@ Kubernetes releases a new version [approximately every 4 months](https://kuberne
 - Various changes and deprecations in the components used by Kubernetes (i.e - moving from `kube-dns` to `CoreDNS`, moving from Docker engine to `containerd` for container runtime, dropping support for `dockershim`, etc.)
 - Changes in your applications, your architecture, or the amount of traffic your clusters are handling. As teams and organizations grow, clusters will grow and change as well, consuming more resources and potentially pushing some of the limits of what your previous architecture was designed to support (i.e. - number of available IPs might become constrained, stateful workloads may have been added to the cluster, etc.)
 
-### What is it
+### What It Is
 
 `eksup` is a CLI that helps users prepare for a cluster upgrade - providing users as much relevant information as possible for their upgrade.
 
@@ -24,49 +24,38 @@ This CLI produces a cluster upgrade playbook that attempts to:
 
 The end goal of this tool is a playbook that you and your team feel confident in executing repeatedly each upgrade cycle. After each upgrade, reflect on the process with your team and capture any learnings so that you can continuously improve and build confidence in the upgrade process.
 
-### What it is NOT
+### What It Is NOT
 
 - `eksup` is not a tool that will perform the cluster upgrade. It is assumed that clusters are generally created using an infrastructure as code approach through tools such as Terraform, `eksctl`, CloudFormation, etc., and therefore users are encouraged to use those tools to perform the upgrade to avoid any resource definition conflicts.
 - It does not perform any modifications on the live resources it identifies as needing, or recommending, changes. Again, following the approach of infrastructure as code, users are encouraged to make these changes through their normal change control process at the appropriate time (either before or after upgrading the cluster).
   - In the future, `eksup` may provide functionality to help in converting a Kubernetes resource from one API version to the next. However, this will occur on the users local filesystem and not against a live cluster. `eksup` will always operate from the perspective of infrastructure as code; any feature requests that support this tenant are encouraged.
 
-## Commands & SubCommands
+## Commands
 
 - `analyze`
   - text stdout for quick analysis from CLI
   - `--output-format json --output-type file`: JSON stdout for data collection and reporting from a central location (CronJob), text stdout for quick analysis from CLI
-- `playbook`
-  - a playbook with generic upgrade steps; informative process on cluster upgrade without need to have a cluster or access a cluster
-  - `--with-analysis`: playbook with the analysis results; most concrete set of information on the current cluster state with guidance
+- `create`
+  - `playbook`
+    - a playbook with generic upgrade steps; informative process on cluster upgrade without need to have a cluster or access a cluster
+    - `--with-analysis`: playbook with the analysis results; most concrete set of information on the current cluster state with guidance
 - `migrate` or `transform`
-  - [Future - TBD]
+  - [Future - TBD] Given a manifest, convert the manifest to the next, stable API version. Some resources only need the API version changed, others will require the schema to be modified to match the new API version
 
-### Checks
+### Analyze Checks
 
-| Icon | Description          | Notes                                                                                   |
-| :--: | :------------------- | :-------------------------------------------------------------------------------------- |
-|  ℹ️  | Informational notice | Users should be aware, but it is not a hard requirement for upgrading                   |
-|  🚫  | Hard requirement     | Users are strongly encouraged to address prior to upgrade to avoid any potential issues |
+#### Key
 
-- 🚫 The control plane version matches the version used by the data plane.
-- 🚫 There are at least 5 available IPs for the control plane to upgrade; required for cross account ENI creation
-- ℹ️ There are sufficient available IPs for the nodes to support the surge, in-place rolling upgrade. Irrespective of Kubernetes, each EC2 instance
-- ℹ️ There are sufficient available IPs for the pods to support the surge, in-place rolling upgrade. This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves.
-- 🚫 The current EKS addon(s) are compatible with the next Kubernetes version
-  - This will also show where the addon version stands relative to the default and latest versions for the current Kubernetes version as well as the Kubernetes version the upgrade is targeting
-- 🚫 There are no health issues reported for the EKS cluster (control plane)
-- 🚫 There are no health issues reported for the EKS managed node groups. There aren't any available health statuses available from the AWS API for self-managed node groups or Fargate profiles at this time
-- 🚫 There are no health issues reported for the EKS addons
+- ℹ️  Informational: Users should be aware, but it is not a hard requirement for upgrading
+- ❌  Required: Users are strongly encouraged to address prior to upgrade to avoid any potential issues
 
-#### TBD Checks
-
-- APIs deprecated and/or removed in the next Kubernetes version
-  - For now, recommend `pluto` or `kubent`
-  - Add section on how those tools work, what to watch out for (asking the API Server is not trustworthy, scanning manifests directly is the most accurate)
-
-### Output Levels
-
-1. `--quiet` - suppress all output
-2. (default, no flags) - show failed checks on hard requirements
-3. `--warn` - in addition to failed, show warnings (low number of IPs available for nodes/pods, addon version older than current default, etc.)
-4. `--info` - in addition to failed and warnings, show informational notices (number of IPs available for nodes/pods, addon version relative to current default and latest, etc.)
+| Type | Description
+| :--: | :-------------------------------------------------------------------------------------- |
+| ❌ | The control plane version matches the version used by the data plane |
+| ❌ | At least 5 available IPs for the control plane to upgrade; required for cross account ENI creation |
+| ℹ️ | Sufficient available IPs for the nodes to support the surge, in-place rolling upgrade. Irrespective of Kubernetes, each EC2 instance |
+| ℹ️ | Sufficient available IPs for the pods to support the surge, in-place rolling upgrade. This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves |
+| ❌ | EKS addon(s) are compatible with the next Kubernetes version |
+| ❌ | No health issues reported for the EKS cluster (control plane) |
+| ❌ | No health issues reported for the EKS managed node groups. There aren't any available health statuses available from the AWS API for self-managed node groups or Fargate profiles at this time |
+| ❌ | No health issues reported for the EKS addons |
