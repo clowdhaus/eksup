@@ -16,13 +16,58 @@ pub enum Remediation {
 pub enum Code {
   /// AWS finding codes not specific to EKS
   ///
-  /// AWS101: Kubernetes version skew detected between control plane and node
-  AWS101(k8s::NodeFinding),
-  // /// EKS specific finding codes
-  // ///
-  // EKS101(Finding),
+  /// Insufficient available subnet IPs for nodes
+  AWS001,
 
-  // /// Kubernetes finding codes not specific to EKS
-  // ///
-  // K8S001(Finding),
+  /// Insufficient available subnet IPs for pods (custom networking only)
+  AWS002,
+
+  /// Insufficient EC2 service limits
+  AWS003,
+
+  /// Insufficient EBS GP2 service limits
+  AWS004,
+
+  /// Insufficient EBS GP3 service limits
+  AWS005,
+
+  /// EKS specific finding codes
+  ///
+  /// Insufficient available subnet IPs (5 min) for control plane ENIs
+  EKS001,
+
+  /// Health issue(s) reported by the EKS control plane
+  EKS002,
+
+  /// Health issue(s) reported by the EKS managed node group
+  EKS003,
+
+  /// Health issue(s) reported by the EKS addon
+  EKS004,
+
+  /// EKS addon is incompatible with the targetted Kubernetes version
+  EKS005,
+
+  /// EKS managed node group autoscaling group has pending update(s)
+  EKS006,
+
+  /// Self-managed node group autoscaling group has pending update(s)
+  EKS007,
+
+  /// Kubernetes finding codes not specific to EKS
+  ///
+  /// Kubernetes version skew detected between control plane and node
+  K8S001(k8s::NodeFinding),
+
+  /// Insufficient number of `.spec.replcas`
+  K8S002,
+
+  /// Insufficient number of `.spec.minReadySeconds`
+  K8S003,
+
+  /// Incorrect Deployment update strategy `.spec.strategy.type`
+  K8S004,
+
+  /// Incorrect StatefulSet update strategy `.spec.updateStrategy.type`
+  K8S005,
 }

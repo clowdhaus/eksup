@@ -71,7 +71,7 @@ pub(crate) async fn execute(
   // so that users can remediate before upgrading.
   let version_skew = k8s_node_findings
     .into_iter()
-    .filter(|n| matches!(n, finding::Code::AWS101(_)))
+    .filter(|n| matches!(n, finding::Code::K8S001(_)))
     .collect::<Vec<finding::Code>>();
 
   let control_plane_subnets = control_plane_subnets(cluster, &ec2_client).await?;

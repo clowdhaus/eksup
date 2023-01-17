@@ -49,15 +49,15 @@ The end goal of this tool is a playbook that you and your team feel confident in
 - ℹ️  Informational: Users should be aware, but it is not a hard requirement for upgrading
 - ❌  Required: Users are strongly encouraged to address prior to upgrade to avoid any potential issues
 
-| Type | Description
-| :--: | :-------------------------------------------------------------------------------------- |
-| ❌ | The control plane version matches the version used by the data plane |
-| ❌ | At least 5 available IPs for the control plane to upgrade; required for cross account ENI creation |
-| ℹ️ | Sufficient available IPs for the nodes to support the surge, in-place rolling upgrade. Irrespective of Kubernetes, each EC2 instance |
-| ℹ️ | Sufficient available IPs for the pods to support the surge, in-place rolling upgrade. This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves |
-| ❌ | EKS addon(s) are compatible with the next Kubernetes version |
-| ❌ | No health issues reported for the EKS cluster (control plane) |
-| ❌ | No health issues reported for the EKS managed node groups. There aren't any available health statuses available from the AWS API for self-managed node groups or Fargate profiles at this time |
-| ❌ | No health issues reported for the EKS addons |
-| ℹ️ | EKS managed node group(s) are using latest launch template version; no pending updates |
-| ℹ️ | Self-managed node group(s) are using latest launch template version; no pending updates |
+| Type | Code | Description
+| :--: | :---: | :-------------------------------------------------------------------------------------- |
+| ❌ | `K8S001` | The control plane version matches the version used by the data plane |
+| ❌ | `EKS001` | At least 5 available IPs for the control plane to upgrade; required for cross account ENI creation |
+| ℹ️ | `AWS001` | Sufficient available IPs for the nodes to support the surge, in-place rolling upgrade. Irrespective of Kubernetes, each EC2 instance |
+| ℹ️ | `AWS002` | Sufficient available IPs for the pods to support the surge, in-place rolling upgrade. This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves |
+| ❌ | `EKS002` | EKS addon(s) are compatible with the next Kubernetes version |
+| ❌ | `EKS003` | No health issues reported for the EKS cluster (control plane) |
+| ❌ | `EKS004` | No health issues reported for the EKS managed node groups. There aren't any available health statuses available from the AWS API for self-managed node groups or Fargate profiles at this time |
+| ❌ | `EKS005` | No health issues reported for the EKS addons |
+| ℹ️ | `EKS006` | EKS managed node group(s) are using latest launch template version; no pending updates |
+| ℹ️ | `EKS007` | Self-managed node group(s) are using latest launch template version; no pending updates |

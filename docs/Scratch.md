@@ -1,33 +1,33 @@
 ## 🚧 ToDo 🚧
 
-- [x] Version skew between control plane and data plane should adhere to skew policy; recommend they align before upgrading
+- [x] [`K8S001`] Version skew between control plane and data plane should adhere to skew policy; recommend they align before upgrading
 
 ### Amazon EKS
 
-- [x] There are at least 5 free IPs in control plane subnets
-  - [x] Report on number of free IPs in data plane subnets
-  - [x] Report on number of free IPs used by the pods when using custom networking
-- [x] Control plane is free of health issues
-- [x] EKS managed node group(s) are free of health issues
-- [x] EKS addon(s) are free of health issues
-- [x] EKS addon version is within supported range; recommend upgrading if target Kubernetes version default addon version is newer
-- [x] EKS managed node group(s): report if the launch template version is not the latest
-- [x] Self-managed node group(s): report if the launch template version is not the latest
+- [x] [`EKS001`] There are at least 5 free IPs in control plane subnets
+  - [x] [`AWS001`] Report on number of free IPs in data plane subnets
+  - [x] [`AWS002`] Report on number of free IPs used by the pods when using custom networking
+- [x] [`EKS002`] Control plane is free of health issues
+- [x] [`EKS003`] EKS managed node group(s) are free of health issues
+- [x] [`EKS004`] EKS addon(s) are free of health issues
+- [x] [`EKS005`] EKS addon version is within supported range; recommend upgrading if target Kubernetes version default addon version is newer
+- [x] [`EKS006`] EKS managed node group(s): report if the launch template version is not the latest
+- [x] [`EKS007`] Self-managed node group(s): report if the launch template version is not the latest
 - [ ] Check AWS service limits and utilization for relevant resources
   - Requires premium support https://docs.aws.amazon.com/awssupport/latest/user/service-limits.html
-  - [ ] EC2 instance service limits
+  - [ ] [`AWS003`] EC2 instance service limits
     - `aws support describe-trusted-advisor-check-result --check-id 0Xc6LMYG8P`
   - [ ] EBS volume service limits
-    - GP2 `aws support describe-trusted-advisor-check-result --check-id dH7RR0l6J9`
-    - GP3 `aws support describe-trusted-advisor-check-result --check-id dH7RR0l6J3`
+    - [`AWS004`] GP2 `aws support describe-trusted-advisor-check-result --check-id dH7RR0l6J9`
+    - [`AWS005`] GP3 `aws support describe-trusted-advisor-check-result --check-id dH7RR0l6J3`
 
 ### Highly Available
 
 #### Deployments/ReplicaSets/ReplicationControllers
 
-- [ ] `.spec.replicas` set >= 3
-- [ ] `.spec.minReadySeconds` set > 0 - https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
-- [ ] `.spec.strategy.type` set to `RollingUpdate` - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment
+- [ ] [`K8S002`] `.spec.replicas` set >= 3
+- [ ] [`K8S003`] `.spec.minReadySeconds` set > 0 - https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
+- [ ] [`K8S004`] `.spec.strategy.type` set to `RollingUpdate` - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment
   - [ ] `.spec.strategy.rollingUpdate.maxUnavailable` is set
   - [ ] `.spec.strategy.rollingUpdate.maxSurge` is set
 - [ ] `podDisruptionBudgets` set & at least one of `minAvailable` or `maxUnavailable` is set
@@ -39,9 +39,9 @@
 
 #### StatefulSets
 
-- [ ] `.spec.replicas` set >= 3
-- [ ] `.spec.minReadySeconds` set > 0 - https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
-- [ ] `.spec.updateStrategy` set to `RollingUpdate` - https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#rolling-updates
+- [ ] [`K8S002`] `.spec.replicas` set >= 3
+- [ ] [`K8S003`] `.spec.minReadySeconds` set > 0 - https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
+- [ ] [`K8S005`] `.spec.updateStrategy.type` set to `RollingUpdate` - https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#rolling-updates
 - [ ] `pod.Spec.TerminationGracePeriodSeconds` > 0 - pod.Spec.TerminationGracePeriodSeconds
 - [ ] `podDisruptionBudgets` set & at least one of `minAvailable` or `maxUnavailable` is set
 - [ ] Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` set to avoid multiple pods from being scheduled on the same node. https://kubernetes.io/docs/concepts/configuration/assign-pod-node/

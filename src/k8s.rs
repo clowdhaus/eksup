@@ -66,7 +66,7 @@ impl Analysis for core::v1::Node {
       remediation,
     };
 
-    Ok(Some(finding::Code::AWS101(node)))
+    Ok(Some(finding::Code::K8S001(node)))
   }
 }
 
