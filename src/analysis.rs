@@ -6,16 +6,20 @@ use aws_sdk_eks::{
   model::{Cluster, FargateProfile, Nodegroup, NodegroupIssueCode},
   Client as EksClient,
 };
-use k8s_openapi::api::core::v1::Node;
 use kube::Client as K8s_Client;
 use serde::{Deserialize, Serialize};
 
-use crate::{aws, k8s, version};
+use crate::{aws, finding, k8s, version};
+
+pub trait Analysis {
+  /// Will return a finding code if a finding is detected
+  fn finding(&self, cluster_version: &str) -> Result<Option<finding::Code>, anyhow::Error>;
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Results {
-  pub(crate) version_skew: Vec<NodeDetail>,
+  pub(crate) version_skew: Vec<finding::Code>,
   pub(crate) control_plane_subnets: Vec<Subnet>,
   pub(crate) node_subnets: Vec<Subnet>,
   pub(crate) pod_subnets: Vec<Subnet>,
@@ -37,9 +41,6 @@ pub(crate) async fn execute(
 
   let cluster_name = cluster.name.as_ref().unwrap();
   let cluster_version = cluster.version.as_ref().unwrap();
-
-  let k8s_resources = k8s::get_all_resources(&k8s_client).await?;
-  // println!("K8s Resources: {k8s_resources:#?}");
 
   // Get data plane components once
   let eks_managed_nodegroups = aws::get_eks_managed_nodegroups(&eks_client, cluster_name).await?;
@@ -63,7 +64,16 @@ pub(crate) async fn execute(
   }
 
   // Checks
-  let version_skew = version_skew(cluster_version, &k8s_resources.nodes).await?;
+  let k8s_node_findings = k8s::get_node_findings(&k8s_client, cluster_version).await?;
+  // Check if there are any nodes that are not at the same minor version as the control plane
+  //
+  // Report on the nodes that do not match the same minor version as the control plane
+  // so that users can remediate before upgrading.
+  let version_skew = k8s_node_findings
+    .into_iter()
+    .filter(|n| matches!(n, finding::Code::AWS101(_)))
+    .collect::<Vec<finding::Code>>();
+
   let control_plane_subnets = control_plane_subnets(cluster, &ec2_client).await?;
   let node_subnets = node_subnets(
     &ec2_client,
@@ -90,57 +100,6 @@ pub(crate) async fn execute(
     addon_version_compatibility,
     autoscaling_group_updates,
   })
-}
-
-/// Node details as viewed from the Kubernetes API
-///
-/// Contains information related to the Kubernetes component versions
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct NodeDetail {
-  name: String,
-  container_runtime: String,
-  kernel_version: String,
-  kube_proxy_version: String,
-  kublet_version: String,
-  kubernetes_version: String,
-  control_plane_version: String,
-}
-
-/// Check if there are any nodes that are not at the same minor version as the control plane
-///
-/// Report on the nodes that do not match the same minor version as the control plane
-/// so that users can remediate before upgrading.
-async fn version_skew(
-  control_plane_version: &str,
-  nodes: &[Node],
-) -> Result<Vec<NodeDetail>, anyhow::Error> {
-  let control_plane_minor_version = version::parse_minor(control_plane_version)?;
-
-  let nodes = nodes
-    .iter()
-    .map(|node| {
-      let status = node.status.as_ref().unwrap();
-      let node_info = status.node_info.as_ref().unwrap();
-      let kubelet_version = node_info.kubelet_version.to_owned();
-
-      NodeDetail {
-        name: node.metadata.name.as_ref().unwrap().to_owned(),
-        container_runtime: node_info.container_runtime_version.to_owned(),
-        kernel_version: node_info.kernel_version.to_owned(),
-        kube_proxy_version: node_info.kube_proxy_version.to_owned(),
-        kublet_version: kubelet_version.to_owned(),
-        kubernetes_version: version::normalize(&kubelet_version).unwrap(),
-        control_plane_version: control_plane_version.to_owned(),
-      }
-    })
-    .filter(|node| {
-      let node_minor_version = version::parse_minor(&node.kublet_version).unwrap();
-      control_plane_minor_version != node_minor_version
-    })
-    .collect();
-
-  Ok(nodes)
 }
 
 /// Subnet details that can affect upgrade behavior

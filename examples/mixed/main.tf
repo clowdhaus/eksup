@@ -62,14 +62,14 @@ module "eks" {
   cluster_addons = {
     coredns = {
       # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name coredns
-      addon_version = "v1.8.3-eksbuild.1"
+      addon_version = "v1.8.4-eksbuild.2"
       configuration_values = jsonencode({
         computeType = "Fargate"
       })
     }
     kube-proxy = {
       # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name kube-proxy
-      addon_version = "v1.19.6-eksbuild.2"
+      addon_version = "v1.20.15-eksbuild.4"
     }
     vpc-cni = {
       # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name vpc-cni

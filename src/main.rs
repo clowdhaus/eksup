@@ -1,6 +1,7 @@
 mod analysis;
 mod aws;
 mod cli;
+mod finding;
 mod k8s;
 mod output;
 mod playbook;

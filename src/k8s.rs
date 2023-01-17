@@ -1,146 +1,121 @@
-use k8s_openapi::api::{
-  apps::v1::{DaemonSet, Deployment, ReplicaSet, StatefulSet},
-  batch::v1::{CronJob, Job},
-  core::v1::{Namespace, Node},
-  policy::v1beta1::PodSecurityPolicy,
-};
+use k8s_openapi::api::{apps, batch, core, policy};
 pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ListMeta, ObjectMeta};
-use kube::{
-  api::{Api, DynamicObject, ResourceExt},
-  discovery::{verbs, Discovery, Scope},
-  Client, CustomResource,
-};
+use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tracing::*;
 
-pub async fn _discover_all(client: &Client) -> Result<(), anyhow::Error> {
-  let discovery = Discovery::new(client.clone()).run().await?;
-  for group in discovery.groups() {
-    for (ar, caps) in group.recommended_resources() {
-      if !caps.supports_operation(verbs::LIST) {
-        continue;
-      }
-      let api: Api<DynamicObject> = if caps.scope == Scope::Cluster {
-        Api::all_with(client.clone(), &ar)
-      } else {
-        Api::default_namespaced_with(client.clone(), &ar)
-      };
+use crate::{analysis::Analysis, finding, version};
 
-      info!("{}/{} : {}", group.name(), ar.version, ar.kind);
-      println!("{}/{} : {}", group.name(), ar.version, ar.kind);
+/// Returns all of the nodes in the cluster
+pub(crate) async fn get_node_findings(
+  client: &Client,
+  cluster_version: &str,
+) -> Result<Vec<finding::Code>, anyhow::Error> {
+  let api: Api<core::v1::Node> = Api::all(client.clone());
+  let node_list = api.list(&Default::default()).await?;
 
-      let list = api.list(&Default::default()).await?;
-      for item in list.items {
-        let name = item.name_any();
-        let ns = item.metadata.namespace.map(|s| s + "/").unwrap_or_default();
-        info!("\t\t{ns}{name}");
-        println!("\t\t{ns}{name}");
-      }
+  let mut nodes = vec![];
+  for node in node_list {
+    if let Some(finding) = node.finding(cluster_version)? {
+      nodes.push(finding)
     }
   }
 
-  Ok(())
+  Ok(nodes)
 }
 
+/// Node details as viewed from the Kubernetes API
+///
+/// Contains information related to the Kubernetes component versions
+#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Resources {
-  pub nodes: Vec<Node>,
-  pub namespaces: Vec<Namespace>,
-  pub podsecuritypolicies: Vec<PodSecurityPolicy>,
-  pub cronjobs: Vec<CronJob>,
-  pub daemonsets: Vec<DaemonSet>,
-  pub deployments: Vec<Deployment>,
-  pub jobs: Vec<Job>,
-  pub replicasets: Vec<ReplicaSet>,
-  pub statefulsets: Vec<StatefulSet>,
+pub struct NodeFinding {
+  pub name: String,
+  pub kubelet_version: String,
+  pub kubernetes_version: String,
+  pub control_plane_version: String,
+  pub remediation: finding::Remediation,
 }
 
-pub async fn get_all_resources(client: &Client) -> Result<Resources, anyhow::Error> {
-  let nodes = get_nodes(client).await?;
-  let namespaces = get_namespaces(client).await?;
-  let podsecuritypolicies = get_podsecuritypolicies(client).await?;
-  let cronjobs = get_cronjobs(client).await?;
-  let daemonsets = get_daemonset(client).await?;
-  let deployments = get_deployments(client).await?;
-  let jobs = get_jobs(client).await?;
-  let replicasets = get_replicasets(client).await?;
-  let statefulsets = get_statefulsets(client).await?;
+impl Analysis for core::v1::Node {
+  fn finding(&self, cluster_version: &str) -> Result<Option<finding::Code>, anyhow::Error> {
+    let status = self.status.as_ref().unwrap();
+    let node_info = status.node_info.as_ref().unwrap();
+    let kubelet_version = node_info.kubelet_version.to_owned();
 
-  let resources = Resources {
-    nodes,
-    namespaces,
-    podsecuritypolicies,
-    cronjobs,
-    daemonsets,
-    deployments,
-    jobs,
-    replicasets,
-    statefulsets,
-  };
+    let node_minor_version = version::parse_minor(&kubelet_version).unwrap();
+    let control_plane_minor_version = version::parse_minor(cluster_version)?;
+    let version_skew = control_plane_minor_version - node_minor_version;
+    if version_skew == 0 {
+      return Ok(None);
+    }
 
-  Ok(resources)
+    // Prior to upgrade, the node version should not be more than 1 version behind
+    // the control plane version. If it is, the node must be upgraded before
+    // attempting the cluster upgrade
+    let remediation = match version_skew {
+      1 => finding::Remediation::Recommended,
+      _ => finding::Remediation::Required,
+    };
+
+    let node = NodeFinding {
+      name: self.metadata.name.as_ref().unwrap().to_owned(),
+      kubelet_version: kubelet_version.to_owned(),
+      kubernetes_version: version::normalize(&kubelet_version).unwrap(),
+      control_plane_version: cluster_version.to_owned(),
+      remediation,
+    };
+
+    Ok(Some(finding::Code::AWS101(node)))
+  }
 }
 
-/// Returns all of the nodes in the cluster
-async fn get_nodes(client: &Client) -> Result<Vec<Node>, anyhow::Error> {
-  let api: Api<Node> = Api::all(client.clone());
+async fn _get_podsecuritypolicies(
+  client: &Client,
+) -> Result<Vec<policy::v1beta1::PodSecurityPolicy>, anyhow::Error> {
+  let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.clone());
   let nodes = api.list(&Default::default()).await?;
 
   Ok(nodes.items)
 }
 
-async fn get_namespaces(client: &Client) -> Result<Vec<Namespace>, anyhow::Error> {
-  let api: Api<Namespace> = Api::all(client.clone());
-  let namespaces = api.list(&Default::default()).await?;
-
-  Ok(namespaces.items)
-}
-
-async fn get_podsecuritypolicies(client: &Client) -> Result<Vec<PodSecurityPolicy>, anyhow::Error> {
-  let api: Api<PodSecurityPolicy> = Api::all(client.clone());
-  let nodes = api.list(&Default::default()).await?;
-
-  Ok(nodes.items)
-}
-
-async fn get_cronjobs(client: &Client) -> Result<Vec<CronJob>, anyhow::Error> {
-  let api: Api<CronJob> = Api::all(client.clone());
+async fn _get_cronjobs(client: &Client) -> Result<Vec<batch::v1::CronJob>, anyhow::Error> {
+  let api: Api<batch::v1::CronJob> = Api::all(client.clone());
   let cronjobs = api.list(&Default::default()).await?;
 
   Ok(cronjobs.items)
 }
 
-async fn get_daemonset(client: &Client) -> Result<Vec<DaemonSet>, anyhow::Error> {
-  let api: Api<DaemonSet> = Api::all(client.clone());
+async fn _get_daemonset(client: &Client) -> Result<Vec<apps::v1::DaemonSet>, anyhow::Error> {
+  let api: Api<apps::v1::DaemonSet> = Api::all(client.clone());
   let daemonsets = api.list(&Default::default()).await?;
 
   Ok(daemonsets.items)
 }
 
-async fn get_deployments(client: &Client) -> Result<Vec<Deployment>, anyhow::Error> {
-  let api: Api<Deployment> = Api::all(client.clone());
+async fn _get_deployments(client: &Client) -> Result<Vec<apps::v1::Deployment>, anyhow::Error> {
+  let api: Api<apps::v1::Deployment> = Api::all(client.clone());
   let deployments = api.list(&Default::default()).await?;
 
   Ok(deployments.items)
 }
 
-async fn get_jobs(client: &Client) -> Result<Vec<Job>, anyhow::Error> {
-  let api: Api<Job> = Api::all(client.clone());
+async fn _get_jobs(client: &Client) -> Result<Vec<batch::v1::Job>, anyhow::Error> {
+  let api: Api<batch::v1::Job> = Api::all(client.clone());
   let jobs = api.list(&Default::default()).await?;
 
   Ok(jobs.items)
 }
 
-async fn get_replicasets(client: &Client) -> Result<Vec<ReplicaSet>, anyhow::Error> {
-  let api: Api<ReplicaSet> = Api::all(client.clone());
+async fn _get_replicasets(client: &Client) -> Result<Vec<apps::v1::ReplicaSet>, anyhow::Error> {
+  let api: Api<apps::v1::ReplicaSet> = Api::all(client.clone());
   let replicasets = api.list(&Default::default()).await?;
 
   Ok(replicasets.items)
 }
 
-async fn get_statefulsets(client: &Client) -> Result<Vec<StatefulSet>, anyhow::Error> {
-  let api: Api<StatefulSet> = Api::all(client.clone());
+async fn _get_statefulsets(client: &Client) -> Result<Vec<apps::v1::StatefulSet>, anyhow::Error> {
+  let api: Api<apps::v1::StatefulSet> = Api::all(client.clone());
   let statefulsets = api.list(&Default::default()).await?;
 
   Ok(statefulsets.items)
@@ -176,39 +151,4 @@ pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>, anyhow::E
   let eniconfigs: Vec<ENIConfig> = api.list(&Default::default()).await?.items;
 
   Ok(eniconfigs)
-}
-
-/// Kubernetes workload resources/controllers
-///
-/// https://kubernetes.io/docs/concepts/workloads/controllers/
-#[allow(dead_code)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-enum WorkloadResources {
-  CronJob,
-  DaemonSet,
-  Deployment,
-  Job,
-  ReplicaSet,
-  ReplicationController,
-  StatefulSet,
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct UpdateStrategy {
-  _type = String,
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct Spec {
-  min_replicas: Option<i32>,
-  min_ready_seconds: Option<i32>,
-
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct DeploymentDetail {
-  spec: Spec
 }
