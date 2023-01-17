@@ -30,16 +30,12 @@
 - [ ] `.spec.strategy.type` set to `RollingUpdate` - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment
   - [ ] `.spec.strategy.rollingUpdate.maxUnavailable` is set
   - [ ] `.spec.strategy.rollingUpdate.maxSurge` is set
-- [ ] `podDisruptionBudge### Amazon Limits
-
-- [ ] Check AWS service limits and utilization for relevant resources
-  - [ ] EC2 instances
-  - [ ] EBS volumes` set & at least one of `minAvailable` or `maxUnavailable` is set
-- [ ] Either `podAntiAffinity` or `topologySpreadConstraints` set to avoid multiple pods from being scheduled on the same node. https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+- [ ] `podDisruptionBudgets` set & at least one of `minAvailable` or `maxUnavailable` is set
+- [ ] Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` set to avoid multiple pods from being scheduled on the same node. https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   - [ ] Prefer topology hints over affinity `Note: Inter-pod affinity and anti-affinity require substantial amount of processing which can slow down scheduling in large clusters significantly. We do not recommend using them in clusters larger than several hundred nodes.` https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
-- [ ] `readinessProbe` set
-  - [ ] `livenessProbe` ,if set, is NOT the same as `readinessProbe`
-  - [ ] `startupProbe` is set if `livenessProbe` is set
+- [ ] `.spec.containers[*].readinessProbe` set
+  - [ ] `.spec.containers[*].livenessProbe` , if set, is NOT the same as `.spec.containers[*].readinessProbe`
+  - [ ] `.spec.containers[*].startupProbe` is set if `.spec.containers[*].livenessProbe` is set
 
 #### StatefulSets
 
@@ -48,11 +44,11 @@
 - [ ] `.spec.updateStrategy` set to `RollingUpdate` - https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#rolling-updates
 - [ ] `pod.Spec.TerminationGracePeriodSeconds` > 0 - pod.Spec.TerminationGracePeriodSeconds
 - [ ] `podDisruptionBudgets` set & at least one of `minAvailable` or `maxUnavailable` is set
-- [ ] Either `podAntiAffinity` or `topologySpreadConstraints` set to avoid multiple pods from being scheduled on the same node. https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+- [ ] Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` set to avoid multiple pods from being scheduled on the same node. https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   - [ ] Prefer topology hints over affinity `Note: Inter-pod affinity and anti-affinity require substantial amount of processing which can slow down scheduling in large clusters significantly. We do not recommend using them in clusters larger than several hundred nodes.` https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
-- [ ] `readinessProbe` set
-  - [ ] `livenessProbe` , if set, is NOT the same as `readinessProbe`
-  - [ ] `startupProbe` is set if `livenessProbe` is set
+- [ ] `.spec.containers[*].readinessProbe` set
+  - [ ] `.spec.containers[*].livenessProbe` , if set, is NOT the same as `.spec.containers[*].readinessProbe`
+  - [ ] `.spec.containers[*].startupProbe` is set if `.spec.containers[*].livenessProbe` is set
 
 #### Job/CronJob
 

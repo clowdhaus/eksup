@@ -177,3 +177,38 @@ pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>, anyhow::E
 
   Ok(eniconfigs)
 }
+
+/// Kubernetes workload resources/controllers
+///
+/// https://kubernetes.io/docs/concepts/workloads/controllers/
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+enum WorkloadResources {
+  CronJob,
+  DaemonSet,
+  Deployment,
+  Job,
+  ReplicaSet,
+  ReplicationController,
+  StatefulSet,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct UpdateStrategy {
+  _type = String,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Spec {
+  min_replicas: Option<i32>,
+  min_ready_seconds: Option<i32>,
+
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct DeploymentDetail {
+  spec: Spec
+}
