@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{analysis, k8s};
+use crate::{analysis, k8s, version};
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -9,6 +9,13 @@ pub enum Remediation {
   Required,
   /// Represents a finding that is suggested as a recommendation
   Recommended,
+}
+
+pub trait Check {
+  /// Returns the Kubernetes version the check was deprecated in
+  fn deprecated_in(&self) -> Option<version::KubernetesVersion>;
+
+  fn removed_in(&self) -> Option<version::KubernetesVersion>;
 }
 
 #[allow(dead_code)]
@@ -65,9 +72,18 @@ pub enum Code {
   /// Insufficient number of `.spec.minReadySeconds`
   K8S003,
 
-  /// Incorrect Deployment update strategy `.spec.strategy.type`
+  /// Incorrect update strategy is used
   K8S004,
 
-  /// Incorrect StatefulSet update strategy `.spec.updateStrategy.type`
+  /// Missing `podDisruptionBudgets`
   K8S005,
+
+  /// Pod distribution settings put availability at risk
+  K8S006,
+
+  /// `pod.spec.containers[*].readinessProbe` not set
+  K8S007,
+
+  /// `pod.spec.TerminationGracePeriodSeconds` is set to zero
+  K8S008,
 }

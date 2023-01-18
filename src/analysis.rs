@@ -1,12 +1,9 @@
-use std::{cmp::min, collections::HashSet};
-
 use aws_sdk_autoscaling::model::AutoScalingGroup;
 use aws_sdk_ec2::{model::Subnet, Client as Ec2Client};
 use aws_sdk_eks::{
-  model::{Cluster, FargateProfile, Nodegroup, NodegroupIssueCode},
+  model::{Cluster, Nodegroup, NodegroupIssueCode},
   Client as EksClient,
 };
-use kube::Client as K8s_Client;
 use serde::{Deserialize, Serialize};
 
 use crate::{aws, finding, k8s, version};
@@ -45,7 +42,7 @@ pub(crate) async fn execute(
   // Get data plane components once
   let eks_managed_nodegroups = aws::get_eks_managed_nodegroups(&eks_client, cluster_name).await?;
   let self_managed_nodegroups = aws::get_self_managed_nodegroups(&asg_client, cluster_name).await?;
-  let fargate_profiles = aws::get_fargate_profiles(&eks_client, cluster_name).await?;
+  // let fargate_profiles = aws::get_fargate_profiles(&eks_client, cluster_name).await?;
 
   let mut autoscaling_group_updates: Vec<AutoscalingGroupUpdate> = Vec::new();
   for mng in eks_managed_nodegroups.clone() {
@@ -74,9 +71,13 @@ pub(crate) async fn execute(
     .filter(|n| matches!(n, finding::Code::K8S001(_)))
     .collect::<Vec<finding::Code>>();
 
-  let cp_subnets = control_plane_subnets(cluster, &ec2_client).await?;
+  let cp_subnets = aws::get_subnets(
+    &ec2_client,
+    aws::ResourceConstruct::ControlPlane(cluster.clone()),
+  )
+  .await?;
   let control_plane_subnets =
-    subnet_finding(cp_subnets, SubnetPurpose::ControlPlane { required_ips: 5 })?;
+    sufficient_subnet_ips(cp_subnets, SubnetScope::ControlPlane { required_ips: 5 })?;
   // let node_subnets = node_subnets(
   //   &ec2_client,
   //   eks_managed_nodegroups.clone(),
@@ -115,7 +116,7 @@ pub struct SubnetFinding {
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum SubnetPurpose {
+pub enum SubnetScope {
   ControlPlane {
     required_ips: i32,
   },
@@ -129,9 +130,9 @@ pub enum SubnetPurpose {
   },
 }
 
-fn subnet_finding(
+fn sufficient_subnet_ips(
   subnets: Vec<Subnet>,
-  purpose: SubnetPurpose,
+  purpose: SubnetScope,
 ) -> Result<Option<finding::Code>, anyhow::Error> {
   let available_ips = subnets
     .iter()
@@ -144,7 +145,7 @@ fn subnet_finding(
     .collect::<Vec<String>>();
 
   match purpose {
-    SubnetPurpose::ControlPlane { required_ips } => {
+    SubnetScope::ControlPlane { required_ips } => {
       if available_ips < required_ips {
         Ok(Some(finding::Code::EKS001(SubnetFinding {
           ids,
@@ -155,7 +156,7 @@ fn subnet_finding(
         Ok(None)
       }
     }
-    SubnetPurpose::Node {
+    SubnetScope::Node {
       required_ips,
       recommended_ips,
     } => match available_ips {
@@ -175,7 +176,7 @@ fn subnet_finding(
       }
       _ => Ok(None),
     },
-    SubnetPurpose::Pod {
+    SubnetScope::Pod {
       required_ips,
       recommended_ips,
     } => match available_ips {
@@ -197,91 +198,6 @@ fn subnet_finding(
     },
   }
 }
-// /// Check if the subnets used by the control plane will support an upgrade
-// ///
-// /// The control plane requires at least 5 free IPs to support an upgrade
-// /// in order to accommodate the additional set of cross account ENIs created
-// /// during an upgrade
-async fn control_plane_subnets(
-  cluster: &Cluster,
-  client: &aws_sdk_ec2::Client,
-) -> Result<Vec<Subnet>, anyhow::Error> {
-  let subnet_ids = cluster
-    .resources_vpc_config()
-    .unwrap()
-    .subnet_ids
-    .as_ref()
-    .unwrap();
-
-  let subnets = aws::get_subnets(client, subnet_ids.clone()).await?;
-  Ok(subnets)
-}
-
-/// Check if the subnets used by the data plane nodes will support an upgrade
-///
-/// This is more of a cautionary "you should be aware" type check to give
-/// users the information to understand how their upgrade may be affected
-/// if running in an IP constrained network. For example, they may need to
-/// reduce the amount of nodes that are being updated at any point of time
-/// to reduce the number of IPs being consumed - this also means that it will
-/// take more time to update the nodes in the data plane.
-///
-/// There is a separate check for pods specifically for the scenario where
-/// custom networking is used and the pods are consuming IPs from a potentially
-/// different set of subnets
-// async fn node_subnets(
-//   ec2_client: &Ec2Client,
-//   eks_managed_nodegroups: Vec<Nodegroup>,
-//   fargate_profiles: Vec<FargateProfile>,
-//   self_managed_nodegroups: Vec<AutoScalingGroup>,
-// ) -> Result<Vec<Subnet>, anyhow::Error> {
-//   // Dedupe subnet IDs that are shared across different compute constructs
-//   let mut subnet_ids = HashSet::new();
-
-//   // EKS managed node group subnets
-//   for group in eks_managed_nodegroups {
-//     let subnets = group.subnets.as_ref().unwrap();
-//     for subnet in subnets {
-//       subnet_ids.insert(subnet.to_owned());
-//     }
-//   }
-
-//   // Self managed node group subnets
-//   for group in self_managed_nodegroups {
-//     let subnets = group.vpc_zone_identifier.unwrap();
-//     for subnet in subnets.split(',') {
-//       subnet_ids.insert(subnet.to_owned());
-//     }
-//   }
-
-//   // Fargate profile subnets
-//   for profile in fargate_profiles {
-//     let subnets = profile.subnets.unwrap();
-//     for subnet in subnets {
-//       subnet_ids.insert(subnet.to_owned());
-//     }
-//   }
-
-//   // Send one query of all the subnets used in the data plane
-//   let subnet_details = aws::get_subnets(ec2_client, subnet_ids.into_iter().collect()).await?;
-
-//   let subnets = subnet_details
-//     .iter()
-//     .map(|subnet| {
-//       let id = subnet.subnet_id.as_ref().unwrap();
-
-//       Subnet {
-//         id: id.to_owned(),
-//         availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
-//         availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
-//         available_ips: subnet.available_ip_address_count.unwrap(),
-//         cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
-//       }
-//     })
-//     .collect();
-
-//   Ok(subnets)
-// }
 
 /// Check if the subnets used by the pods will support an upgrade
 ///

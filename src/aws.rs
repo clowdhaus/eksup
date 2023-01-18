@@ -14,6 +14,15 @@ use aws_sdk_eks::{
 use aws_types::region::Region;
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+pub(crate) enum ResourceConstruct {
+  ControlPlane(Cluster),
+  EksManagedNodeGroup(Nodegroup),
+  SelfManagedNodeGroup(AutoScalingGroup),
+  FargateProfile(FargateProfile),
+}
+
 pub async fn get_config(region: Option<String>) -> aws_config::SdkConfig {
   // TODO - fix this ugliness
   let region_provider = match region {
@@ -37,7 +46,15 @@ pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster, anyh
   Ok(cluster)
 }
 
-pub async fn get_subnets(
+/// Describe the subnets provided by ID
+///
+/// TODO - evaluate caching this function call
+///
+/// This will show the number of available IPs for evaluating
+/// IP contention/exhaustion across the various subnets in use
+/// by the control plane ENIs, the nodes, and the pods (when custom
+/// networking is enabled)
+async fn describe_subnets(
   client: &Ec2Client,
   subnet_ids: Vec<String>,
 ) -> Result<Vec<Subnet>, anyhow::Error> {
@@ -53,6 +70,44 @@ pub async fn get_subnets(
     .subnets
     .unwrap();
 
+  Ok(subnets)
+}
+
+/// Check if the subnets used by the data plane nodes will support an upgrade
+///
+/// This is more of a cautionary "you should be aware" type check to give
+/// users the information to understand how their upgrade may be affected
+/// if running in an IP constrained network. For example, they may need to
+/// reduce the amount of nodes that are being updated at any point of time
+/// to reduce the number of IPs being consumed - this also means that it will
+/// take more time to update the nodes in the data plane.
+///
+/// There is a separate check for pods specifically for the scenario where
+/// custom networking is used and the pods are consuming IPs from a potentially
+/// different set of subnets
+pub(crate) async fn get_subnets(
+  ec2_client: &Ec2Client,
+  construct: ResourceConstruct,
+) -> Result<Vec<Subnet>, anyhow::Error> {
+  let subnet_ids = match construct {
+    ResourceConstruct::ControlPlane(cluster) => cluster
+      .resources_vpc_config()
+      .unwrap()
+      .subnet_ids
+      .as_ref()
+      .unwrap()
+      .to_owned(),
+    ResourceConstruct::EksManagedNodeGroup(mng) => mng.subnets.as_ref().unwrap().to_owned(),
+    ResourceConstruct::SelfManagedNodeGroup(asg) => asg
+      .vpc_zone_identifier
+      .unwrap()
+      .split(',')
+      .map(|s| s.to_owned())
+      .collect(),
+    ResourceConstruct::FargateProfile(prof) => prof.subnets.as_ref().unwrap().to_owned(),
+  };
+
+  let subnets = describe_subnets(ec2_client, subnet_ids).await?;
   Ok(subnets)
 }
 
@@ -195,7 +250,7 @@ pub(crate) async fn get_addons(
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AddonVersion {
   /// Latest supported version of the addon
   pub(crate) latest: String,
