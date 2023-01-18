@@ -39,14 +39,14 @@ impl Default for OutputType {
 }
 
 pub(crate) async fn output(
-  results: &analysis::Results,
+  findings: &analysis::Findings,
   oformat: &OutputFormat,
   otype: &OutputType,
   filename: &str,
 ) -> Result<(), anyhow::Error> {
   let output = match oformat {
-    OutputFormat::Json => serde_json::to_string(&results)?,
-    OutputFormat::Text => format!("{results:#?}"),
+    OutputFormat::Json => serde_json::to_string(&findings)?,
+    OutputFormat::Text => format!("{findings:#?}"),
   };
 
   match otype {

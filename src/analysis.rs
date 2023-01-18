@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use std::{cmp::min, collections::HashSet};
 
 use aws_sdk_autoscaling::model::AutoScalingGroup;
-use aws_sdk_ec2::Client as Ec2Client;
+use aws_sdk_ec2::{model::Subnet, Client as Ec2Client};
 use aws_sdk_eks::{
   model::{Cluster, FargateProfile, Nodegroup, NodegroupIssueCode},
   Client as EksClient,
@@ -18,11 +18,11 @@ pub trait Analysis {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Results {
+pub(crate) struct Findings {
   pub(crate) version_skew: Vec<finding::Code>,
-  pub(crate) control_plane_subnets: Vec<Subnet>,
-  pub(crate) node_subnets: Vec<Subnet>,
-  pub(crate) pod_subnets: Vec<Subnet>,
+  pub(crate) control_plane_subnets: Option<finding::Code>,
+  // pub(crate) node_subnets: Vec<SubnetFinding>,
+  // pub(crate) pod_subnets: Vec<SubnetFinding>,
   pub(crate) eks_managed_node_group_health: Vec<NodegroupHealthIssue>,
   pub(crate) cluster_health: Vec<ClusterHealthIssue>,
   pub(crate) addon_version_compatibility: Vec<AddonDetail>,
@@ -32,7 +32,7 @@ pub(crate) struct Results {
 pub(crate) async fn execute(
   aws_shared_config: &aws_config::SdkConfig,
   cluster: &Cluster,
-) -> Result<Results, anyhow::Error> {
+) -> Result<Findings, anyhow::Error> {
   // Construct clients once
   let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
@@ -74,15 +74,17 @@ pub(crate) async fn execute(
     .filter(|n| matches!(n, finding::Code::K8S001(_)))
     .collect::<Vec<finding::Code>>();
 
-  let control_plane_subnets = control_plane_subnets(cluster, &ec2_client).await?;
-  let node_subnets = node_subnets(
-    &ec2_client,
-    eks_managed_nodegroups.clone(),
-    fargate_profiles.clone(),
-    self_managed_nodegroups.clone(),
-  )
-  .await?;
-  let pod_subnets = pod_subnets(&ec2_client, &k8s_client).await?;
+  let cp_subnets = control_plane_subnets(cluster, &ec2_client).await?;
+  let control_plane_subnets =
+    subnet_finding(cp_subnets, SubnetPurpose::ControlPlane { required_ips: 5 })?;
+  // let node_subnets = node_subnets(
+  //   &ec2_client,
+  //   eks_managed_nodegroups.clone(),
+  //   fargate_profiles.clone(),
+  //   self_managed_nodegroups.clone(),
+  // )
+  // .await?;
+  // let pod_subnets = pod_subnets(&ec2_client, &k8s_client).await?;
 
   let eks_managed_node_group_health = eks_managed_node_group_health(eks_managed_nodegroups).await?;
   let cluster_health = cluster_health(cluster).await?;
@@ -90,11 +92,11 @@ pub(crate) async fn execute(
   let addon_version_compatibility =
     addon_version_compatibility(&eks_client, cluster_name, cluster_version).await?;
 
-  Ok(Results {
+  Ok(Findings {
     version_skew,
     control_plane_subnets,
-    node_subnets,
-    pod_subnets,
+    // node_subnets,
+    // pod_subnets,
     eks_managed_node_group_health,
     cluster_health,
     addon_version_compatibility,
@@ -104,20 +106,102 @@ pub(crate) async fn execute(
 
 /// Subnet details that can affect upgrade behavior
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Subnet {
-  id: String,
-  availability_zone: String,
-  availability_zone_id: String,
-  available_ips: i32,
-  cidr_block: String,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SubnetFinding {
+  pub ids: Vec<String>,
+  pub available_ips: i32,
+  pub remediation: finding::Remediation,
 }
 
-/// Check if the subnets used by the control plane will support an upgrade
-///
-/// The control plane requires at least 5 free IPs to support an upgrade
-/// in order to accommodate the additional set of cross account ENIs created
-/// during an upgrade
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum SubnetPurpose {
+  ControlPlane {
+    required_ips: i32,
+  },
+  Node {
+    required_ips: i32,
+    recommended_ips: i32,
+  },
+  Pod {
+    required_ips: i32,
+    recommended_ips: i32,
+  },
+}
+
+fn subnet_finding(
+  subnets: Vec<Subnet>,
+  purpose: SubnetPurpose,
+) -> Result<Option<finding::Code>, anyhow::Error> {
+  let available_ips = subnets
+    .iter()
+    .map(|subnet| subnet.available_ip_address_count.unwrap())
+    .sum();
+
+  let ids = subnets
+    .iter()
+    .map(|subnet| subnet.subnet_id.as_ref().unwrap().to_string())
+    .collect::<Vec<String>>();
+
+  match purpose {
+    SubnetPurpose::ControlPlane { required_ips } => {
+      if available_ips < required_ips {
+        Ok(Some(finding::Code::EKS001(SubnetFinding {
+          ids,
+          available_ips,
+          remediation: finding::Remediation::Required,
+        })))
+      } else {
+        Ok(None)
+      }
+    }
+    SubnetPurpose::Node {
+      required_ips,
+      recommended_ips,
+    } => match available_ips {
+      available_ips if available_ips < required_ips => {
+        Ok(Some(finding::Code::AWS002(SubnetFinding {
+          ids,
+          available_ips,
+          remediation: finding::Remediation::Required,
+        })))
+      }
+      available_ips if available_ips < recommended_ips => {
+        Ok(Some(finding::Code::AWS002(SubnetFinding {
+          ids,
+          available_ips,
+          remediation: finding::Remediation::Required,
+        })))
+      }
+      _ => Ok(None),
+    },
+    SubnetPurpose::Pod {
+      required_ips,
+      recommended_ips,
+    } => match available_ips {
+      available_ips if available_ips < required_ips => {
+        Ok(Some(finding::Code::AWS003(SubnetFinding {
+          ids,
+          available_ips,
+          remediation: finding::Remediation::Required,
+        })))
+      }
+      available_ips if available_ips < recommended_ips => {
+        Ok(Some(finding::Code::AWS003(SubnetFinding {
+          ids,
+          available_ips,
+          remediation: finding::Remediation::Required,
+        })))
+      }
+      _ => Ok(None),
+    },
+  }
+}
+// /// Check if the subnets used by the control plane will support an upgrade
+// ///
+// /// The control plane requires at least 5 free IPs to support an upgrade
+// /// in order to accommodate the additional set of cross account ENIs created
+// /// during an upgrade
 async fn control_plane_subnets(
   cluster: &Cluster,
   client: &aws_sdk_ec2::Client,
@@ -129,23 +213,7 @@ async fn control_plane_subnets(
     .as_ref()
     .unwrap();
 
-  let subnet_details = aws::get_subnets(client, subnet_ids.clone()).await?;
-
-  let subnets = subnet_details
-    .iter()
-    .map(|subnet| {
-      let id = subnet.subnet_id.as_ref().unwrap();
-
-      Subnet {
-        id: id.to_owned(),
-        availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
-        availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
-        available_ips: subnet.available_ip_address_count.unwrap(),
-        cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
-      }
-    })
-    .collect();
-
+  let subnets = aws::get_subnets(client, subnet_ids.clone()).await?;
   Ok(subnets)
 }
 
@@ -161,93 +229,93 @@ async fn control_plane_subnets(
 /// There is a separate check for pods specifically for the scenario where
 /// custom networking is used and the pods are consuming IPs from a potentially
 /// different set of subnets
-async fn node_subnets(
-  ec2_client: &Ec2Client,
-  eks_managed_nodegroups: Vec<Nodegroup>,
-  fargate_profiles: Vec<FargateProfile>,
-  self_managed_nodegroups: Vec<AutoScalingGroup>,
-) -> Result<Vec<Subnet>, anyhow::Error> {
-  // Dedupe subnet IDs that are shared across different compute constructs
-  let mut subnet_ids = HashSet::new();
+// async fn node_subnets(
+//   ec2_client: &Ec2Client,
+//   eks_managed_nodegroups: Vec<Nodegroup>,
+//   fargate_profiles: Vec<FargateProfile>,
+//   self_managed_nodegroups: Vec<AutoScalingGroup>,
+// ) -> Result<Vec<Subnet>, anyhow::Error> {
+//   // Dedupe subnet IDs that are shared across different compute constructs
+//   let mut subnet_ids = HashSet::new();
 
-  // EKS managed node group subnets
-  for group in eks_managed_nodegroups {
-    let subnets = group.subnets.as_ref().unwrap();
-    for subnet in subnets {
-      subnet_ids.insert(subnet.to_owned());
-    }
-  }
+//   // EKS managed node group subnets
+//   for group in eks_managed_nodegroups {
+//     let subnets = group.subnets.as_ref().unwrap();
+//     for subnet in subnets {
+//       subnet_ids.insert(subnet.to_owned());
+//     }
+//   }
 
-  // Self managed node group subnets
-  for group in self_managed_nodegroups {
-    let subnets = group.vpc_zone_identifier.unwrap();
-    for subnet in subnets.split(',') {
-      subnet_ids.insert(subnet.to_owned());
-    }
-  }
+//   // Self managed node group subnets
+//   for group in self_managed_nodegroups {
+//     let subnets = group.vpc_zone_identifier.unwrap();
+//     for subnet in subnets.split(',') {
+//       subnet_ids.insert(subnet.to_owned());
+//     }
+//   }
 
-  // Fargate profile subnets
-  for profile in fargate_profiles {
-    let subnets = profile.subnets.unwrap();
-    for subnet in subnets {
-      subnet_ids.insert(subnet.to_owned());
-    }
-  }
+//   // Fargate profile subnets
+//   for profile in fargate_profiles {
+//     let subnets = profile.subnets.unwrap();
+//     for subnet in subnets {
+//       subnet_ids.insert(subnet.to_owned());
+//     }
+//   }
 
-  // Send one query of all the subnets used in the data plane
-  let subnet_details = aws::get_subnets(ec2_client, subnet_ids.into_iter().collect()).await?;
+//   // Send one query of all the subnets used in the data plane
+//   let subnet_details = aws::get_subnets(ec2_client, subnet_ids.into_iter().collect()).await?;
 
-  let subnets = subnet_details
-    .iter()
-    .map(|subnet| {
-      let id = subnet.subnet_id.as_ref().unwrap();
+//   let subnets = subnet_details
+//     .iter()
+//     .map(|subnet| {
+//       let id = subnet.subnet_id.as_ref().unwrap();
 
-      Subnet {
-        id: id.to_owned(),
-        availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
-        availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
-        available_ips: subnet.available_ip_address_count.unwrap(),
-        cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
-      }
-    })
-    .collect();
+//       Subnet {
+//         id: id.to_owned(),
+//         availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
+//         availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
+//         available_ips: subnet.available_ip_address_count.unwrap(),
+//         cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
+//       }
+//     })
+//     .collect();
 
-  Ok(subnets)
-}
+//   Ok(subnets)
+// }
 
 /// Check if the subnets used by the pods will support an upgrade
 ///
 /// This checks for the `ENIConfig` custom resource that is used to configure
 /// the AWS VPC CNI for custom networking. The subnet listed for each ENIConfig
 /// is queried for its relevant data used to report on the available IPs
-async fn pod_subnets(
-  ec2_client: &Ec2Client,
-  k8s_client: &K8s_Client,
-) -> Result<Vec<Subnet>, anyhow::Error> {
-  let eniconfigs = k8s::get_eniconfigs(k8s_client).await?;
-  let eniconfig_subnets = eniconfigs
-    .iter()
-    .map(|eniconfig| eniconfig.spec.subnet.as_ref().unwrap().to_owned())
-    .collect();
+// async fn pod_subnets(
+//   ec2_client: &Ec2Client,
+//   k8s_client: &K8s_Client,
+// ) -> Result<Vec<Subnet>, anyhow::Error> {
+//   let eniconfigs = k8s::get_eniconfigs(k8s_client).await?;
+//   let eniconfig_subnets = eniconfigs
+//     .iter()
+//     .map(|eniconfig| eniconfig.spec.subnet.as_ref().unwrap().to_owned())
+//     .collect();
 
-  let subnet_details = aws::get_subnets(ec2_client, eniconfig_subnets).await?;
-  let subnets = subnet_details
-    .iter()
-    .map(|subnet| {
-      let id = subnet.subnet_id.as_ref().unwrap();
+//   let subnet_details = aws::get_subnets(ec2_client, eniconfig_subnets).await?;
+//   let subnets = subnet_details
+//     .iter()
+//     .map(|subnet| {
+//       let id = subnet.subnet_id.as_ref().unwrap();
 
-      Subnet {
-        id: id.to_owned(),
-        availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
-        availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
-        available_ips: subnet.available_ip_address_count.unwrap(),
-        cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
-      }
-    })
-    .collect();
+//       Subnet {
+//         id: id.to_owned(),
+//         availability_zone: subnet.availability_zone.as_ref().unwrap().to_owned(),
+//         availability_zone_id: subnet.availability_zone_id.as_ref().unwrap().to_owned(),
+//         available_ips: subnet.available_ip_address_count.unwrap(),
+//         cidr_block: subnet.cidr_block.as_ref().unwrap().to_owned(),
+//       }
+//     })
+//     .collect();
 
-  Ok(subnets)
-}
+//   Ok(subnets)
+// }
 
 /// Nodegroup health issue data
 ///

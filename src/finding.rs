@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::k8s;
+use crate::{analysis, k8s};
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -20,10 +20,10 @@ pub enum Code {
   AWS001,
 
   /// Insufficient available subnet IPs for pods (custom networking only)
-  AWS002,
+  AWS002(analysis::SubnetFinding),
 
   /// Insufficient EC2 service limits
-  AWS003,
+  AWS003(analysis::SubnetFinding),
 
   /// Insufficient EBS GP2 service limits
   AWS004,
@@ -34,7 +34,7 @@ pub enum Code {
   /// EKS specific finding codes
   ///
   /// Insufficient available subnet IPs (5 min) for control plane ENIs
-  EKS001,
+  EKS001(analysis::SubnetFinding),
 
   /// Health issue(s) reported by the EKS control plane
   EKS002,
