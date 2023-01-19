@@ -9,14 +9,14 @@ A check must be able to answer `yes` to one of the following questions, dependin
 
 ### Amazon EKS
 
-- [ ] [`EKS001`] There are at least 5 free IPs in control plane subnets
+- [x] [`EKS001`] There are at least 5 free IPs in control plane subnets
   - [ ] [`AWS001`] Report on number of free IPs in data plane subnets
     - TBD: should this be reported per MNG/ASG/profile, as a whole (data plane), or both?
-  - [ ] [`AWS002`] Report on number of free IPs used by the pods when using custom networking
-- [ ] [`EKS002`] Control plane is free of health issues
-- [ ] [`EKS003`] EKS managed node group(s) are free of health issues
-- [ ] [`EKS004`] EKS addon(s) are free of health issues
-- [ ] [`EKS005`] EKS addon version is within supported range; recommend upgrading if target Kubernetes version default addon version is newer
+  - [x] [`AWS002`] Report on number of free IPs used by the pods when using custom networking
+- [x] [`EKS002`] Control plane is free of health issues
+- [x] [`EKS003`] EKS managed node group(s) are free of health issues
+- [x] [`EKS004`] EKS addon(s) are free of health issues
+- [x] [`EKS005`] EKS addon version is within supported range; recommend upgrading if target Kubernetes version default addon version is newer
 - [ ] [`EKS006`] EKS managed node group(s): report if the launch template version is not the latest
 - [ ] [`EKS007`] Self-managed node group(s): report if the launch template version is not the latest
 - [ ] Check AWS service limits and utilization for relevant resources
@@ -47,7 +47,7 @@ A check must be able to answer `yes` to one of the following questions, dependin
 - [ ] [`K8S003`] `.spec.minReadySeconds` set > 0 - https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
 - [ ] [`K8S004`] rolling update strategy is used
   - `.spec.strategy.type` != `Recreate` - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment
-    - (Deployment, ReplicaSet) - exlcudes ReplicationController which recommends blue/green upgrade
+    - (Deployment, ReplicaSet) - excludes ReplicationController which recommends blue/green upgrade
     - [ ] `.spec.strategy.rollingUpdate.maxUnavailable` is set (Recommended)
     - [ ] `.spec.strategy.rollingUpdate.maxSurge` is set (Recommended)
   - [ ] `.spec.updateStrategy.type` != `OnDelete` - https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#rolling-updates

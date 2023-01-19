@@ -1,36 +1,39 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{analysis, k8s, version};
+use crate::{eks, k8s, version};
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Remediation {
+pub(crate) enum Remediation {
   /// Represents a finding that requires remediation prior to upgrading
   Required,
   /// Represents a finding that is suggested as a recommendation
   Recommended,
 }
 
-pub trait Check {
+pub(crate) trait Deprecation {
   /// Returns the Kubernetes version the check was deprecated in
   fn deprecated_in(&self) -> Option<version::KubernetesVersion>;
-
+  /// Returns the Kubernetes version the check will be removed in
   fn removed_in(&self) -> Option<version::KubernetesVersion>;
 }
 
+pub(crate) type FindingResult = Result<Option<Code>, anyhow::Error>;
+pub(crate) type FindingResults = Result<Vec<Code>, anyhow::Error>;
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Code {
+pub(crate) enum Code {
   /// AWS finding codes not specific to EKS
   ///
   /// Insufficient available subnet IPs for nodes
-  AWS001,
+  AWS001(eks::InsufficientSubnetIps),
 
   /// Insufficient available subnet IPs for pods (custom networking only)
-  AWS002(analysis::SubnetFinding),
+  AWS002(eks::InsufficientSubnetIps),
 
   /// Insufficient EC2 service limits
-  AWS003(analysis::SubnetFinding),
+  AWS003,
 
   /// Insufficient EBS GP2 service limits
   AWS004,
@@ -41,32 +44,32 @@ pub enum Code {
   /// EKS specific finding codes
   ///
   /// Insufficient available subnet IPs (5 min) for control plane ENIs
-  EKS001(analysis::SubnetFinding),
+  EKS001(eks::InsufficientSubnetIps),
 
   /// Health issue(s) reported by the EKS control plane
-  EKS002,
+  EKS002(eks::ClusterHealthIssue),
 
   /// Health issue(s) reported by the EKS managed node group
-  EKS003,
+  EKS003(eks::NodegroupHealthIssue),
 
   /// Health issue(s) reported by the EKS addon
-  EKS004,
+  EKS004(eks::AddonHealthIssue),
 
-  /// EKS addon is incompatible with the targetted Kubernetes version
-  EKS005,
+  /// EKS addon is incompatible with the targeted Kubernetes version
+  EKS005(eks::AddonVersionCompatibility),
 
   /// EKS managed node group autoscaling group has pending update(s)
-  EKS006,
+  EKS006(eks::ManagedNodeGroupUpdate),
 
   /// Self-managed node group autoscaling group has pending update(s)
-  EKS007,
+  EKS007(eks::AutoscalingGroupUpdate),
 
   /// Kubernetes finding codes not specific to EKS
   ///
   /// Kubernetes version skew detected between control plane and node
   K8S001(k8s::NodeFinding),
 
-  /// Insufficient number of `.spec.replcas`
+  /// Insufficient number of `.spec.replicas`
   K8S002,
 
   /// Insufficient number of `.spec.minReadySeconds`
