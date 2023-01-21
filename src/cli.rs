@@ -32,12 +32,16 @@ pub struct Analysis {
   #[arg(short, long)]
   pub region: Option<String>,
 
-  #[arg(long, value_enum, default_value_t)]
+  #[arg(short, long, value_enum, default_value_t)]
   pub format: output::OutputFormat,
 
-  /// Name of the file when saved locally
+  /// Write to file instead of stdout
   #[arg(short, long)]
-  pub filename: Option<String>,
+  pub output: Option<String>,
+
+  /// Exclude recommendations from the output
+  #[arg(long)]
+  pub ignore_recommended: bool
 }
 
 /// Create artifacts using the analysis data
@@ -67,4 +71,8 @@ pub struct Playbook {
   /// Name of the playbook saved locally
   #[arg(short, long)]
   pub filename: Option<String>,
+
+  /// Exclude recommendations from the output
+  #[arg(long)]
+  pub ignore_recommended: bool
 }

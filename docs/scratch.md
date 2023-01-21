@@ -21,7 +21,7 @@ eksup analyze --cluster <cluster> --region <region> --format json
 
 Save result as plaintext to file:
 ```sh
-eksup analyze --cluster <cluster> --region <region> --filename analysis.txt
+eksup analyze --cluster <cluster> --region <region> --output analysis.txt
 ```
 
 Save result as JSON to S3, ignoring recommendations:
@@ -30,7 +30,7 @@ eksup analyze \
   --cluster <cluster> \
   --region <region> \
   --format json \
-  --filename s3://<bucket>/<filename> \
+  --output s3://<bucket>/<filename> \
   --ignore-recommended
 ```
 
@@ -40,12 +40,16 @@ Create a playbook with analysis findings to guide users through pre-upgrade, upg
 
 Create playbook and save locally:
 ```sh
-eksup create playbook --cluster-name <cluster> --region <region>
+eksup create playbook --cluster <cluster> --region <region>
 ```
 
 Create playbook and save locally, ignoring recommendations:
 ```sh
-eksup create playbook --cluster-name <cluster> --region <region> --ignore-recommended
+eksup create playbook --cluster <cluster> --region <region> --ignore-recommended
+```
+
+```
+Controls: 31 (Failed: 14, Excluded: 0, Skipped: 0)
 ```
 
 ## 🚧 ToDo 🚧
