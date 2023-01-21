@@ -3,6 +3,51 @@ A check must be able to answer `yes` to one of the following questions, dependin
 - Required: It will adversely affect the cluster and/or the services/applications running on the cluster during an upgrade
 - Recommended: It \*has the potential to affect the cluster and/or the services/applications running on the cluster during an upgrade
 
+## Reference
+
+### Analyze
+
+Analyze cluster for any potential issues to remediate prior to upgrade.
+
+Show result as plaintext via stdout:
+```sh
+eksup analyze --cluster <cluster> --region <region>
+```
+
+Show result as JSON via stdout:
+```sh
+eksup analyze --cluster <cluster> --region <region> --format json
+```
+
+Save result as plaintext to file:
+```sh
+eksup analyze --cluster <cluster> --region <region> --filename analysis.txt
+```
+
+Save result as JSON to S3, ignoring recommendations:
+```sh
+eksup analyze \
+  --cluster <cluster> \
+  --region <region> \
+  --format json \
+  --filename s3://<bucket>/<filename> \
+  --ignore-recommended
+```
+
+### Create
+
+Create a playbook with analysis findings to guide users through pre-upgrade, upgrade, and post-upgrade process.
+
+Create playbook and save locally:
+```sh
+eksup create playbook --cluster-name <cluster> --region <region>
+```
+
+Create playbook and save locally, ignoring recommendations:
+```sh
+eksup create playbook --cluster-name <cluster> --region <region> --ignore-recommended
+```
+
 ## 🚧 ToDo 🚧
 
 - [x] [`K8S001`] Version skew between control plane and data plane should adhere to skew policy
@@ -17,8 +62,8 @@ A check must be able to answer `yes` to one of the following questions, dependin
 - [x] [`EKS003`] EKS managed node group(s) are free of health issues
 - [x] [`EKS004`] EKS addon(s) are free of health issues
 - [x] [`EKS005`] EKS addon version is within supported range; recommend upgrading if target Kubernetes version default addon version is newer
-- [ ] [`EKS006`] EKS managed node group(s): report if the launch template version is not the latest
-- [ ] [`EKS007`] Self-managed node group(s): report if the launch template version is not the latest
+- [x] [`EKS006`] EKS managed node group(s): report if the launch template version is not the latest
+- [x] [`EKS007`] Self-managed node group(s): report if the launch template version is not the latest
 - [ ] Check AWS service limits and utilization for relevant resources
   - Requires premium support https://docs.aws.amazon.com/awssupport/latest/user/service-limits.html
   - [ ] [`AWS003`] EC2 instance service limits

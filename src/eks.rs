@@ -21,14 +21,16 @@ use crate::{
 };
 
 /// Get the configuration to authn/authz with AWS that will be used across AWS clients
-pub(crate) async fn get_config(region: Option<String>) -> aws_config::SdkConfig {
+pub(crate) async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig, anyhow::Error> {
   // TODO - fix this ugliness
-  let region_provider = match region {
-    Some(region) => RegionProviderChain::first_try(Region::new(region)).or_default_provider(),
-    None => RegionProviderChain::first_try(env::var("AWS_REGION").ok().map(Region::new)).or_default_provider(),
+  let aws_region = match region {
+    Some(region) => Region::new(region.to_owned()),
+    None => env::var("AWS_REGION").ok().map(Region::new).unwrap(),
   };
 
-  aws_config::from_env().region(region_provider).load().await
+  let region_provider = RegionProviderChain::first_try(aws_region).or_default_provider();
+
+  Ok(aws_config::from_env().region(region_provider).load().await)
 }
 
 /// Describe the cluster to get its full details

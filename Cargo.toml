@@ -16,7 +16,7 @@ categories = [
   "command-line-utilities",
   "text-processing",
 ]
-exclude = ["/.github", ".gitignore", "examples"]
+exclude = ["/.github", ".gitignore", "docs", "examples"]
 
 default-run = "eksup"
 
@@ -26,11 +26,11 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0"
-aws-config = "0.52"
-aws-sdk-autoscaling = "0.22"
-aws-sdk-ec2 = "0.22"
-aws-sdk-eks = "0.22"
-aws-types = "0.52"
+aws-config = "0.53"
+aws-sdk-autoscaling = "0.23"
+aws-sdk-ec2 = "0.23"
+aws-sdk-eks = "0.23"
+aws-types = "0.53"
 clap = { version = "^4.0", features = ["derive", "string"] }
 handlebars = { version = "4.3", features = ["rust-embed"] }
 # https://kube.rs/kubernetes-version/

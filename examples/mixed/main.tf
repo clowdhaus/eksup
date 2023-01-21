@@ -32,10 +32,9 @@ data "aws_caller_identity" "current" {}
 data "aws_availability_zones" "available" {}
 
 locals {
-  name                  = "test-${basename(path.cwd)}"
-  control_plane_version = "1.22"
-  data_plane_version    = "1.21"
-  region                = "us-east-1"
+  name          = "test-${basename(path.cwd)}"
+  minor_version = 23
+  region        = "us-east-1"
 
   vpc_cidr_nodes = "10.0.0.0/16"
   vpc_cidr_pods  = "10.99.0.0/16"
@@ -56,7 +55,7 @@ module "eks" {
   version = "~> 19.5"
 
   cluster_name                   = local.name
-  cluster_version                = local.control_plane_version
+  cluster_version                = "1.${local.minor_version}"
   cluster_endpoint_public_access = true
 
   cluster_addons = {
@@ -94,7 +93,7 @@ module "eks" {
 
   eks_managed_node_group_defaults = {
     # Demonstrating skew check
-    cluster_version = local.data_plane_version
+    cluster_version = "1.${local.minor_version - 1}"
   }
 
   eks_managed_node_groups = {
@@ -120,7 +119,7 @@ module "eks" {
 
   self_managed_node_group_defaults = {
     # Demonstrating skew check
-    cluster_version = local.data_plane_version
+    cluster_version = "1.${local.minor_version - 2}"
   }
 
   self_managed_node_groups = {

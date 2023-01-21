@@ -19,44 +19,25 @@ impl Default for OutputFormat {
   }
 }
 
-// TODO - replace this with standalone flags
-// --stdout will output to stdout
-// --filename <FILENAME> indicates writing to file under the defined name passed
-// Need to write out all combination of commands and flags for intended use cases
-// to see what makes the most sense and is the most intuitive/ergonomical
-#[derive(Clone, Copy, Debug, ValueEnum, Serialize, Deserialize)]
-pub enum OutputType {
-  /// JSON format used for logging or writing to a *.json file
-  Stdout,
-  /// Write to file
-  File,
-}
-
-impl Default for OutputType {
-  fn default() -> Self {
-    Self::Stdout
-  }
-}
-
 pub(crate) async fn output(
   findings: &analysis::Findings,
-  oformat: &OutputFormat,
-  otype: &OutputType,
-  filename: &str,
+  format: &OutputFormat,
+  filename: &Option<String>,
 ) -> Result<(), anyhow::Error> {
-  let output = match oformat {
+  let output = match format {
     OutputFormat::Json => serde_json::to_string(&findings)?,
     OutputFormat::Text => format!("{findings:#?}"),
   };
 
-  match otype {
-    OutputType::Stdout => {
-      println!("{output}");
-    }
-    OutputType::File => {
+  match filename {
+    Some(filename) => {
       let mut file = File::create(filename)?;
       file.write_all(output.as_bytes())?;
     }
+    None => {
+      println!("{output}");
+    }
   }
+
   Ok(())
 }

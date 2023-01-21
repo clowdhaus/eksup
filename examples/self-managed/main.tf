@@ -18,10 +18,9 @@ data "aws_caller_identity" "current" {}
 data "aws_availability_zones" "available" {}
 
 locals {
-  name                  = "test-${basename(path.cwd)}"
-  control_plane_version = "1.22"
-  data_plane_version    = "1.21"
-  region                = "us-east-1"
+  name          = "test-${basename(path.cwd)}"
+  minor_version = 23
+  region        = "us-east-1"
 
   vpc_cidr = "10.0.0.0/16"
   azs      = slice(data.aws_availability_zones.available.names, 0, 3)
@@ -38,10 +37,10 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.0"
+  version = "~> 19.5"
 
   cluster_name                   = local.name
-  cluster_version                = local.control_plane_version
+  cluster_version                = "1.${local.minor_version}"
   cluster_endpoint_public_access = true
 
   cluster_addons = {
@@ -60,14 +59,7 @@ module "eks" {
 
   self_managed_node_group_defaults = {
     # Demonstrating skew check
-    cluster_version = local.data_plane_version
-
-    # Enable discovery of autoscaling groups by cluster-autoscaler
-    # This mimics behavior provided by EKS managed node groups
-    autoscaling_group_tags = {
-      "k8s.io/cluster-autoscaler/enabled" : true,
-      "k8s.io/cluster-autoscaler/${local.name}" : "owned",
-    }
+    cluster_version = "1.${local.minor_version - 1}"
   }
 
   self_managed_node_groups = {

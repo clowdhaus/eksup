@@ -2,15 +2,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::{eks, k8s, version};
 
+/// Determines whether remediation is required or recommended
+///
+/// This allows for filtering of findings shown to user
 #[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Remediation {
-  /// Represents a finding that requires remediation prior to upgrading
+  /// A finding that requires remediation prior to upgrading to avoid downtime or disruption
   Required,
-  /// Represents a finding that is suggested as a recommendation
+  /// A finding that users are recommended to remediate prior to upgrade, but failure
+  /// to do so does not pose a risk to downtime or disruption during the upgrade
   Recommended,
 }
 
+/// TODO - something is required to identify what Kubernetes resource findings are applicable
+/// TODO - to specific version. For example, if a user is already on version 1.23, then they should
+/// TODO - not be shown findings that affect version <= 1.22
 pub(crate) trait Deprecation {
   /// Returns the Kubernetes version the check was deprecated in
   fn deprecated_in(&self) -> Option<version::KubernetesVersion>;
@@ -21,6 +28,19 @@ pub(crate) trait Deprecation {
 pub(crate) type FindingResult = Result<Option<Code>, anyhow::Error>;
 pub(crate) type FindingResults = Result<Vec<Code>, anyhow::Error>;
 
+/// Codes that represent the finding variants
+///
+/// This is useful for a few reasons:
+/// 1. It would allow users to add codes to a 'ignore list' in the future, to ignore any
+/// reported findings of that code type (another level of granularity of what data is
+/// is most relevant to them)
+/// 2. It provides a "marker" that can be used to link to documentation for the finding,
+/// keeping the direct output concise while still providing the means for a full explanation
+/// and reasoning behind the finding in one location
+/// 3. It provides a strongly typed link between code and finding data allowing the code
+/// to uniquely represent a finding even if the finding data is generic (i.e. - as is the case
+/// in reporting available IPs as subnet findings, the data shape is generic by the finding
+/// is unique to different scenarios)
 #[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Code {

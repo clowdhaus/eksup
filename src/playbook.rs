@@ -62,13 +62,13 @@ impl TemplateData {
     let contents = std::str::from_utf8(data_file.data.as_ref())?;
     let data: HashMap<Version, Release> = serde_yaml::from_str(contents)?;
 
-    let cluster_name = playbook.cluster_name.as_ref().unwrap();
-    let current_version = playbook.cluster_version.to_string();
-    let target_version = version::get_target_version(&current_version)?;
+    let cluster_name = "foo".to_string(); // playbook.cluster_name.as_ref().unwrap();
+    let current_version = "1.22".to_string(); // playbook.cluster_version.to_string();
+    let target_version = version::get_target_version("1.22")?; // version::get_target_version(&current_version)?;
     let release = data.get(&target_version).unwrap();
 
     Ok(TemplateData {
-      cluster_name: cluster_name.to_string(),
+      cluster_name,
       current_version,
       target_version,
       k8s_release_url: release.release_url.to_string(),
@@ -117,6 +117,12 @@ pub fn create(playbook: &Playbook) -> Result<(), anyhow::Error> {
   // };
   // tmpl_data.fargate_profile = fargate_profile;
 
+  let filename = match &playbook.filename {
+    Some(filename) => filename,
+    // TODO - update default name to include cluster name, versions, etc. that would make it unique
+    None => "playbook.md",
+  };
+
   // TODO = handlebars should be able to handle backticks and apostrophes
   // Need to figure out why this isn't the case currently
   // let mut output_file = File::create("playbook.md")?;
@@ -131,7 +137,7 @@ pub fn create(playbook: &Playbook) -> Result<(), anyhow::Error> {
     .replace("&amp;gt;", ">")
     .replace("&quot;", "\"")
     .replace("&#x3D;", "=");
-  fs::write(&playbook.filename, replaced)?;
+  fs::write(filename, replaced)?;
 
   Ok(())
 }

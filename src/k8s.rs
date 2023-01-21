@@ -65,7 +65,7 @@ pub(crate) async fn version_skew(client: &Client, cluster_version: &str) -> Resu
 ///
 /// This makes it possible to query the custom resources in the cluster
 /// for extracting information from the ENIConfigs (if present)
-/// https://github.com/aws/amazon-vpc-cni-k8s/blob/master/charts/aws-vpc-cni/crds/customresourcedefinition.yaml
+/// <https://github.com/aws/amazon-vpc-cni-k8s/blob/master/charts/aws-vpc-cni/crds/customresourcedefinition.yaml>
 #[derive(Clone, CustomResource, Debug, Default, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[kube(
   derive = "Default",

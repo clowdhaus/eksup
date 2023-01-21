@@ -18,10 +18,9 @@ data "aws_caller_identity" "current" {}
 data "aws_availability_zones" "available" {}
 
 locals {
-  name                  = "test-${basename(path.cwd)}"
-  control_plane_version = "1.22"
-  data_plane_version    = "1.21"
-  region                = "us-east-1"
+  name          = "test-${basename(path.cwd)}"
+  minor_version = 23
+  region        = "us-east-1"
 
   vpc_cidr = "10.0.0.0/16"
   azs      = slice(data.aws_availability_zones.available.names, 0, 3)
@@ -38,11 +37,15 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.0"
+  version = "~> 19.5"
 
   cluster_name                   = local.name
-  cluster_version                = local.control_plane_version
+  cluster_version                = "1.${local.minor_version}"
   cluster_endpoint_public_access = true
+
+  # IPV6
+  cluster_ip_family          = "ipv6"
+  create_cni_ipv6_iam_policy = true
 
   cluster_addons = {
     coredns    = {}
@@ -56,7 +59,7 @@ module "eks" {
 
   eks_managed_node_group_defaults = {
     # Demonstrating skew check
-    cluster_version = local.data_plane_version
+    cluster_version = "1.${local.minor_version - 1}"
   }
 
   eks_managed_node_groups = {
@@ -87,6 +90,14 @@ module "vpc" {
   private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
   public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
   intra_subnets   = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 52)]
+
+  enable_ipv6                     = true
+  assign_ipv6_address_on_creation = true
+  create_egress_only_igw          = true
+
+  public_subnet_ipv6_prefixes  = [0, 1, 2]
+  private_subnet_ipv6_prefixes = [3, 4, 5]
+  intra_subnet_ipv6_prefixes   = [6, 7, 8]
 
   enable_nat_gateway   = true
   single_nat_gateway   = true

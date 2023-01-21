@@ -6,31 +6,49 @@ use serde::{Deserialize, Serialize};
 
 use crate::{eks, finding, k8s};
 
+/// Findings related to the cluster itself, primarily the control plane
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct ClusterFindings {
+  /// The health of the cluster as reported by the Amazon EKS API
   pub(crate) cluster_health: Vec<finding::Code>,
 }
 
+/// Collects the cluster findings from the Amazon EKS API
 async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings, anyhow::Error> {
   let cluster_health = eks::cluster_health(cluster).await?;
 
   Ok(ClusterFindings { cluster_health })
 }
 
+/// Networking/subnet findings, primarily focused on IP exhaustion/number of available IPs
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct SubnetFindings {
+  /// The Amazon EKS service requires at least 5 available IPs in order to upgrade a cluster in-place
   pub(crate) control_plane_ips: Option<finding::Code>,
+  /// This is the number of IPs available to pods when custom networking is enabled on the AWS VPC CNI,
+  /// pulling the available number of IPs for the subnets listed in the ENIConfig resource(s)
   pub(crate) pod_ips: Option<finding::Code>,
 }
 
+/// Collects findings related to networking and subnets
+///
+/// TBD - currently this checks if there are at least 5 available IPs for the control plane cross account ENIs
+/// and provides feedback on IPs available for pods when utilizing custom networking. However, it does not cover
+/// the IPs for the nodes or nodes and pods when custom networking is not involved. Should these IPs be reported
+/// as a whole (treat the data plane as a whole, reporting how many IPs are available), reported per compute
+/// construct (each MNG, ASG, Fargate profile takes n-number of subnets, should these groupings be reported
+/// individually since it will affect that construct but not necessarily the entire data plane), or a combination
+/// of those two?
 async fn get_subnet_findings(
   ec2_client: &Ec2Client,
   k8s_client: &K8sClient,
   cluster: &Cluster,
 ) -> Result<SubnetFindings, anyhow::Error> {
   let control_plane_ips = eks::control_plane_ips(ec2_client, cluster).await?;
+  // TODO - The required and recommended number of IPs need to be configurable to allow users who have better
+  // TODO - context on their environment as to what should be required and recommended
   let pod_ips = eks::pod_ips(ec2_client, k8s_client, 16, 256).await?;
 
   Ok(SubnetFindings {
@@ -39,13 +57,22 @@ async fn get_subnet_findings(
   })
 }
 
+/// Findings related to the EKS addons
+///
+/// Either native EKS addons or addons deployed through the AWS Marketplace integration.
+/// It does NOT include custom addons or services deployed by users using kubectl/Helm/etc.,
+/// it is only evaluating those that can be accessed via the AWS EKS API
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AddonFindings {
+  /// Determines whether or not the current addon version is supported by Amazon EKS in the
+  /// intended upgrade target Kubernetes version
   pub(crate) version_compatibility: Vec<finding::Code>,
+  /// Reports any health issues as reported by the Amazon EKS addon API
   pub(crate) health: Vec<finding::Code>,
 }
 
+/// Collects the addon findings from the Amazon EKS addon API
 async fn get_addon_findings(
   eks_client: &EksClient,
   cluster_name: &str,
@@ -62,15 +89,29 @@ async fn get_addon_findings(
   })
 }
 
+/// Findings related to the data plane infrastructure components
+///
+/// This does not include findings for resources that are running on the cluster, within the data plane
+/// (pods, deployments, etc.)
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct DataPlaneFindings {
+  /// The skew/diff between the cluster control plane (API Server) and the nodes in the data plane (kubelet)
+  /// It is recommended that these versions are aligned prior to upgrading, and changes are required when
+  /// the skew policy could be violated post upgrade (i.e. if current skew is +2, the policy would be violated
+  /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
   pub(crate) version_skew: Vec<finding::Code>,
+  /// The health of the EKS managed node groups as reported by the Amazon EKS managed node group API
   pub(crate) eks_managed_node_group_health: Vec<finding::Code>,
+  /// Will show if the current launch template provided to the Amazon EKS managed node group is NOT the latest
+  /// version since this may potentially introduce additional changes that were not planned for just the upgrade
+  /// (i.e. - any changes that may have been introduced in the launch template versions that have not been deployed)
   pub(crate) eks_managed_node_group_update: Vec<finding::Code>,
+  /// Similar to the `eks_managed_node_group_update` except for self-managed node groups (autoscaling groups)
   pub(crate) self_managed_node_group_update: Vec<finding::Code>,
 }
 
+/// Collects the data plane findings
 async fn get_data_plane_findings(
   asg_client: &AsgClient,
   ec2_client: &Ec2Client,
@@ -105,6 +146,7 @@ async fn get_data_plane_findings(
   })
 }
 
+/// Container of all findings collected
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Findings {
@@ -114,6 +156,7 @@ pub(crate) struct Findings {
   pub(crate) addons: AddonFindings,
 }
 
+/// Analyze the cluster provided to collect all reported findings
 pub(crate) async fn analyze(
   aws_shared_config: &aws_config::SdkConfig,
   cluster: &Cluster,
