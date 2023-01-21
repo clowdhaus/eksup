@@ -20,10 +20,7 @@ pub(crate) struct NodeFinding {
 }
 
 /// Returns all of the nodes in the cluster
-pub(crate) async fn version_skew(
-  client: &Client,
-  cluster_version: &str,
-) -> Result<Vec<finding::Code>, anyhow::Error> {
+pub(crate) async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<finding::Code>, anyhow::Error> {
   let api: Api<core::v1::Node> = Api::all(client.clone());
   let node_list = api.list(&Default::default()).await?;
 

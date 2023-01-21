@@ -53,8 +53,7 @@ async fn get_addon_findings(
 ) -> Result<AddonFindings, anyhow::Error> {
   let addons = eks::get_addons(eks_client, cluster_name).await?;
 
-  let version_compatibility =
-    eks::addon_version_compatibility(eks_client, cluster_version, &addons).await?;
+  let version_compatibility = eks::addon_version_compatibility(eks_client, cluster_version, &addons).await?;
   let health = eks::addon_health(&addons).await?;
 
   Ok(AddonFindings {
@@ -101,14 +100,8 @@ async fn get_data_plane_findings(
   Ok(DataPlaneFindings {
     version_skew,
     eks_managed_node_group_health,
-    eks_managed_node_group_update: eks_managed_node_group_update
-      .into_iter()
-      .flatten()
-      .collect(),
-    self_managed_node_group_update: self_managed_node_group_update
-      .into_iter()
-      .flatten()
-      .collect(),
+    eks_managed_node_group_update: eks_managed_node_group_update.into_iter().flatten().collect(),
+    self_managed_node_group_update: self_managed_node_group_update.into_iter().flatten().collect(),
   })
 }
 
@@ -137,8 +130,7 @@ pub(crate) async fn analyze(
   let cluster_findings = get_cluster_findings(cluster).await?;
   let subnet_findings = get_subnet_findings(&ec2_client, &k8s_client, cluster).await?;
   let addon_findings = get_addon_findings(&eks_client, cluster_name, cluster_version).await?;
-  let dataplane_findings =
-    get_data_plane_findings(&asg_client, &ec2_client, &eks_client, &k8s_client, cluster).await?;
+  let dataplane_findings = get_data_plane_findings(&asg_client, &ec2_client, &eks_client, &k8s_client, cluster).await?;
 
   Ok(Findings {
     cluster: cluster_findings,

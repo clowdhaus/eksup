@@ -25,8 +25,7 @@ pub(crate) async fn get_config(region: Option<String>) -> aws_config::SdkConfig 
   // TODO - fix this ugliness
   let region_provider = match region {
     Some(region) => RegionProviderChain::first_try(Region::new(region)).or_default_provider(),
-    None => RegionProviderChain::first_try(env::var("AWS_REGION").ok().map(Region::new))
-      .or_default_provider(),
+    None => RegionProviderChain::first_try(env::var("AWS_REGION").ok().map(Region::new)).or_default_provider(),
   };
 
   aws_config::from_env().region(region_provider).load().await
@@ -38,9 +37,7 @@ pub(crate) async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluste
   let resp = req.send().await?;
 
   // TODO - handle error check here for cluster not found
-  let cluster = resp
-    .cluster
-    .unwrap_or_else(|| panic!("Cluster {name} not found"));
+  let cluster = resp.cluster.unwrap_or_else(|| panic!("Cluster {name} not found"));
 
   Ok(cluster)
 }
@@ -100,10 +97,7 @@ struct SubnetIPs {
 /// IP contention/exhaustion across the various subnets in use
 /// by the control plane ENIs, the nodes, and the pods (when custom
 /// networking is enabled)
-async fn get_subnet_ips(
-  client: &Ec2Client,
-  subnet_ids: Vec<String>,
-) -> Result<SubnetIPs, anyhow::Error> {
+async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<SubnetIPs, anyhow::Error> {
   let subnets = client
     .describe_subnets()
     .set_subnet_ids(Some(subnet_ids))
@@ -198,10 +192,7 @@ pub(crate) async fn pod_ips(
   Ok(Some(finding::Code::AWS002(finding)))
 }
 
-pub(crate) async fn get_addons(
-  client: &EksClient,
-  cluster_name: &str,
-) -> Result<Vec<Addon>, anyhow::Error> {
+pub(crate) async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Addon>, anyhow::Error> {
   let addon_names = client
     .list_addons()
     .cluster_name(cluster_name)
@@ -270,13 +261,7 @@ async fn get_addon_versions(
     .as_ref()
     .unwrap()
     .iter()
-    .filter(|v| {
-      v.compatibilities
-        .as_ref()
-        .unwrap()
-        .iter()
-        .any(|c| c.default_version)
-    })
+    .filter(|v| v.compatibilities.as_ref().unwrap().iter().any(|c| c.default_version))
     .map(|v| v.addon_version.as_ref().unwrap())
     .next()
     .unwrap();
@@ -338,16 +323,10 @@ pub(crate) async fn addon_version_compatibility(
 
     // TODO - why is this saying the if/else is the same?
     #[allow(clippy::if_same_then_else)]
-    let remediation = if !target_kubernetes_version
-      .supported_versions
-      .contains(&version)
-    {
+    let remediation = if !target_kubernetes_version.supported_versions.contains(&version) {
       // The target Kubernetes version of addons does not support the current addon version, must update
       Some(finding::Remediation::Required)
-    } else if !current_kubernetes_version
-      .supported_versions
-      .contains(&version)
-    {
+    } else if !current_kubernetes_version.supported_versions.contains(&version) {
       // The current Kubernetes version of addons does not support the current addon version, must update
       Some(finding::Remediation::Required)
     } else if current_kubernetes_version.latest != version {
@@ -498,11 +477,7 @@ pub(crate) async fn get_self_managed_nodegroups(
     .set_values(Some(keys))
     .build();
 
-  let response = client
-    .describe_auto_scaling_groups()
-    .filters(filter)
-    .send()
-    .await?;
+  let response = client.describe_auto_scaling_groups().filters(filter).send().await?;
   let groups = response.auto_scaling_groups().map(|groups| groups.to_vec());
 
   // Filter out EKS managed node groups by the EKS MNG applied tag
@@ -571,10 +546,7 @@ pub(crate) struct LaunchTemplate {
   pub(crate) latest_version: String,
 }
 
-async fn get_launch_template(
-  client: &Ec2Client,
-  id: &str,
-) -> Result<LaunchTemplate, anyhow::Error> {
+async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchTemplate, anyhow::Error> {
   let output = client
     .describe_launch_templates()
     .set_launch_template_ids(Some(vec![id.to_string()]))
@@ -618,10 +590,7 @@ pub(crate) struct ManagedNodeGroupUpdate {
   pub(crate) remediation: finding::Remediation,
 }
 
-pub(crate) async fn eks_managed_node_group_update(
-  client: &Ec2Client,
-  nodegroup: &Nodegroup,
-) -> FindingResults {
+pub(crate) async fn eks_managed_node_group_update(client: &Ec2Client, nodegroup: &Nodegroup) -> FindingResults {
   let launch_template_spec = nodegroup.launch_template.as_ref();
 
   // On EKS managed node groups, there are between 1 and 2 launch templates that influence the node group.
@@ -680,17 +649,9 @@ pub(crate) struct AutoscalingGroupUpdate {
 /// deployed when the launch template is updated to version 6 for the Kubernetes version upgrade. Ideally,
 /// users should be on the latest version of the launch template prior to upgrading to avoid any surprises
 /// or unexpected changes.
-pub(crate) async fn self_managed_node_group_update(
-  client: &Ec2Client,
-  asg: &AutoScalingGroup,
-) -> FindingResult {
+pub(crate) async fn self_managed_node_group_update(client: &Ec2Client, asg: &AutoScalingGroup) -> FindingResult {
   let name = asg.auto_scaling_group_name.as_ref().unwrap().to_owned();
-  let launch_template_id = asg
-    .launch_template()
-    .unwrap()
-    .launch_template_id()
-    .unwrap()
-    .to_owned();
+  let launch_template_id = asg.launch_template().unwrap().launch_template_id().unwrap().to_owned();
   let launch_template = get_launch_template(client, &launch_template_id).await?;
 
   // Only interested in those that are not using the latest version

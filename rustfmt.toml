@@ -1,4 +1,5 @@
 tab_spaces=2
+max_width = 120
 edition = "2021"
 reorder_imports = true
 imports_granularity = "Crate"
