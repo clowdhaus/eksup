@@ -119,8 +119,8 @@ async fn get_data_plane_findings(
   k8s_client: &kube::Client,
   cluster: &Cluster,
 ) -> Result<DataPlaneFindings, anyhow::Error> {
-  let cluster_name = cluster.name.as_ref().unwrap();
-  let cluster_version = cluster.version.as_ref().unwrap();
+  let cluster_name = cluster.name().unwrap();
+  let cluster_version = cluster.version().unwrap();
 
   let eks_mngs = eks::get_eks_managed_nodegroups(eks_client, cluster_name).await?;
   let self_mngs = eks::get_self_managed_nodegroups(asg_client, cluster_name).await?;
@@ -167,8 +167,8 @@ pub(crate) async fn analyze(
   let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
   let k8s_client = kube::Client::try_default().await?;
 
-  let cluster_name = cluster.name.as_ref().unwrap();
-  let cluster_version = cluster.version.as_ref().unwrap();
+  let cluster_name = cluster.name().unwrap();
+  let cluster_version = cluster.version().unwrap();
 
   let cluster_findings = get_cluster_findings(cluster).await?;
   let subnet_findings = get_subnet_findings(&ec2_client, &k8s_client, cluster).await?;

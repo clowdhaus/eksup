@@ -57,23 +57,22 @@ pub(crate) struct ClusterHealthIssue {
 
 /// Check for any reported health issues on the cluster control plane
 pub(crate) async fn cluster_health(cluster: &Cluster) -> FindingResults {
-  let health = cluster.health.as_ref();
+  let health = cluster.health();
 
   match health {
     Some(health) => {
       let issues: Vec<finding::Code> = health
-        .issues
-        .as_ref()
+        .issues()
         .unwrap()
         .to_owned()
         .iter()
         .map(|issue| {
-          let code = &issue.code.as_ref().unwrap().to_owned();
+          let code = &issue.code().unwrap().to_owned();
 
           let issue = ClusterHealthIssue {
             code: code.as_str().to_string(),
-            message: issue.message.as_ref().unwrap().to_string(),
-            resource_ids: issue.resource_ids.as_ref().unwrap().to_owned(),
+            message: issue.message().unwrap().to_string(),
+            resource_ids: issue.resource_ids().unwrap().to_owned(),
           };
           finding::Code::EKS002(issue)
         })
@@ -115,7 +114,7 @@ async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<S
 
   let ids = subnets
     .iter()
-    .map(|subnet| subnet.subnet_id.as_ref().unwrap().to_string())
+    .map(|subnet| subnet.subnet_id().unwrap().to_string())
     .collect::<Vec<String>>();
 
   Ok(SubnetIPs { ids, available_ips })
@@ -131,13 +130,7 @@ pub(crate) struct InsufficientSubnetIps {
 }
 
 pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster) -> FindingResult {
-  let subnet_ids = cluster
-    .resources_vpc_config()
-    .unwrap()
-    .subnet_ids
-    .as_ref()
-    .unwrap()
-    .to_owned();
+  let subnet_ids = cluster.resources_vpc_config().unwrap().subnet_ids().unwrap().to_owned();
 
   let subnet_ips = get_subnet_ips(ec2_client, subnet_ids).await?;
   if subnet_ips.available_ips >= 5 {
@@ -255,27 +248,25 @@ async fn get_addon_versions(
 
   // Since we are providing an addon name, we are only concerned with the first and only item
   let addon = describe.addons().unwrap().get(0).unwrap();
-  let latest_version_info = addon.addon_versions.as_ref().unwrap().get(0).unwrap();
-  let latest_version = latest_version_info.addon_version.as_ref().unwrap();
+  let latest_version_info = addon.addon_versions().unwrap().get(0).unwrap();
+  let latest_version = latest_version_info.addon_version().unwrap();
   // The default version as specified by the EKS API for a given addon and Kubernetes version
   let default_version = addon
-    .addon_versions
-    .as_ref()
+    .addon_versions()
     .unwrap()
     .iter()
-    .filter(|v| v.compatibilities.as_ref().unwrap().iter().any(|c| c.default_version))
-    .map(|v| v.addon_version.as_ref().unwrap())
+    .filter(|v| v.compatibilities().unwrap().iter().any(|c| c.default_version))
+    .map(|v| v.addon_version().unwrap())
     .next()
     .unwrap();
 
   // Get the list of ALL supported version for this addon and Kubernetes version
   // The results maintain the oder of latest version to oldest
   let supported_versions: HashSet<String> = addon
-    .addon_versions
-    .as_ref()
+    .addon_versions()
     .unwrap()
     .iter()
-    .map(|v| v.addon_version.as_ref().unwrap().to_owned())
+    .map(|v| v.addon_version().unwrap().to_owned())
     .collect();
 
   Ok(AddonVersion {
@@ -317,8 +308,8 @@ pub(crate) async fn addon_version_compatibility(
   let target_k8s_version = format!("1.{}", version::parse_minor(cluster_version)? + 1);
 
   for addon in addons {
-    let name = addon.addon_name.as_ref().unwrap().to_owned();
-    let version = addon.addon_version.as_ref().unwrap().to_owned();
+    let name = addon.addon_name().unwrap().to_owned();
+    let version = addon.addon_version().unwrap().to_owned();
 
     let current_kubernetes_version = get_addon_versions(client, &name, cluster_version).await?;
     let target_kubernetes_version = get_addon_versions(client, &name, &target_k8s_version).await?;
@@ -369,22 +360,21 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> FindingResults {
   let health_issues = addons
     .iter()
     .flat_map(|addon| {
-      let name = addon.addon_name.as_ref().unwrap();
-      let health = addon.health.as_ref().unwrap();
+      let name = addon.addon_name().unwrap();
+      let health = addon.health().unwrap();
 
       health
-        .issues
-        .as_ref()
+        .issues()
         .unwrap()
         .iter()
         .map(|issue| {
-          let code = issue.code.as_ref().unwrap();
+          let code = issue.code().unwrap();
 
           finding::Code::EKS004(AddonHealthIssue {
             name: name.to_owned(),
             code: code.as_str().to_string(),
-            message: issue.message.as_ref().unwrap().to_owned(),
-            resource_ids: issue.resource_ids.as_ref().unwrap().to_owned(),
+            message: issue.message().unwrap().to_owned(),
+            resource_ids: issue.resource_ids().unwrap().to_owned(),
             remediation: finding::Remediation::Required,
           })
         })
@@ -445,9 +435,9 @@ pub(crate) async fn eks_managed_node_group_health(nodegroups: &[Nodegroup]) -> F
   let health_issues = nodegroups
     .iter()
     .flat_map(|nodegroup| {
-      let name = nodegroup.nodegroup_name.as_ref().unwrap();
-      let health = nodegroup.health.as_ref().unwrap();
-      let issues = health.issues.as_ref().unwrap();
+      let name = nodegroup.nodegroup_name().unwrap();
+      let health = nodegroup.health().unwrap();
+      let issues = health.issues().unwrap();
 
       issues.iter().map(|issue| {
         let code = issue.code().unwrap();
@@ -455,7 +445,7 @@ pub(crate) async fn eks_managed_node_group_health(nodegroups: &[Nodegroup]) -> F
 
         finding::Code::EKS003(NodegroupHealthIssue {
           name: name.to_owned(),
-          code: code.as_ref().to_string(),
+          code: code.as_str().to_owned(),
           message: message.to_owned(),
         })
       })
@@ -593,7 +583,7 @@ pub(crate) struct ManagedNodeGroupUpdate {
 }
 
 pub(crate) async fn eks_managed_node_group_update(client: &Ec2Client, nodegroup: &Nodegroup) -> FindingResults {
-  let launch_template_spec = nodegroup.launch_template.as_ref();
+  let launch_template_spec = nodegroup.launch_template();
 
   // On EKS managed node groups, there are between 1 and 2 launch templates that influence the node group.
   // If the user does not specify a launch template, EKS will provide its own template.
@@ -603,7 +593,7 @@ pub(crate) async fn eks_managed_node_group_update(client: &Ec2Client, nodegroup:
   // check the launch template field of the EKS managed node group which is the user provided template, if there is one.
   match launch_template_spec {
     Some(launch_template_spec) => {
-      let launch_template_id = launch_template_spec.id.as_ref().unwrap().to_owned();
+      let launch_template_id = launch_template_spec.id().unwrap().to_owned();
       let launch_template = get_launch_template(client, &launch_template_id).await?;
 
       nodegroup
@@ -652,7 +642,7 @@ pub(crate) struct AutoscalingGroupUpdate {
 /// users should be on the latest version of the launch template prior to upgrading to avoid any surprises
 /// or unexpected changes.
 pub(crate) async fn self_managed_node_group_update(client: &Ec2Client, asg: &AutoScalingGroup) -> FindingResult {
-  let name = asg.auto_scaling_group_name.as_ref().unwrap().to_owned();
+  let name = asg.auto_scaling_group_name().unwrap().to_owned();
   let launch_template_id = asg.launch_template().unwrap().launch_template_id().unwrap().to_owned();
   let launch_template = get_launch_template(client, &launch_template_id).await?;
 

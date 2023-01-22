@@ -38,7 +38,7 @@ async fn main() -> Result<(), anyhow::Error> {
           let aws_config = eks::get_config(&playbook.region.clone()).await?;
           let eks_client = aws_sdk_eks::Client::new(&aws_config);
           let cluster = eks::get_cluster(&eks_client, &playbook.cluster).await?;
-          let cluster_version = cluster.version.as_ref().unwrap().to_owned();
+          let cluster_version = cluster.version().unwrap().to_owned();
 
           if version::LATEST.eq(&cluster_version) {
             println!("Cluster is already at the latest supported version: {cluster_version}");

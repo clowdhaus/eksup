@@ -26,7 +26,7 @@ pub(crate) async fn version_skew(client: &Client, cluster_version: &str) -> Resu
 
   let mut findings = vec![];
 
-  for node in node_list {
+  for node in &node_list {
     let status = node.status.as_ref().unwrap();
     let node_info = status.node_info.as_ref().unwrap();
     let kubelet_version = node_info.kubelet_version.to_owned();

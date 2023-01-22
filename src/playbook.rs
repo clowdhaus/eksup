@@ -62,7 +62,7 @@ impl TemplateData {
     let contents = std::str::from_utf8(data_file.data.as_ref())?;
     let data: HashMap<Version, Release> = serde_yaml::from_str(contents)?;
 
-    let cluster_name = "foo".to_string(); // playbook.cluster_name.as_ref().unwrap();
+    let cluster_name = "foo".to_string(); // playbook.cluster_name().unwrap();
     let current_version = "1.22".to_string(); // playbook.cluster_version.to_string();
     let target_version = version::get_target_version("1.22")?; // version::get_target_version(&current_version)?;
     let release = data.get(&target_version).unwrap();

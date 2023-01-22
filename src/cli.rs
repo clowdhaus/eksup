@@ -41,7 +41,7 @@ pub struct Analysis {
 
   /// Exclude recommendations from the output
   #[arg(long)]
-  pub ignore_recommended: bool
+  pub ignore_recommended: bool,
 }
 
 /// Create artifacts using the analysis data
@@ -74,5 +74,5 @@ pub struct Playbook {
 
   /// Exclude recommendations from the output
   #[arg(long)]
-  pub ignore_recommended: bool
+  pub ignore_recommended: bool,
 }
