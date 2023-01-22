@@ -16,13 +16,12 @@ use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  finding::{self, FindingResult, FindingResults},
+  finding::{self, FindingResults},
   k8s, version,
 };
 
 /// Get the configuration to authn/authz with AWS that will be used across AWS clients
 pub(crate) async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig, anyhow::Error> {
-  // TODO - fix this ugliness
   let aws_region = match region {
     Some(region) => Region::new(region.to_owned()),
     None => env::var("AWS_REGION").ok().map(Region::new).unwrap(),
@@ -50,9 +49,10 @@ pub(crate) async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluste
 #[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct ClusterHealthIssue {
-  code: String,
-  message: String,
-  resource_ids: Vec<String>,
+  pub(crate) code: String,
+  pub(crate) message: String,
+  pub(crate) resource_ids: Vec<String>,
+  pub(crate) remediation: finding::Remediation,
 }
 
 /// Check for any reported health issues on the cluster control plane
@@ -73,6 +73,7 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> FindingResults {
             code: code.as_str().to_string(),
             message: issue.message().unwrap().to_string(),
             resource_ids: issue.resource_ids().unwrap().to_owned(),
+            remediation: finding::Remediation::Required,
           };
           finding::Code::EKS002(issue)
         })
@@ -129,12 +130,12 @@ pub(crate) struct InsufficientSubnetIps {
   pub(crate) remediation: finding::Remediation,
 }
 
-pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster) -> FindingResult {
+pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster) -> FindingResults {
   let subnet_ids = cluster.resources_vpc_config().unwrap().subnet_ids().unwrap().to_owned();
 
   let subnet_ips = get_subnet_ips(ec2_client, subnet_ids).await?;
   if subnet_ips.available_ips >= 5 {
-    return Ok(None);
+    return Ok(vec![]);
   }
 
   let finding = InsufficientSubnetIps {
@@ -143,7 +144,7 @@ pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster)
     remediation: finding::Remediation::Required,
   };
 
-  Ok(Some(finding::Code::EKS001(finding)))
+  Ok(vec![finding::Code::EKS001(finding)])
 }
 
 /// Check if the subnets used by the pods will support an upgrade
@@ -156,10 +157,10 @@ pub(crate) async fn pod_ips(
   k8s_client: &K8sClient,
   required_ips: i32,
   recommended_ips: i32,
-) -> FindingResult {
+) -> FindingResults {
   let eniconfigs = k8s::get_eniconfigs(k8s_client).await?;
   if eniconfigs.is_empty() {
-    return Ok(None);
+    return Ok(vec![]);
   }
 
   let subnet_ids = eniconfigs
@@ -170,7 +171,7 @@ pub(crate) async fn pod_ips(
   let subnet_ips = get_subnet_ips(ec2_client, subnet_ids).await?;
 
   if subnet_ips.available_ips >= recommended_ips {
-    return Ok(None);
+    return Ok(vec![]);
   }
 
   let remediation = if subnet_ips.available_ips >= required_ips {
@@ -184,7 +185,7 @@ pub(crate) async fn pod_ips(
     remediation,
   };
 
-  Ok(Some(finding::Code::AWS002(finding)))
+  Ok(vec![finding::Code::AWS002(finding)])
 }
 
 pub(crate) async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Addon>, anyhow::Error> {
@@ -428,6 +429,7 @@ pub(crate) struct NodegroupHealthIssue {
   pub(crate) name: String,
   pub(crate) code: String,
   pub(crate) message: String,
+  pub(crate) remediation: finding::Remediation,
 }
 
 /// Check for any reported health issues on EKS managed node groups
@@ -447,6 +449,7 @@ pub(crate) async fn eks_managed_node_group_health(nodegroups: &[Nodegroup]) -> F
           name: name.to_owned(),
           code: code.as_str().to_owned(),
           message: message.to_owned(),
+          remediation: finding::Remediation::Required,
         })
       })
     })
@@ -641,7 +644,7 @@ pub(crate) struct AutoscalingGroupUpdate {
 /// deployed when the launch template is updated to version 6 for the Kubernetes version upgrade. Ideally,
 /// users should be on the latest version of the launch template prior to upgrading to avoid any surprises
 /// or unexpected changes.
-pub(crate) async fn self_managed_node_group_update(client: &Ec2Client, asg: &AutoScalingGroup) -> FindingResult {
+pub(crate) async fn self_managed_node_group_update(client: &Ec2Client, asg: &AutoScalingGroup) -> FindingResults {
   let name = asg.auto_scaling_group_name().unwrap().to_owned();
   let launch_template_id = asg.launch_template().unwrap().launch_template_id().unwrap().to_owned();
   let launch_template = get_launch_template(client, &launch_template_id).await?;
@@ -653,8 +656,8 @@ pub(crate) async fn self_managed_node_group_update(client: &Ec2Client, asg: &Aut
       launch_template,
       remediation: finding::Remediation::Recommended,
     };
-    Ok(Some(finding::Code::EKS007(update)))
+    Ok(vec![finding::Code::EKS007(update)])
   } else {
-    Ok(None)
+    Ok(vec![])
   }
 }

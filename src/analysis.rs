@@ -26,10 +26,10 @@ async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings, anyh
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct SubnetFindings {
   /// The Amazon EKS service requires at least 5 available IPs in order to upgrade a cluster in-place
-  pub(crate) control_plane_ips: Option<finding::Code>,
+  pub(crate) control_plane_ips: Vec<finding::Code>,
   /// This is the number of IPs available to pods when custom networking is enabled on the AWS VPC CNI,
   /// pulling the available number of IPs for the subnets listed in the ENIConfig resource(s)
-  pub(crate) pod_ips: Option<finding::Code>,
+  pub(crate) pod_ips: Vec<finding::Code>,
 }
 
 /// Collects findings related to networking and subnets

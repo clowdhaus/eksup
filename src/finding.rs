@@ -25,7 +25,6 @@ pub(crate) trait Deprecation {
   fn removed_in(&self) -> Option<version::KubernetesVersion>;
 }
 
-pub(crate) type FindingResult = Result<Option<Code>, anyhow::Error>;
 pub(crate) type FindingResults = Result<Vec<Code>, anyhow::Error>;
 
 /// Codes that represent the finding variants
