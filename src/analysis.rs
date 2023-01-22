@@ -4,14 +4,14 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::{eks, finding, k8s};
+use crate::{eks, finding::Findings, k8s};
 
 /// Findings related to the cluster itself, primarily the control plane
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct ClusterFindings {
   /// The health of the cluster as reported by the Amazon EKS API
-  pub(crate) cluster_health: Vec<finding::Code>,
+  pub(crate) cluster_health: Vec<eks::ClusterHealthIssue>,
 }
 
 /// Collects the cluster findings from the Amazon EKS API
@@ -26,10 +26,10 @@ async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings, anyh
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct SubnetFindings {
   /// The Amazon EKS service requires at least 5 available IPs in order to upgrade a cluster in-place
-  pub(crate) control_plane_ips: Vec<finding::Code>,
+  pub(crate) control_plane_ips: Option<eks::InsufficientSubnetIps>,
   /// This is the number of IPs available to pods when custom networking is enabled on the AWS VPC CNI,
   /// pulling the available number of IPs for the subnets listed in the ENIConfig resource(s)
-  pub(crate) pod_ips: Vec<finding::Code>,
+  pub(crate) pod_ips: Option<eks::InsufficientSubnetIps>,
 }
 
 /// Collects findings related to networking and subnets
@@ -67,9 +67,9 @@ async fn get_subnet_findings(
 pub(crate) struct AddonFindings {
   /// Determines whether or not the current addon version is supported by Amazon EKS in the
   /// intended upgrade target Kubernetes version
-  pub(crate) version_compatibility: Vec<finding::Code>,
+  pub(crate) version_compatibility: Vec<eks::AddonVersionCompatibility>,
   /// Reports any health issues as reported by the Amazon EKS addon API
-  pub(crate) health: Vec<finding::Code>,
+  pub(crate) health: Vec<eks::AddonHealthIssue>,
 }
 
 /// Collects the addon findings from the Amazon EKS addon API
@@ -100,15 +100,15 @@ pub(crate) struct DataPlaneFindings {
   /// It is recommended that these versions are aligned prior to upgrading, and changes are required when
   /// the skew policy could be violated post upgrade (i.e. if current skew is +2, the policy would be violated
   /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
-  pub(crate) version_skew: Vec<finding::Code>,
+  pub(crate) version_skew: Vec<k8s::NodeFinding>,
   /// The health of the EKS managed node groups as reported by the Amazon EKS managed node group API
-  pub(crate) eks_managed_node_group_health: Vec<finding::Code>,
+  pub(crate) eks_managed_node_group_health: Vec<eks::NodegroupHealthIssue>,
   /// Will show if the current launch template provided to the Amazon EKS managed node group is NOT the latest
   /// version since this may potentially introduce additional changes that were not planned for just the upgrade
   /// (i.e. - any changes that may have been introduced in the launch template versions that have not been deployed)
-  pub(crate) eks_managed_node_group_update: Vec<finding::Code>,
+  pub(crate) eks_managed_node_group_update: Vec<eks::ManagedNodeGroupUpdate>,
   /// Similar to the `eks_managed_node_group_update` except for self-managed node groups (autoscaling groups)
-  pub(crate) self_managed_node_group_update: Vec<finding::Code>,
+  pub(crate) self_managed_node_group_update: Vec<eks::AutoscalingGroupUpdate>,
 }
 
 /// Collects the data plane findings
@@ -149,7 +149,7 @@ async fn get_data_plane_findings(
 /// Container of all findings collected
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Findings {
+pub(crate) struct Results {
   pub(crate) cluster: ClusterFindings,
   pub(crate) subnets: SubnetFindings,
   pub(crate) data_plane: DataPlaneFindings,
@@ -160,7 +160,7 @@ pub(crate) struct Findings {
 pub(crate) async fn analyze(
   aws_shared_config: &aws_config::SdkConfig,
   cluster: &Cluster,
-) -> Result<Findings, anyhow::Error> {
+) -> Result<Results, anyhow::Error> {
   // Construct clients once
   let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
@@ -175,7 +175,7 @@ pub(crate) async fn analyze(
   let addon_findings = get_addon_findings(&eks_client, cluster_name, cluster_version).await?;
   let dataplane_findings = get_data_plane_findings(&asg_client, &ec2_client, &eks_client, &k8s_client, cluster).await?;
 
-  Ok(Findings {
+  Ok(Results {
     cluster: cluster_findings,
     subnets: subnet_findings,
     addons: addon_findings,

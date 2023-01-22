@@ -6,27 +6,27 @@ use serde::{Deserialize, Serialize};
 use crate::analysis;
 
 #[derive(Clone, Copy, Debug, ValueEnum, Serialize, Deserialize)]
-pub enum OutputFormat {
+pub enum Format {
   /// JSON format used for logging or writing to a *.json file
   Json,
   /// Text format used for writing to stdout
   Text,
 }
 
-impl Default for OutputFormat {
+impl Default for Format {
   fn default() -> Self {
     Self::Text
   }
 }
 
 pub(crate) async fn output(
-  findings: &analysis::Findings,
-  format: &OutputFormat,
+  results: &analysis::Results,
+  format: &Format,
   filename: &Option<String>,
 ) -> Result<(), anyhow::Error> {
   let output = match format {
-    OutputFormat::Json => serde_json::to_string(&findings)?,
-    OutputFormat::Text => format!("{findings:#?}"),
+    Format::Json => serde_json::to_string(&results)?,
+    Format::Text => format!("{results:#?}"),
   };
 
   match filename {

@@ -46,6 +46,8 @@ async fn main() -> Result<(), anyhow::Error> {
             return Ok(());
           }
 
+          // let something = analysis::analyze(&aws_config, &cluster).await?;
+
           if let Err(err) = playbook::create(playbook) {
             eprintln!("{err}");
             process::exit(2);

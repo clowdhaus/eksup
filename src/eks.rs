@@ -16,7 +16,7 @@ use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  finding::{self, FindingResults},
+  finding::{self, Findings},
   k8s, version,
 };
 
@@ -53,15 +53,40 @@ pub(crate) struct ClusterHealthIssue {
   pub(crate) message: String,
   pub(crate) resource_ids: Vec<String>,
   pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+impl Findings for Vec<ClusterHealthIssue> {
+  fn to_markdown_table(&self) -> Option<String> {
+    if self.is_empty() {
+      return None;
+    }
+
+    let mut table = String::new();
+    table.push_str("|       | Code  | Message | Resource IDs |\n");
+    table.push_str("| :---: | :---: | :------ | :----------- |\n");
+
+    for finding in self {
+      table.push_str(&format!(
+        "| {} | {} | {} | {} |\n",
+        finding.remediation.symbol(),
+        finding.code,
+        finding.message,
+        finding.resource_ids.join(", ")
+      ))
+    }
+
+    Some(table)
+  }
 }
 
 /// Check for any reported health issues on the cluster control plane
-pub(crate) async fn cluster_health(cluster: &Cluster) -> FindingResults {
+pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue>, anyhow::Error> {
   let health = cluster.health();
 
   match health {
     Some(health) => {
-      let issues: Vec<finding::Code> = health
+      let issues = health
         .issues()
         .unwrap()
         .to_owned()
@@ -69,13 +94,13 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> FindingResults {
         .map(|issue| {
           let code = &issue.code().unwrap().to_owned();
 
-          let issue = ClusterHealthIssue {
+          ClusterHealthIssue {
             code: code.as_str().to_string(),
             message: issue.message().unwrap().to_string(),
             resource_ids: issue.resource_ids().unwrap().to_owned(),
             remediation: finding::Remediation::Required,
-          };
-          finding::Code::EKS002(issue)
+            fcode: finding::Code::EKS002,
+          }
         })
         .collect();
 
@@ -128,23 +153,51 @@ pub(crate) struct InsufficientSubnetIps {
   pub(crate) ids: Vec<String>,
   pub(crate) available_ips: i32,
   pub(crate) remediation: finding::Remediation,
+  pub(crate) code: finding::Code,
 }
 
-pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster) -> FindingResults {
+impl Findings for Vec<InsufficientSubnetIps> {
+  fn to_markdown_table(&self) -> Option<String> {
+    if self.is_empty() {
+      return None;
+    }
+
+    let mut table = String::new();
+    table.push_str("|       | Subnet IDs  | Available IPs |\n");
+    table.push_str("| :---: | :---------- | :-----------: |\n");
+
+    for finding in self {
+      table.push_str(&format!(
+        "| {} | {} | {} |\n",
+        finding.remediation.symbol(),
+        finding.ids.join(", "),
+        finding.available_ips,
+      ))
+    }
+
+    Some(table)
+  }
+}
+
+pub(crate) async fn control_plane_ips(
+  ec2_client: &Ec2Client,
+  cluster: &Cluster,
+) -> Result<Option<InsufficientSubnetIps>, anyhow::Error> {
   let subnet_ids = cluster.resources_vpc_config().unwrap().subnet_ids().unwrap().to_owned();
 
   let subnet_ips = get_subnet_ips(ec2_client, subnet_ids).await?;
   if subnet_ips.available_ips >= 5 {
-    return Ok(vec![]);
+    return Ok(None);
   }
 
   let finding = InsufficientSubnetIps {
     ids: subnet_ips.ids,
     available_ips: subnet_ips.available_ips,
     remediation: finding::Remediation::Required,
+    code: finding::Code::EKS001,
   };
 
-  Ok(vec![finding::Code::EKS001(finding)])
+  Ok(Some(finding))
 }
 
 /// Check if the subnets used by the pods will support an upgrade
@@ -157,10 +210,10 @@ pub(crate) async fn pod_ips(
   k8s_client: &K8sClient,
   required_ips: i32,
   recommended_ips: i32,
-) -> FindingResults {
+) -> Result<Option<InsufficientSubnetIps>, anyhow::Error> {
   let eniconfigs = k8s::get_eniconfigs(k8s_client).await?;
   if eniconfigs.is_empty() {
-    return Ok(vec![]);
+    return Ok(None);
   }
 
   let subnet_ids = eniconfigs
@@ -171,7 +224,7 @@ pub(crate) async fn pod_ips(
   let subnet_ips = get_subnet_ips(ec2_client, subnet_ids).await?;
 
   if subnet_ips.available_ips >= recommended_ips {
-    return Ok(vec![]);
+    return Ok(None);
   }
 
   let remediation = if subnet_ips.available_ips >= required_ips {
@@ -183,9 +236,10 @@ pub(crate) async fn pod_ips(
     ids: subnet_ips.ids,
     available_ips: subnet_ips.available_ips,
     remediation,
+    code: finding::Code::AWS002,
   };
 
-  Ok(vec![finding::Code::AWS002(finding)])
+  Ok(Some(finding))
 }
 
 pub(crate) async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Addon>, anyhow::Error> {
@@ -297,6 +351,34 @@ pub(crate) struct AddonVersionCompatibility {
   /// The default and latest add-on versions for the target Kubernetes version
   pub(crate) target_kubernetes_version: AddonVersion,
   pub(crate) remediation: finding::Remediation,
+  pub(crate) code: finding::Code,
+}
+
+impl Findings for Vec<AddonVersionCompatibility> {
+  fn to_markdown_table(&self) -> Option<String> {
+    if self.is_empty() {
+      return None;
+    }
+
+    let mut table = String::new();
+    table.push_str("|       | Name  | Version | Default | Latest | Next Default | Next Latest |\n");
+    table.push_str("| :---: | :---- | :-----: | :-----: | :----: | :----------: | :---------: |\n");
+
+    for finding in self {
+      table.push_str(&format!(
+        "| {} | {} | {} | {} | {} | {} | {} |\n",
+        finding.remediation.symbol(),
+        finding.name,
+        finding.version,
+        finding.current_kubernetes_version.default,
+        finding.current_kubernetes_version.latest,
+        finding.target_kubernetes_version.default,
+        finding.target_kubernetes_version.latest,
+      ))
+    }
+
+    Some(table)
+  }
 }
 
 /// Check for any version compatibility issues for the EKS addons enabled
@@ -304,8 +386,8 @@ pub(crate) async fn addon_version_compatibility(
   client: &EksClient,
   cluster_version: &str,
   addons: &[Addon],
-) -> FindingResults {
-  let mut addon_versions: Vec<finding::Code> = Vec::new();
+) -> Result<Vec<AddonVersionCompatibility>, anyhow::Error> {
+  let mut addon_versions = Vec::new();
   let target_k8s_version = format!("1.{}", version::parse_minor(cluster_version)? + 1);
 
   for addon in addons {
@@ -331,13 +413,14 @@ pub(crate) async fn addon_version_compatibility(
     };
 
     if let Some(remediation) = remediation {
-      addon_versions.push(finding::Code::EKS005(AddonVersionCompatibility {
+      addon_versions.push(AddonVersionCompatibility {
         name,
         version,
         current_kubernetes_version,
         target_kubernetes_version,
         remediation,
-      }))
+        code: finding::Code::EKS005,
+      })
     }
   }
 
@@ -355,9 +438,35 @@ pub(crate) struct AddonHealthIssue {
   pub(crate) message: String,
   pub(crate) resource_ids: Vec<String>,
   pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
 }
 
-pub(crate) async fn addon_health(addons: &[Addon]) -> FindingResults {
+impl Findings for Vec<AddonHealthIssue> {
+  fn to_markdown_table(&self) -> Option<String> {
+    if self.is_empty() {
+      return None;
+    }
+
+    let mut table = String::new();
+    table.push_str("|       | Name  | Code  | Message | Resource IDs |\n");
+    table.push_str("| :---: | :---- | :---: | :------ | :----------- |\n");
+
+    for finding in self {
+      table.push_str(&format!(
+        "| {} | {} | {} | {} | {} |\n",
+        finding.remediation.symbol(),
+        finding.name,
+        finding.code,
+        finding.message,
+        finding.resource_ids.join(", ")
+      ))
+    }
+
+    Some(table)
+  }
+}
+
+pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>, anyhow::Error> {
   let health_issues = addons
     .iter()
     .flat_map(|addon| {
@@ -371,15 +480,16 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> FindingResults {
         .map(|issue| {
           let code = issue.code().unwrap();
 
-          finding::Code::EKS004(AddonHealthIssue {
+          AddonHealthIssue {
             name: name.to_owned(),
             code: code.as_str().to_string(),
             message: issue.message().unwrap().to_owned(),
             resource_ids: issue.resource_ids().unwrap().to_owned(),
             remediation: finding::Remediation::Required,
-          })
+            fcode: finding::Code::EKS004,
+          }
         })
-        .collect::<Vec<finding::Code>>()
+        .collect::<Vec<AddonHealthIssue>>()
     })
     .collect();
 
@@ -430,10 +540,37 @@ pub(crate) struct NodegroupHealthIssue {
   pub(crate) code: String,
   pub(crate) message: String,
   pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+impl Findings for Vec<NodegroupHealthIssue> {
+  fn to_markdown_table(&self) -> Option<String> {
+    if self.is_empty() {
+      return None;
+    }
+
+    let mut table = String::new();
+    table.push_str("|       | Name  | Code  | Message |\n");
+    table.push_str("| :---: | :---- | :---: | :------ |\n");
+
+    for finding in self {
+      table.push_str(&format!(
+        "| {} | {} | {} | {} |\n",
+        finding.remediation.symbol(),
+        finding.name,
+        finding.code,
+        finding.message,
+      ))
+    }
+
+    Some(table)
+  }
 }
 
 /// Check for any reported health issues on EKS managed node groups
-pub(crate) async fn eks_managed_node_group_health(nodegroups: &[Nodegroup]) -> FindingResults {
+pub(crate) async fn eks_managed_node_group_health(
+  nodegroups: &[Nodegroup],
+) -> Result<Vec<NodegroupHealthIssue>, anyhow::Error> {
   let health_issues = nodegroups
     .iter()
     .flat_map(|nodegroup| {
@@ -445,12 +582,13 @@ pub(crate) async fn eks_managed_node_group_health(nodegroups: &[Nodegroup]) -> F
         let code = issue.code().unwrap();
         let message = issue.message().unwrap();
 
-        finding::Code::EKS003(NodegroupHealthIssue {
+        NodegroupHealthIssue {
           name: name.to_owned(),
           code: code.as_str().to_owned(),
           message: message.to_owned(),
           remediation: finding::Remediation::Required,
-        })
+          fcode: finding::Code::EKS003,
+        }
       })
     })
     .collect();
@@ -583,9 +721,38 @@ pub(crate) struct ManagedNodeGroupUpdate {
   // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
   // launch_configuration_name: Option<String>,
   pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
 }
 
-pub(crate) async fn eks_managed_node_group_update(client: &Ec2Client, nodegroup: &Nodegroup) -> FindingResults {
+impl Findings for Vec<ManagedNodeGroupUpdate> {
+  fn to_markdown_table(&self) -> Option<String> {
+    if self.is_empty() {
+      return None;
+    }
+
+    let mut table = String::new();
+    table.push_str("|       | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n");
+    table.push_str("| :---: | :---- | :----------------- | :----------- | :---------- |\n");
+
+    for finding in self {
+      table.push_str(&format!(
+        "| {} | {} | {} | {} | {} |\n",
+        finding.remediation.symbol(),
+        finding.name,
+        finding.launch_template.id,
+        finding.launch_template.current_version,
+        finding.launch_template.latest_version,
+      ))
+    }
+
+    Some(table)
+  }
+}
+
+pub(crate) async fn eks_managed_node_group_update(
+  client: &Ec2Client,
+  nodegroup: &Nodegroup,
+) -> Result<Vec<ManagedNodeGroupUpdate>, anyhow::Error> {
   let launch_template_spec = nodegroup.launch_template();
 
   // On EKS managed node groups, there are between 1 and 2 launch templates that influence the node group.
@@ -599,7 +766,7 @@ pub(crate) async fn eks_managed_node_group_update(client: &Ec2Client, nodegroup:
       let launch_template_id = launch_template_spec.id().unwrap().to_owned();
       let launch_template = get_launch_template(client, &launch_template_id).await?;
 
-      nodegroup
+      let updates = nodegroup
         .resources()
         .unwrap()
         .auto_scaling_groups()
@@ -610,11 +777,12 @@ pub(crate) async fn eks_managed_node_group_update(client: &Ec2Client, nodegroup:
           autoscaling_group_name: asg.name().unwrap().to_owned(),
           launch_template: launch_template.to_owned(),
           remediation: finding::Remediation::Recommended,
+          fcode: finding::Code::EKS006,
         })
         // Only interested in those that are not using the latest version
         .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
-        .map(|asg| Ok(finding::Code::EKS006(asg)))
-        .collect()
+        .collect();
+      Ok(updates)
     }
     None => Ok(vec![]),
   }
@@ -632,6 +800,32 @@ pub(crate) struct AutoscalingGroupUpdate {
   // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
   // launch_configuration_name: Option<String>,
   pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+impl Findings for Vec<AutoscalingGroupUpdate> {
+  fn to_markdown_table(&self) -> Option<String> {
+    if self.is_empty() {
+      return None;
+    }
+
+    let mut table = String::new();
+    table.push_str("|       | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n");
+    table.push_str("| :---: | :---- | :----------------- | :----------- | :---------- |\n");
+
+    for finding in self {
+      table.push_str(&format!(
+        "| {} | {} | {} | {} | {} |\n",
+        finding.remediation.symbol(),
+        finding.name,
+        finding.launch_template.id,
+        finding.launch_template.current_version,
+        finding.launch_template.latest_version,
+      ))
+    }
+
+    Some(table)
+  }
 }
 
 /// Returns the autoscaling groups that are not using the latest launch template version
@@ -644,7 +838,10 @@ pub(crate) struct AutoscalingGroupUpdate {
 /// deployed when the launch template is updated to version 6 for the Kubernetes version upgrade. Ideally,
 /// users should be on the latest version of the launch template prior to upgrading to avoid any surprises
 /// or unexpected changes.
-pub(crate) async fn self_managed_node_group_update(client: &Ec2Client, asg: &AutoScalingGroup) -> FindingResults {
+pub(crate) async fn self_managed_node_group_update(
+  client: &Ec2Client,
+  asg: &AutoScalingGroup,
+) -> Result<Option<AutoscalingGroupUpdate>, anyhow::Error> {
   let name = asg.auto_scaling_group_name().unwrap().to_owned();
   let launch_template_id = asg.launch_template().unwrap().launch_template_id().unwrap().to_owned();
   let launch_template = get_launch_template(client, &launch_template_id).await?;
@@ -655,9 +852,10 @@ pub(crate) async fn self_managed_node_group_update(client: &Ec2Client, asg: &Aut
       name,
       launch_template,
       remediation: finding::Remediation::Recommended,
+      fcode: finding::Code::EKS007,
     };
-    Ok(vec![finding::Code::EKS007(update)])
+    Ok(Some(update))
   } else {
-    Ok(vec![])
+    Ok(None)
   }
 }

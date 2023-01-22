@@ -33,7 +33,7 @@ pub struct Analysis {
   pub region: Option<String>,
 
   #[arg(short, long, value_enum, default_value_t)]
-  pub format: output::OutputFormat,
+  pub format: output::Format,
 
   /// Write to file instead of stdout
   #[arg(short, long)]

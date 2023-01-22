@@ -1,10 +1,15 @@
 // use k8s_openapi::api::{apps, batch, core, policy};
+use std::collections::BTreeMap;
+
 use k8s_openapi::api::core;
 use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{finding, version};
+use crate::{
+  finding::{self, Findings},
+  version,
+};
 
 /// Node details as viewed from the Kubernetes API
 ///
@@ -17,10 +22,53 @@ pub(crate) struct NodeFinding {
   pub(crate) kubernetes_version: String,
   pub(crate) control_plane_version: String,
   pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+impl Findings for Vec<NodeFinding> {
+  fn to_markdown_table(&self) -> Option<String> {
+    if self.is_empty() {
+      return None;
+    }
+    let mut counts: BTreeMap<(String, String), isize> = BTreeMap::new();
+    for node in self {
+      *counts
+        .entry((
+          node.kubernetes_version.to_owned(),
+          node.control_plane_version.to_owned(),
+        ))
+        .or_insert(0) += 1
+    }
+
+    let mut summary = String::new();
+    summary.push_str("Summary:\n");
+    summary.push_str("| Nodes | Kubelet Version | Control Plane Version |\n");
+    summary.push_str("| :---: | :-------------- | :-------------------- |\n");
+
+    for (k, v) in counts.iter() {
+      summary.push_str(&format!("| {v} | v{} | v{} |\n", k.0, k.1));
+    }
+
+    let mut table = String::new();
+    table.push_str("|       | Name  | Kubelet Version | Control Plane Version |\n");
+    table.push_str("| :---: | :---- | :-------------- | :-------------------- |\n");
+
+    for finding in self {
+      table.push_str(&format!(
+        "| {} | {} | v{} | v{} |\n",
+        finding.remediation.symbol(),
+        finding.name,
+        finding.kubernetes_version,
+        finding.control_plane_version,
+      ))
+    }
+
+    Some(format!("{summary}\n{table}\n"))
+  }
 }
 
 /// Returns all of the nodes in the cluster
-pub(crate) async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<finding::Code>, anyhow::Error> {
+pub(crate) async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<NodeFinding>, anyhow::Error> {
   let api: Api<core::v1::Node> = Api::all(client.clone());
   let node_list = api.list(&Default::default()).await?;
 
@@ -52,10 +100,10 @@ pub(crate) async fn version_skew(client: &Client, cluster_version: &str) -> Resu
       kubernetes_version: version::normalize(&kubelet_version).unwrap(),
       control_plane_version: cluster_version.to_owned(),
       remediation,
+      fcode: finding::Code::K8S001,
     };
 
-    let finding = finding::Code::K8S001(node);
-    findings.push(finding)
+    findings.push(node)
   }
 
   Ok(findings)
