@@ -38,17 +38,17 @@ async fn main() -> Result<(), anyhow::Error> {
           let aws_config = eks::get_config(&playbook.region.clone()).await?;
           let eks_client = aws_sdk_eks::Client::new(&aws_config);
           let cluster = eks::get_cluster(&eks_client, &playbook.cluster).await?;
-          let cluster_version = cluster.version().unwrap().to_owned();
+          let cluster_version = cluster.version().unwrap();
 
-          if version::LATEST.eq(&cluster_version) {
+          if version::LATEST.eq(cluster_version) {
             println!("Cluster is already at the latest supported version: {cluster_version}");
             println!("Nothing to upgrade at this time");
             return Ok(());
           }
 
-          // let something = analysis::analyze(&aws_config, &cluster).await?;
+          let results = analysis::analyze(&aws_config, &cluster).await?;
 
-          if let Err(err) = playbook::create(playbook) {
+          if let Err(err) = playbook::create(playbook, &cluster, results) {
             eprintln!("{err}");
             process::exit(2);
           }

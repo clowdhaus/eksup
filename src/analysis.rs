@@ -4,7 +4,7 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::{eks, finding::Findings, k8s};
+use crate::{eks, k8s};
 
 /// Findings related to the cluster itself, primarily the control plane
 #[allow(dead_code)]
