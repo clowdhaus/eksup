@@ -44,6 +44,7 @@ pub struct TemplateData {
   k8s_release_url: String,
   k8s_deprecation_url: String,
   version_skew: Option<String>,
+  control_plane_ips: Option<String>,
   // eks_managed_node_group: Option<String>,
   // self_managed_node_group: Option<String>,
   // fargate_profile: Option<String>,
@@ -99,7 +100,9 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   let release_data = get_release_data()?;
   let release = release_data.get(cluster_version).unwrap();
 
+  let _cluster_findings = analysis.cluster;
   let data_plane_findings = analysis.data_plane;
+  let subnet_findings = analysis.subnets;
 
   let tmpl_data = TemplateData {
     cluster_name: cluster_name.to_owned(),
@@ -111,6 +114,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
       None => "".to_string(),
     },
     version_skew: data_plane_findings.version_skew.to_markdown_table("\t"),
+    control_plane_ips: subnet_findings.control_plane_ips.to_markdown_table("\t"),
   };
 
   // // Render sub-templates for data plane components

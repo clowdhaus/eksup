@@ -68,7 +68,7 @@ module "eks" {
     }
     kube-proxy = {
       # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name kube-proxy
-      addon_version = "v1.20.15-eksbuild.4"
+      addon_version = "v1.21.14-eksbuild.3"
     }
     vpc-cni = {
       # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name vpc-cni

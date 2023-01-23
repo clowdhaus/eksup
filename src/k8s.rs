@@ -28,12 +28,13 @@ pub(crate) struct NodeFinding {
 impl Findings for Vec<NodeFinding> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
-      return None;
+      return Some(format!("{leading_whitespace}:white_check_mark: - No reported findings regarding version skew between the control plane and nodes"));
     }
-    let mut counts: BTreeMap<(String, String), isize> = BTreeMap::new();
+    let mut counts: BTreeMap<(String, String, String), isize> = BTreeMap::new();
     for node in self {
       *counts
         .entry((
+          node.remediation.symbol().to_owned(),
           node.kubernetes_version.to_owned(),
           node.control_plane_version.to_owned(),
         ))
@@ -41,16 +42,29 @@ impl Findings for Vec<NodeFinding> {
     }
 
     let mut summary = String::new();
-    summary.push_str(&format!("{leading_whitespace}| Nodes | Kubelet Version | Control Plane Version |\n"));
-    summary.push_str(&format!("{leading_whitespace}| :---: | :-------------- | :-------------------- |\n"));
+    summary.push_str(&format!(
+      "{leading_whitespace}|  -  | Nodes | Kubelet Version | Control Plane Version |\n"
+    ));
+    summary.push_str(&format!(
+      "{leading_whitespace}| :---: | :---: | :-------------- | :-------------------- |\n"
+    ));
 
     for (k, v) in counts.iter() {
-      summary.push_str(&format!("{leading_whitespace}| {v} | v{} | v{} |\n", k.0, k.1));
+      summary.push_str(&format!(
+        "{leading_whitespace}| {sym} | {v} | v{kube} | v{cp} |\n",
+        sym = k.0,
+        kube = k.1,
+        cp = k.2
+      ));
     }
 
     let mut table = String::new();
-    table.push_str(&format!("{leading_whitespace}|       | Name  | Kubelet Version | Control Plane Version |\n"));
-    table.push_str(&format!("{leading_whitespace}| :---: | :---- | :-------------- | :-------------------- |\n"));
+    table.push_str(&format!(
+      "{leading_whitespace}|  -  | Node Name  | Kubelet Version | Control Plane Version |\n"
+    ));
+    table.push_str(&format!(
+      "{leading_whitespace}| :---: | :---- | :-------------- | :-------------------- |\n"
+    ));
 
     for finding in self {
       table.push_str(&format!(

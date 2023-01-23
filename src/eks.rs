@@ -157,27 +157,27 @@ pub(crate) struct InsufficientSubnetIps {
   pub(crate) code: finding::Code,
 }
 
-impl Findings for Vec<InsufficientSubnetIps> {
+impl Findings for Option<InsufficientSubnetIps> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
-    if self.is_empty() {
-      return None;
-    }
-
-    let mut table = String::new();
-    table.push_str("|       | Subnet IDs  | Available IPs |\n");
-    table.push_str("| :---: | :---------- | :-----------: |\n");
-
-    for finding in self {
+    match self {
+      Some(finding) => {
+      let mut table = String::new();
+      table.push_str(&format!("{leading_whitespace}|   -   | Subnet IDs  | Available IPs |\n"));
+      table.push_str(&format!("{leading_whitespace}| :---: | :---------- | :-----------: |\n"));
       table.push_str(&format!(
         "{}| {} | {} | {} |\n",
         leading_whitespace,
         finding.remediation.symbol(),
-        finding.ids.join(", "),
+        finding.ids.iter().map(|f| format!("`{f}`")).collect::<Vec<String>>().join(", "),
         finding.available_ips,
-      ))
-    }
+      ));
 
-    Some(table)
+      Some(table)
+      },
+      None => {
+        Some(format!("{leading_whitespace}:white_check_mark: - There is sufficient IP space in the subnets used by the control plane"))
+      }
+    }
   }
 }
 
