@@ -1,0 +1,9 @@
+## Preface
+
+This document contains information that is broadly applicable to upgrading Amazon EKS clusters and not specific to a particular upgrade version or a particular cluster configuration. It is shared here to keep the upgrade playbook more concise and focused on the upgrade task at hand (cluster, version, etc.) and assumed that this information is only consumed once by users getting started with upgrading Amazon EKS clusters.
+
+- Unless otherwise stated, the phrase `Amazon EKS cluster` or just `cluster` throughout this document typically refers to the control plane.
+- In-place cluster upgrades can only be upgraded to the next incremental minor version. For example, you can upgrade from Kubernetes version `1.20` to `1.21`, but not from `1.20` to `1.22`.
+- Reverting an upgrade, or downgrading the Kubernetes version of a cluster, is not supported. If you upgrade your cluster to a new Kubernetes version and then want to revert to the previous version, you must create a new cluster and migrate your workloads.
+- If the Amazon EKS cluster primary security group has been deleted, the only course of action to upgrade is to create a new cluster and migrate your workloads.
+- Generally speaking, how well your cluster is configured from a high-availability perspective will determine how well your cluster handles the upgrade process. Ensuring that you have properly configured pod disruption budgets, multiple replicas specified in your deployments or statefulsets, properly configured liveness and readiness probes, etc., will help to mitigate disruptions during an upgrade. You can read more about EKS best practices for reliability [here](https://aws.github.io/aws-eks-best-practices/reliability/docs/)

@@ -19,13 +19,13 @@ impl Remediation {
   pub(crate) fn symbol(&self) -> &'static str {
     match &self {
       Remediation::Required => "‼",
-      Remediation::Recommended => "ℹ️",
+      Remediation::Recommended => "⚠️",
     }
   }
 }
 
 pub(crate) trait Findings {
-  fn to_markdown_table(&self) -> Option<String>;
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String>;
 }
 
 /// TODO - something is required to identify what Kubernetes resource findings are applicable

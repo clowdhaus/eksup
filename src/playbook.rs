@@ -5,7 +5,7 @@ use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 
-use crate::{analysis, cli::Playbook, version};
+use crate::{analysis, cli::Playbook, finding::Findings, version};
 
 /// Embeds the contents of the `templates/` directory into the binary
 ///
@@ -20,7 +20,7 @@ struct Templates;
 ///
 /// Used to populate the playbook templates with the data associated
 /// to a specific Kubernetes release version
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Release {
   release_url: String,
   deprecation_url: Option<String>,
@@ -43,6 +43,7 @@ pub struct TemplateData {
   target_version: String,
   k8s_release_url: String,
   k8s_deprecation_url: String,
+  version_skew: Option<String>,
   // eks_managed_node_group: Option<String>,
   // self_managed_node_group: Option<String>,
   // fargate_profile: Option<String>,
@@ -98,15 +99,18 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   let release_data = get_release_data()?;
   let release = release_data.get(cluster_version).unwrap();
 
+  let data_plane_findings = analysis.data_plane;
+
   let tmpl_data = TemplateData {
-      cluster_name: cluster_name.to_owned(),
-      current_version: cluster_version.to_owned(),
-      target_version,
-      k8s_release_url: release.release_url.to_string(),
-      k8s_deprecation_url: match &release.deprecation_url {
-        Some(url) => url.to_string(),
-        None => "".to_string(),
-      }
+    cluster_name: cluster_name.to_owned(),
+    current_version: cluster_version.to_owned(),
+    target_version,
+    k8s_release_url: release.release_url.to_string(),
+    k8s_deprecation_url: match &release.deprecation_url {
+      Some(url) => url.to_string(),
+      None => "".to_string(),
+    },
+    version_skew: data_plane_findings.version_skew.to_markdown_table("\t"),
   };
 
   // // Render sub-templates for data plane components

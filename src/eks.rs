@@ -57,7 +57,7 @@ pub(crate) struct ClusterHealthIssue {
 }
 
 impl Findings for Vec<ClusterHealthIssue> {
-  fn to_markdown_table(&self) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return None;
     }
@@ -68,7 +68,8 @@ impl Findings for Vec<ClusterHealthIssue> {
 
     for finding in self {
       table.push_str(&format!(
-        "| {} | {} | {} | {} |\n",
+        "{}| {} | {} | {} | {} |\n",
+        leading_whitespace,
         finding.remediation.symbol(),
         finding.code,
         finding.message,
@@ -157,7 +158,7 @@ pub(crate) struct InsufficientSubnetIps {
 }
 
 impl Findings for Vec<InsufficientSubnetIps> {
-  fn to_markdown_table(&self) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return None;
     }
@@ -168,7 +169,8 @@ impl Findings for Vec<InsufficientSubnetIps> {
 
     for finding in self {
       table.push_str(&format!(
-        "| {} | {} | {} |\n",
+        "{}| {} | {} | {} |\n",
+        leading_whitespace,
         finding.remediation.symbol(),
         finding.ids.join(", "),
         finding.available_ips,
@@ -355,7 +357,7 @@ pub(crate) struct AddonVersionCompatibility {
 }
 
 impl Findings for Vec<AddonVersionCompatibility> {
-  fn to_markdown_table(&self) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return None;
     }
@@ -366,7 +368,8 @@ impl Findings for Vec<AddonVersionCompatibility> {
 
     for finding in self {
       table.push_str(&format!(
-        "| {} | {} | {} | {} | {} | {} | {} |\n",
+        "{}| {} | {} | {} | {} | {} | {} | {} |\n",
+        leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
         finding.version,
@@ -442,7 +445,7 @@ pub(crate) struct AddonHealthIssue {
 }
 
 impl Findings for Vec<AddonHealthIssue> {
-  fn to_markdown_table(&self) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return None;
     }
@@ -453,7 +456,8 @@ impl Findings for Vec<AddonHealthIssue> {
 
     for finding in self {
       table.push_str(&format!(
-        "| {} | {} | {} | {} | {} |\n",
+        "{}| {} | {} | {} | {} | {} |\n",
+        leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
         finding.code,
@@ -544,7 +548,7 @@ pub(crate) struct NodegroupHealthIssue {
 }
 
 impl Findings for Vec<NodegroupHealthIssue> {
-  fn to_markdown_table(&self) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return None;
     }
@@ -555,7 +559,8 @@ impl Findings for Vec<NodegroupHealthIssue> {
 
     for finding in self {
       table.push_str(&format!(
-        "| {} | {} | {} | {} |\n",
+        "{}| {} | {} | {} | {} |\n",
+        leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
         finding.code,
@@ -725,7 +730,7 @@ pub(crate) struct ManagedNodeGroupUpdate {
 }
 
 impl Findings for Vec<ManagedNodeGroupUpdate> {
-  fn to_markdown_table(&self) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return None;
     }
@@ -736,7 +741,8 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
 
     for finding in self {
       table.push_str(&format!(
-        "| {} | {} | {} | {} | {} |\n",
+        "{}| {} | {} | {} | {} | {} |\n",
+        leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
         finding.launch_template.id,
@@ -804,7 +810,7 @@ pub(crate) struct AutoscalingGroupUpdate {
 }
 
 impl Findings for Vec<AutoscalingGroupUpdate> {
-  fn to_markdown_table(&self) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return None;
     }
@@ -815,7 +821,8 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
 
     for finding in self {
       table.push_str(&format!(
-        "| {} | {} | {} | {} | {} |\n",
+        "{}| {} | {} | {} | {} | {} |\n",
+        leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
         finding.launch_template.id,

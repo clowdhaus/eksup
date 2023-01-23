@@ -26,7 +26,7 @@ pub(crate) struct NodeFinding {
 }
 
 impl Findings for Vec<NodeFinding> {
-  fn to_markdown_table(&self) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return None;
     }
@@ -41,21 +41,21 @@ impl Findings for Vec<NodeFinding> {
     }
 
     let mut summary = String::new();
-    summary.push_str("Summary:\n");
-    summary.push_str("| Nodes | Kubelet Version | Control Plane Version |\n");
-    summary.push_str("| :---: | :-------------- | :-------------------- |\n");
+    summary.push_str(&format!("{leading_whitespace}| Nodes | Kubelet Version | Control Plane Version |\n"));
+    summary.push_str(&format!("{leading_whitespace}| :---: | :-------------- | :-------------------- |\n"));
 
     for (k, v) in counts.iter() {
-      summary.push_str(&format!("| {v} | v{} | v{} |\n", k.0, k.1));
+      summary.push_str(&format!("{leading_whitespace}| {v} | v{} | v{} |\n", k.0, k.1));
     }
 
     let mut table = String::new();
-    table.push_str("|       | Name  | Kubelet Version | Control Plane Version |\n");
-    table.push_str("| :---: | :---- | :-------------- | :-------------------- |\n");
+    table.push_str(&format!("{leading_whitespace}|       | Name  | Kubelet Version | Control Plane Version |\n"));
+    table.push_str(&format!("{leading_whitespace}| :---: | :---- | :-------------- | :-------------------- |\n"));
 
     for finding in self {
       table.push_str(&format!(
-        "| {} | {} | v{} | v{} |\n",
+        "{}| {} | {} | v{} | v{} |\n",
+        leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
         finding.kubernetes_version,
