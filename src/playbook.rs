@@ -38,6 +38,7 @@ type Version = String;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TemplateData {
   ///
+  region: String,
   cluster_name: String,
   current_version: String,
   target_version: String,
@@ -45,41 +46,10 @@ pub struct TemplateData {
   k8s_deprecation_url: String,
   version_skew: Option<String>,
   control_plane_ips: Option<String>,
-  // eks_managed_node_group: Option<String>,
-  // self_managed_node_group: Option<String>,
-  // fargate_profile: Option<String>,
+  cluster_health: Option<String>,
+  eks_managed_nodegroups: Vec<String>,
+  eks_managed_nodegroup_template: String,
 }
-
-// /// Load configuration data from the associated Kubernetes version data file
-// impl TemplateData {
-//   fn new(playbook: &Playbook) -> Result<Self, anyhow::Error> {
-//     let data_file = Templates::get("data.yaml").unwrap();
-//     let contents = std::str::from_utf8(data_file.data.as_ref())?;
-//     let data: HashMap<Version, Release> = serde_yaml::from_str(contents)?;
-
-//     let cluster_name = "foo".to_string(); // playbook.cluster_name().unwrap();
-//     let current_version = "1.22".to_string(); // playbook.cluster_version.to_string();
-//     let target_version = version::get_target_version("1.22")?; // version::get_target_version(&current_version)?;
-//     let release = data.get(&target_version).unwrap();
-
-//     Ok(TemplateData {
-//       cluster_name,
-//       current_version,
-//       target_version,
-//       k8s_release_url: release.release_url.to_string(),
-//       k8s_deprecation_url: match &release.deprecation_url {
-//         Some(url) => url.to_string(),
-//         None => "".to_string(),
-//       },
-//       // TODO: Should this be a separate data structure since we are mutating
-//       // it after the fact? Plus, these are templates that are rendered with
-//       // the same data passed to the playbook template (in this very struct)
-//       eks_managed_node_group: None,
-//       self_managed_node_group: None,
-//       fargate_profile: None,
-//     })
-//   }
-// }
 
 fn get_release_data() -> Result<HashMap<Version, Release>, anyhow::Error> {
   let data_file = Templates::get("data.yaml").unwrap();
@@ -89,10 +59,19 @@ fn get_release_data() -> Result<HashMap<Version, Release>, anyhow::Error> {
   Ok(data)
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EksManagedNodeGroupTemplateData {
+  region: String,
+  cluster_name: String,
+  target_version: String,
+  eks_managed_nodegroup_health: Option<String>,
+}
+
 pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Results) -> Result<(), anyhow::Error> {
   let mut handlebars = Handlebars::new();
   handlebars.register_embed_templates::<Templates>()?;
 
+  let region = args.region.as_ref().unwrap().to_owned();
   let cluster_name = cluster.name().unwrap();
   let cluster_version = cluster.version().unwrap();
   let target_version = version::get_target_version(cluster_version)?;
@@ -100,11 +79,22 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   let release_data = get_release_data()?;
   let release = release_data.get(cluster_version).unwrap();
 
-  let _cluster_findings = analysis.cluster;
+  let cluster_findings = analysis.cluster;
   let data_plane_findings = analysis.data_plane;
   let subnet_findings = analysis.subnets;
 
+  // Render sub-templates for data plane components
+  let eks_managed_nodegroup_health = data_plane_findings.eks_managed_nodegroup_health.to_markdown_table("\t");
+  let eks_mng_tmpl_data = EksManagedNodeGroupTemplateData {
+    region: region.to_owned(),
+    cluster_name: cluster_name.to_owned(),
+    target_version: target_version.to_owned(),
+    eks_managed_nodegroup_health,
+  };
+  let eks_managed_nodegroup_template = handlebars.render("eks-managed-node-group.md", &eks_mng_tmpl_data)?;
+
   let tmpl_data = TemplateData {
+    region,
     cluster_name: cluster_name.to_owned(),
     current_version: cluster_version.to_owned(),
     target_version,
@@ -115,24 +105,18 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     },
     version_skew: data_plane_findings.version_skew.to_markdown_table("\t"),
     control_plane_ips: subnet_findings.control_plane_ips.to_markdown_table("\t"),
+    cluster_health: cluster_findings.cluster_health.to_markdown_table("\t"),
+    eks_managed_nodegroups: data_plane_findings.eks_managed_nodegroups,
+    eks_managed_nodegroup_template,
   };
 
-  // // Render sub-templates for data plane components
-  // let eks_managed_node_group = if playbook.compute.contains(&Compute::EksManaged) {
-  //   let rendered = handlebars.render("eks-managed-node-group.md", &tmpl_data)?;
-  //   Some(rendered)
-  // } else {
-  //   None
-  // };
-  // tmpl_data.eks_managed_node_group = eks_managed_node_group;
-
-  // let self_managed_node_group = if playbook.compute.contains(&Compute::SelfManaged) {
+  // let self_managed_nodegroup = if playbook.compute.contains(&Compute::SelfManaged) {
   //   let rendered = handlebars.render("self-managed-node-group.md", &tmpl_data)?;
   //   Some(rendered)
   // } else {
   //   None
   // };
-  // tmpl_data.self_managed_node_group = self_managed_node_group;
+  // tmpl_data.self_managed_nodegroup = self_managed_nodegroup;
 
   // let fargate_profile = if playbook.compute.contains(&Compute::FargateProfile) {
   //   let rendered = handlebars.render("fargate-profile.md", &tmpl_data)?;

@@ -102,13 +102,16 @@ pub(crate) struct DataPlaneFindings {
   /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
   pub(crate) version_skew: Vec<k8s::NodeFinding>,
   /// The health of the EKS managed node groups as reported by the Amazon EKS managed node group API
-  pub(crate) eks_managed_node_group_health: Vec<eks::NodegroupHealthIssue>,
+  pub(crate) eks_managed_nodegroup_health: Vec<eks::NodegroupHealthIssue>,
   /// Will show if the current launch template provided to the Amazon EKS managed node group is NOT the latest
   /// version since this may potentially introduce additional changes that were not planned for just the upgrade
   /// (i.e. - any changes that may have been introduced in the launch template versions that have not been deployed)
-  pub(crate) eks_managed_node_group_update: Vec<eks::ManagedNodeGroupUpdate>,
-  /// Similar to the `eks_managed_node_group_update` except for self-managed node groups (autoscaling groups)
-  pub(crate) self_managed_node_group_update: Vec<eks::AutoscalingGroupUpdate>,
+  pub(crate) eks_managed_nodegroup_update: Vec<eks::ManagedNodeGroupUpdate>,
+  /// Similar to the `eks_managed_nodegroup_update` except for self-managed node groups (autoscaling groups)
+  pub(crate) self_managed_nodegroup_update: Vec<eks::AutoscalingGroupUpdate>,
+
+  /// The names of the EKS managed node groups
+  pub(crate) eks_managed_nodegroups: Vec<String>,
 }
 
 /// Collects the data plane findings
@@ -126,23 +129,28 @@ async fn get_data_plane_findings(
   let self_mngs = eks::get_self_managed_nodegroups(asg_client, cluster_name).await?;
 
   let version_skew = k8s::version_skew(k8s_client, cluster_version).await?;
-  let eks_managed_node_group_health = eks::eks_managed_node_group_health(&eks_mngs).await?;
-  let mut eks_managed_node_group_update = Vec::new();
+  let eks_managed_nodegroup_health = eks::eks_managed_nodegroup_health(&eks_mngs).await?;
+  let mut eks_managed_nodegroup_update = Vec::new();
   for eks_mng in &eks_mngs {
-    let update = eks::eks_managed_node_group_update(ec2_client, eks_mng).await?;
-    eks_managed_node_group_update.push(update);
+    let update = eks::eks_managed_nodegroup_update(ec2_client, eks_mng).await?;
+    eks_managed_nodegroup_update.push(update);
   }
-  let mut self_managed_node_group_update = Vec::new();
+  let mut self_managed_nodegroup_update = Vec::new();
   for self_mng in &self_mngs {
-    let update = eks::self_managed_node_group_update(ec2_client, self_mng).await?;
-    self_managed_node_group_update.push(update);
+    let update = eks::self_managed_nodegroup_update(ec2_client, self_mng).await?;
+    self_managed_nodegroup_update.push(update);
   }
 
   Ok(DataPlaneFindings {
     version_skew,
-    eks_managed_node_group_health,
-    eks_managed_node_group_update: eks_managed_node_group_update.into_iter().flatten().collect(),
-    self_managed_node_group_update: self_managed_node_group_update.into_iter().flatten().collect(),
+    eks_managed_nodegroup_health,
+    eks_managed_nodegroup_update: eks_managed_nodegroup_update.into_iter().flatten().collect(),
+    self_managed_nodegroup_update: self_managed_nodegroup_update.into_iter().flatten().collect(),
+    // Pass through to avoid additional API calls
+    eks_managed_nodegroups: eks_mngs
+      .iter()
+      .map(|mng| mng.nodegroup_name().unwrap().to_owned())
+      .collect(),
   })
 }
 

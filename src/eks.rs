@@ -59,12 +59,18 @@ pub(crate) struct ClusterHealthIssue {
 impl Findings for Vec<ClusterHealthIssue> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
-      return None;
+      return Some(format!(
+        "{leading_whitespace}:white_check_mark: - There are no reported health issues on the cluster control plane"
+      ));
     }
 
     let mut table = String::new();
-    table.push_str("|       | Code  | Message | Resource IDs |\n");
-    table.push_str("| :---: | :---: | :------ | :----------- |\n");
+    table.push_str(&format!(
+      "{leading_whitespace}|   _   | Code  | Message | Resource IDs |\n"
+    ));
+    table.push_str(&format!(
+      "{leading_whitespace}| :---: | :---: | :------ | :----------- |\n"
+    ));
 
     for finding in self {
       table.push_str(&format!(
@@ -359,12 +365,18 @@ pub(crate) struct AddonVersionCompatibility {
 impl Findings for Vec<AddonVersionCompatibility> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
-      return None;
+      return Some(format!(
+        "{leading_whitespace}:white_check_mark: - There are no reported addon version compatibility issues."
+      ));
     }
 
     let mut table = String::new();
-    table.push_str("|       | Name  | Version | Default | Latest | Next Default | Next Latest |\n");
-    table.push_str("| :---: | :---- | :-----: | :-----: | :----: | :----------: | :---------: |\n");
+    table.push_str(&format!(
+      "{leading_whitespace}|   -   | Name  | Version | Default | Latest | Next Default | Next Latest |\n"
+    ));
+    table.push_str(&format!(
+      "{leading_whitespace}| :---: | :---- | :-----: | :-----: | :----: | :----------: | :---------: |\n"
+    ));
 
     for finding in self {
       table.push_str(&format!(
@@ -447,12 +459,18 @@ pub(crate) struct AddonHealthIssue {
 impl Findings for Vec<AddonHealthIssue> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
-      return None;
+      return Some(format!(
+        "{leading_whitespace}:white_check_mark: - There are no reported addon health issues."
+      ));
     }
 
     let mut table = String::new();
-    table.push_str("|       | Name  | Code  | Message | Resource IDs |\n");
-    table.push_str("| :---: | :---- | :---: | :------ | :----------- |\n");
+    table.push_str(&format!(
+      "{leading_whitespace}|   -   | Name  | Code  | Message | Resource IDs |\n"
+    ));
+    table.push_str(&format!(
+      "{leading_whitespace}| :---: | :---- | :---: | :------ | :----------- |\n"
+    ));
 
     for finding in self {
       table.push_str(&format!(
@@ -550,12 +568,14 @@ pub(crate) struct NodegroupHealthIssue {
 impl Findings for Vec<NodegroupHealthIssue> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
-      return None;
+      return Some(format!(
+        "{leading_whitespace}:white_check_mark: - There are no reported nodegroup health issues."
+      ));
     }
 
     let mut table = String::new();
-    table.push_str("|       | Name  | Code  | Message |\n");
-    table.push_str("| :---: | :---- | :---: | :------ |\n");
+    table.push_str(&format!("{leading_whitespace}|   -   | Name  | Code  | Message |\n"));
+    table.push_str(&format!("{leading_whitespace}| :---: | :---- | :---: | :------ |\n"));
 
     for finding in self {
       table.push_str(&format!(
@@ -573,7 +593,7 @@ impl Findings for Vec<NodegroupHealthIssue> {
 }
 
 /// Check for any reported health issues on EKS managed node groups
-pub(crate) async fn eks_managed_node_group_health(
+pub(crate) async fn eks_managed_nodegroup_health(
   nodegroups: &[Nodegroup],
 ) -> Result<Vec<NodegroupHealthIssue>, anyhow::Error> {
   let health_issues = nodegroups
@@ -732,12 +752,18 @@ pub(crate) struct ManagedNodeGroupUpdate {
 impl Findings for Vec<ManagedNodeGroupUpdate> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
-      return None;
+      return Some(format!(
+        "{leading_whitespace}:white_check_mark: - There are no pending updates for the EKS managed nodegroup(s)"
+      ));
     }
 
     let mut table = String::new();
-    table.push_str("|       | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n");
-    table.push_str("| :---: | :---- | :----------------- | :----------- | :---------- |\n");
+    table.push_str(&format!(
+      "{leading_whitespace}|       | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n"
+    ));
+    table.push_str(&format!(
+      "{leading_whitespace}| :---: | :---- | :----------------- | :----------- | :---------- |\n"
+    ));
 
     for finding in self {
       table.push_str(&format!(
@@ -755,7 +781,7 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
   }
 }
 
-pub(crate) async fn eks_managed_node_group_update(
+pub(crate) async fn eks_managed_nodegroup_update(
   client: &Ec2Client,
   nodegroup: &Nodegroup,
 ) -> Result<Vec<ManagedNodeGroupUpdate>, anyhow::Error> {
@@ -812,12 +838,18 @@ pub(crate) struct AutoscalingGroupUpdate {
 impl Findings for Vec<AutoscalingGroupUpdate> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
-      return None;
+      return Some(format!(
+        "{leading_whitespace}:white_check_mark: - There are no pending updates for the self-managed nodegroup(s)"
+      ));
     }
 
     let mut table = String::new();
-    table.push_str("|       | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n");
-    table.push_str("| :---: | :---- | :----------------- | :----------- | :---------- |\n");
+    table.push_str(&format!(
+      "{leading_whitespace}|       | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n"
+    ));
+    table.push_str(&format!(
+      "{leading_whitespace}| :---: | :---- | :----------------- | :----------- | :---------- |\n"
+    ));
 
     for finding in self {
       table.push_str(&format!(
@@ -845,7 +877,7 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
 /// deployed when the launch template is updated to version 6 for the Kubernetes version upgrade. Ideally,
 /// users should be on the latest version of the launch template prior to upgrading to avoid any surprises
 /// or unexpected changes.
-pub(crate) async fn self_managed_node_group_update(
+pub(crate) async fn self_managed_nodegroup_update(
   client: &Ec2Client,
   asg: &AutoScalingGroup,
 ) -> Result<Option<AutoscalingGroupUpdate>, anyhow::Error> {

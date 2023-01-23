@@ -1,40 +1,65 @@
-### EKS Managed Node Group
+#### EKS Managed Node Group
 
-- ℹ️ [Updating a managed node group](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
-- ℹ️ [Managed node group update behavior](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-update-behavior.html)
+- ℹ️ [Updating a managed nodegroup](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
+- ℹ️ [Managed nodegroup update behavior](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-update-behavior.html)
 
-- It is recommended to configure the [node group update config](https://docs.aws.amazon.com/eks/latest/APIReference/API_NodegroupUpdateConfig.html) to support updating multiple nodes in parallel during an upgrade. The update config has a max quota of 100 nodes that can be updated in parallel at once. It is recommended to start with an update configuration of 30% max unavailable percentage and adjust as necessary. Increasing this percentage will reduce the time to upgrade (until the max quota of 100 nodes is reached) but also increase the amount of churn within then node group and therefore increasing the potential for disruption to services running on the nodes. Conversely, reducing the percentage will increase the time to upgrade but also reduce the amount of churn within the node group and therefore reduce the potential for disruption to services running on the nodes. Users should test the impact of the update configuration on their workloads and adjust as necessary to balance between time to upgrade and potential risk for service disruption.
+It is recommended to configure the [nodegroup update config](https://docs.aws.amazon.com/eks/latest/APIReference/API_NodegroupUpdateConfig.html) to support updating multiple nodes in parallel during an upgrade. The update config has a max quota of 100 nodes that can be updated in parallel at once. It is recommended to start with an update configuration of 30% max unavailable percentage and adjust as necessary. Increasing this percentage will reduce the time to upgrade (until the max quota of 100 nodes is reached) but also increase the amount of churn within then nodegroup and therefore increasing the potential for disruption to services running on the nodes. Conversely, reducing the percentage will increase the time to upgrade but also reduce the amount of churn within the nodegroup and therefore reduce the potential for disruption to services running on the nodes. Users should test the impact of the update configuration on their workloads and adjust as necessary to balance between time to upgrade and potential risk for service disruption.
 
-- The default update strategy is a rolling update. This option respects the pod disruption budgets for your cluster. Updates fail if there's a pod disruption budget issue that prevents Amazon EKS from gracefully draining the pods that are running on the node group, or if pods do not safely evict from the nodes within a 15 minute window after the node has been marked as cordoned and set to drain. To circumvent this, you can specify a force update. This option does not respect pod disruption budgets. Updates occur regardless of pod disruption budget issues by forcing node restarts to occur.
+The default update strategy is a rolling update. This option respects the pod disruption budgets for your cluster. Updates fail if there's a pod disruption budget issue that prevents Amazon EKS from gracefully draining the pods that are running on the nodegroup, or if pods do not safely evict from the nodes within a 15 minute window after the node has been marked as cordoned and set to drain. To circumvent this, you can specify a force update. This option does not respect pod disruption budgets. Updates occur regardless of pod disruption budget issues by forcing node restarts to occur.
 
-#### Upgrade
+##### Pre-Upgrade
 
-{{#if is_custom_ami }}
-1. Update the launch template, specifying the ID of an AMI that matches the control plane's Kubernetes version:
+1. Ensure the EKS managed nodegroup(s) are free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster.
 
-    ```sh
-    aws ec2 create-launch-template-version --launch-template-id <LAUNCH_TEMPLATE_ID> \
-      --source-version <LAUNCH_TEMPLATE_VERSION> --launch-template-data 'ImageId=<AMI_ID>'
-    ```
-
-2. Update the launch template version specified on the EKS managed node group:
+    <details>
+    <summary>📌 CLI Example</summary>
 
     ```sh
-    aws eks update-nodegroup-version --cluster-name {{ cluster_name }} \
-      --nodegroup-name <NODEGROUP_NAME> --launch-template <LAUNCH_TEMPLATE>
+    aws eks describe-nodegroup --region {{ region }} --cluster-name {{ cluster_name }} \
+      --nodegroup-name <NAME> --query 'nodegroup.health'
     ```
 
-{{else}}
-1. Update the Kubernetes version specified on the EKS managed node group:
+    </details>
 
-    ```sh
-    aws eks update-nodegroup-version --cluster-name {{ cluster_name }} \
-      --nodegroup-name <NODEGROUP_NAME> --kubernetes-version {{ target_version }}
-    ```
-{{/if}}
+    ##### 📝 Analysis Results
+{{ eks_managed_nodegroup_health }}
 
-When a node is upgraded, the following happens with the Pods:
+##### Upgrade
 
+The following steps are applicable for each nodegroup in the cluster.
+
+Custom AMI:
+
+  1. Update the launch template, specifying the ID of an AMI that matches the control plane's Kubernetes version:
+
+      ```sh
+      aws ec2 create-launch-template-version --region {{ region }} \
+        --launch-template-id <LAUNCH_TEMPLATE_ID> \
+        --source-version <LAUNCH_TEMPLATE_VERSION> --launch-template-data 'ImageId=<AMI_ID>'
+      ```
+
+  2. Update the launch template version specified on the EKS managed nodegroup:
+
+      ```sh
+      aws eks update-nodegroup-version --region {{ region }} --cluster-name {{ cluster_name }} \
+        --nodegroup-name <NODEGROUP_NAME> --launch-template <LAUNCH_TEMPLATE>
+      ```
+
+
+EKS optimized AMI provided by Amazon EKS:
+
+  1. Update the Kubernetes version specified on the EKS managed nodegroup:
+
+      ```sh
+      aws eks update-nodegroup-version --region {{ region }} --cluster-name {{ cluster_name }} \
+        --nodegroup-name <NODEGROUP_NAME> --kubernetes-version {{ target_version }}
+      ```
+
+##### Process
+
+The following events take place when a nodegroup detects changes that require nodes to be cycled and replaced, such as upgrading the Kubernetes version or deployng a new AMI:
+
+For each node in the nodegroup:
   - The node is cordoned so that Kubernetes does not schedule new Pods on it.
   - The node is then drained while respecting the set `PodDisruptionBudget` and `GracefulTerminationPeriod` settings for pods for up to 15 minutes.
   - The control plane reschedules Pods managed by controllers onto other nodes. Pods that cannot be rescheduled stay in the Pending phase until they can be rescheduled.
