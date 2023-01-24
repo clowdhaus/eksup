@@ -372,20 +372,19 @@ impl Findings for Vec<AddonVersionCompatibility> {
 
     let mut table = String::new();
     table.push_str(&format!(
-      "{leading_whitespace}|   -   | Name  | Version | Default | Latest | Next Default | Next Latest |\n"
+      "{leading_whitespace}|   -   | Name  | Version | Current Latest | Next Default | Next Latest |\n"
     ));
     table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---- | :-----: | :-----: | :----: | :----------: | :---------: |\n"
+      "{leading_whitespace}| :---: | :---- | :-----: | :------------: | :----------: | :---------: |\n"
     ));
 
     for finding in self {
       table.push_str(&format!(
-        "{}| {} | {} | {} | {} | {} | {} | {} |\n",
+        "{}| {} | {} | {} | {} | {} | {} |\n",
         leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
         finding.version,
-        finding.current_kubernetes_version.default,
         finding.current_kubernetes_version.latest,
         finding.target_kubernetes_version.default,
         finding.target_kubernetes_version.latest,

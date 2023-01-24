@@ -16,8 +16,8 @@
     - [Upgrade](#upgrade)
 - [Upgrade the Data Plane](#upgrade-the-data-plane)
 {{#if eks_managed_nodegroups }}
-    - [Pre-Upgrade](#pre-upgrade)
-    - [Upgrade](#upgrade)
+    - [Pre-Upgrade](#pre-upgrade-1)
+    - [Upgrade](#upgrade-1)
         - [EKS Managed Node Group](#eks-managed-node-group)
 {{/if}}
 {{#if self_managed_nodegroup }}
@@ -27,6 +27,8 @@
         - [Fargate Profile](#fargate-profile)
 {{/if}}
 - [Upgrade EKS Addons](#upgrade-eks-addons)
+    - [Pre-Upgrade](#addon-pre-upgrade)
+    - [Upgrade](#addon-upgrade)
 - [Post-Upgrade](#post-upgrade)
 - [References](#references)
 
@@ -110,6 +112,32 @@
     ##### 📝 Analysis Results
 {{ cluster_health }}
 
+5. Ensure the EKS addons in use are using a version that is supported by the intended target Kubernetes version. If an addon is not compatible with the intended target Kubernetes version, upgrade the addon to a version that is compatible before upgrading the cluster.
+
+    <details>
+    <summary>📌 CLI Example</summary>
+
+    ```sh
+    for ADDON in $(aws eks list-addons --cluster-name {{ cluster_name }} \
+        --region {{ region }} --query 'addons[*]' --output text); do
+      CURRENT=$(aws eks describe-addon --cluster-name {{ cluster_name }} --region {{ region }} \
+        --addon-name ${ADDON} --query 'addon.addonVersion' --output text)
+      LATEST=$(aws eks describe-addon-versions --region {{ region }} --addon-name ${ADDON} \
+        --kubernetes-version {{ target_version }} --query 'addons[0].addonVersions[0].addonVersion' --output text)
+      LIST=$(aws eks describe-addon-versions --region {{ region }} --addon-name ${ADDON} \
+        --kubernetes-version {{ target_version }} --query 'addons[0].addonVersions[:3].addonVersion')
+
+      echo "${ADDON} current version: ${CURRENT}"
+      echo "${ADDON} latest version: ${LATEST}"
+      echo "${ADDON} latest 3 available versions: ${LIST}"
+    done
+    ```
+
+    </details>
+
+    ##### 📝 Analysis Results
+{{ addon_version_compatibility }}
+
 5. Check Kubernetes API versions currently in use and ensure any versions that are removed in the next Kubernetes release are updated prior to upgrading the cluster. There are several open source tools that can help you identify deprecated API versions in your Kubernetes manifests. The following open source projects support scanning both your cluster as well as manifest files to identify deprecated and/or removed API versions:
 
     - https://github.com/FairwindsOps/pluto
@@ -172,25 +200,26 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 ## Upgrade EKS Addons
 
-1. For each EKS addon deployed in the cluster, ensure the addon is compatible with the target Kubernetes version. If the addon is not compatible, upgrade the addon to a version that is compatible with the target Kubernetes version. You can run the following to get information on the addons used with respect to current versions:
+### <a name="addon-pre-upgrade"></a>Pre-Upgrade
+
+1. Ensure the EKS addons in use are free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster.
+
+    <details>
+    <summary>📌 CLI Example</summary>
 
     ```sh
-    for ADDON in $(aws eks list-addons --cluster-name {{ cluster_name }} \
-        --region {{ region }} --query 'addons[*]' --output text); do
-      CURRENT=$(aws eks describe-addon --cluster-name {{ cluster_name }} --region {{ region }} \
-        --addon-name ${ADDON} --query 'addon.addonVersion' --output text)
-      LATEST=$(aws eks describe-addon-versions --region {{ region }} --addon-name ${ADDON} \
-        --kubernetes-version {{ target_version }} --query 'addons[0].addonVersions[0].addonVersion' --output text)
-      LIST=$(aws eks describe-addon-versions --region {{ region }} --addon-name ${ADDON} \
-        --kubernetes-version {{ target_version }} --query 'addons[0].addonVersions[:3].addonVersion')
-
-      echo "${ADDON} current version: ${CURRENT}"
-      echo "${ADDON} latest version: ${LATEST}"
-      echo "${ADDON} latest 3 available versions: ${LIST}"
-    done
+    aws eks describe-addon --region {{ region }} --cluster-name {{ cluster_name }} \
+        --addon-name <ADDON_NAME> --query 'addon.health'
     ```
 
-2. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
+    </details>
+
+    ##### 📝 Analysis Results
+{{ addon_health }}
+
+### <a name="addon-pre-upgrade"></a>Upgrade
+
+1. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
 
     ```sh
     aws eks update-addon --region {{ region }} --cluster-name {{ cluster_name }} \

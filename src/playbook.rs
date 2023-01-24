@@ -49,6 +49,8 @@ pub struct TemplateData {
   cluster_health: Option<String>,
   eks_managed_nodegroups: Vec<String>,
   eks_managed_nodegroup_template: String,
+  addon_health: Option<String>,
+  addon_version_compatibility: Option<String>,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>, anyhow::Error> {
@@ -82,6 +84,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   let cluster_findings = analysis.cluster;
   let data_plane_findings = analysis.data_plane;
   let subnet_findings = analysis.subnets;
+  let addon_findings = analysis.addons;
 
   // Render sub-templates for data plane components
   let eks_managed_nodegroup_health = data_plane_findings.eks_managed_nodegroup_health.to_markdown_table("\t");
@@ -108,6 +111,8 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     cluster_health: cluster_findings.cluster_health.to_markdown_table("\t"),
     eks_managed_nodegroups: data_plane_findings.eks_managed_nodegroups,
     eks_managed_nodegroup_template,
+    addon_health: addon_findings.health.to_markdown_table("\t"),
+    addon_version_compatibility: addon_findings.version_compatibility.to_markdown_table("\t"),
   };
 
   // let self_managed_nodegroup = if playbook.compute.contains(&Compute::SelfManaged) {
