@@ -1,4 +1,4 @@
-#### EKS Managed Node Group
+#### EKS Managed Nodegroup
 
 - ℹ️ [Updating a managed nodegroup](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
 - ℹ️ [Managed nodegroup update behavior](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-update-behavior.html)

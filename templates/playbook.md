@@ -17,10 +17,10 @@
 - [Upgrade the Data Plane](#upgrade-the-data-plane)
 {{#if eks_managed_nodegroups }}
     - [Data Plane Pre-Upgrade](#data-plane-pre-upgrade)
-        - [EKS Managed Node Group](#eks-managed-node-group)
+        - [EKS Managed Nodegroup](#eks-managed-nodegroup)
 {{/if}}
 {{#if self_managed_nodegroups }}
-        - [Self-Managed Node Group](#eks-managed-node-group)
+        - [Self-Managed Nodegroup](#self-managed-nodegroup)
 {{/if}}
 {{#if fargate_profile }}
         - [Fargate Profile](#fargate-profile)

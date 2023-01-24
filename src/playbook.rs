@@ -80,6 +80,18 @@ struct SelfManagedNodeGroupTemplateData {
   self_managed_nodegroup_update: Option<String>,
 }
 
+fn char_replace(text: String) -> String {
+  text
+    .replace("&#x60;", "`")
+    .replace("&#x27;", "'")
+    .replace("&lt;", "<")
+    .replace("&amp;lt;", "<")
+    .replace("&gt;", ">")
+    .replace("&amp;gt;", ">")
+    .replace("&quot;", "\"")
+    .replace("&#x3D;", "=")
+}
+
 pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Results) -> Result<(), anyhow::Error> {
   let mut handlebars = Handlebars::new();
   handlebars.register_embed_templates::<Templates>()?;
@@ -107,7 +119,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     eks_managed_nodegroup_health,
     eks_managed_nodegroup_update,
   };
-  let eks_managed_nodegroup_template = handlebars.render("eks-managed-nodegroup.md", &eks_mng_tmpl_data)?;
+  let eks_managed_nodegroup_template = char_replace(handlebars.render("eks-managed-nodegroup.md", &eks_mng_tmpl_data)?);
 
   let self_managed_nodegroup_update = data_plane_findings
     .self_managed_nodegroup_update
@@ -118,7 +130,8 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     target_version: target_version.to_owned(),
     self_managed_nodegroup_update,
   };
-  let self_managed_nodegroup_template = handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?;
+  let self_managed_nodegroup_template =
+    char_replace(handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?);
 
   let tmpl_data = TemplateData {
     region,
@@ -152,15 +165,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   // let mut output_file = File::create("playbook.md")?;
   let rendered = handlebars.render("playbook.md", &tmpl_data)?;
   // handlebars.render_to_write("playbook.tmpl", &data, &mut output_file)?;
-  let replaced = rendered
-    .replace("&#x60;", "`")
-    .replace("&#x27;", "'")
-    .replace("&lt;", "<")
-    .replace("&amp;lt;", "<")
-    .replace("&gt;", ">")
-    .replace("&amp;gt;", ">")
-    .replace("&quot;", "\"")
-    .replace("&#x3D;", "=");
+  let replaced = char_replace(rendered);
   fs::write(filename, replaced)?;
 
   Ok(())

@@ -768,10 +768,10 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
 
     let mut table = String::new();
     table.push_str(&format!(
-      "{leading_whitespace}|   -   | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n"
+      "{leading_whitespace}|   -   | MNG Name  | Launch Template ID | Current | Latest |\n"
     ));
     table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---- | :----------------- | :----------- | :---------- |\n"
+      "{leading_whitespace}| :---: | :-------- | :----------------- | :-----: | :----: |\n"
     ));
 
     for finding in self {
@@ -854,10 +854,10 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
 
     let mut table = String::new();
     table.push_str(&format!(
-      "{leading_whitespace}|   -   | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n"
+      "{leading_whitespace}|   -   | ASG Name | Launch Template ID | Current | Latest |\n"
     ));
     table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---- | :----------------- | :----------- | :---------- |\n"
+      "{leading_whitespace}| :---: | :------- | :----------------- | :-----: | :----: |\n"
     ));
 
     for finding in self {

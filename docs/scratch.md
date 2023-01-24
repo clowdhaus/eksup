@@ -10,21 +10,25 @@ A check must be able to answer `yes` to one of the following questions, dependin
 Analyze cluster for any potential issues to remediate prior to upgrade.
 
 Show result as plaintext via stdout:
+
 ```sh
 eksup analyze --cluster <cluster> --region <region>
 ```
 
 Show result as JSON via stdout:
+
 ```sh
 eksup analyze --cluster <cluster> --region <region> --format json
 ```
 
 Save result as plaintext to file:
+
 ```sh
 eksup analyze --cluster <cluster> --region <region> --output analysis.txt
 ```
 
 Save result as JSON to S3, ignoring recommendations:
+
 ```sh
 eksup analyze \
   --cluster <cluster> \
@@ -39,21 +43,23 @@ eksup analyze \
 Create a playbook with analysis findings to guide users through pre-upgrade, upgrade, and post-upgrade process.
 
 Create playbook and save locally:
+
 ```sh
 eksup create playbook --cluster <cluster> --region <region>
 ```
 
 Create playbook and save locally, ignoring recommendations:
+
 ```sh
 eksup create playbook --cluster <cluster> --region <region> --ignore-recommended
 ```
 
-```
-Controls: 31 (Failed: 14, Excluded: 0, Skipped: 0)
-```
-
 ## 🚧 ToDo 🚧
 
+- [ ] Add summary at top of results shown to user for stdout and playbook
+  ```
+  Checks: 31 (Failed: 14, Excluded: 0, Skipped: 0)
+  ```
 - [x] [`K8S001`] Version skew between control plane and data plane should adhere to skew policy
 
 ### Amazon EKS
@@ -130,8 +136,12 @@ Note: the Kubernetes version these apply to will need to be taken into considera
 - [ ] APIs deprecated and/or removed in the next Kubernetes version
   - For now, `pluto` or `kubent` are recommended to check for deprecated APIs
   - Add section on how those tools work, what to watch out for (asking the API Server is not trustworthy, scanning manifests directly is the most accurate)
+  - Look into using the `apiserve_requested_deprecated_apis` metric to detect usage of deprecated APIs
+    - https://kubernetes.io/blog/2020/09/03/warnings/
+    - https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1693-warnings
+    - https://github.com/kube-rs/kube/issues/492 for implementation
 - [ ] Add image and chart for running `eksup` on the cluster in a continuous fashion (CronJob)
-  - Can log to STDOUT or save to S3 (Athena support)
+  - Send results to a central location like S3 for centralized aggregation and reporting across a fleet of clusters
 - [ ] Add support to output results in JSON and CSV formats
   - Multi-cluster scenario - all clusters emitting data back to central location to report on which clusters need components to be upgraded/modified
   - Can utilize an Athena table to aggregate and summarize data
@@ -145,6 +155,8 @@ Note: the Kubernetes version these apply to will need to be taken into considera
   2. (default, no flags) - show failed checks on hard requirements
   3. `--warn` - in addition to failed, show warnings (low number of IPs available for nodes/pods, addon version older than current default, etc.)
   4. `--info` - in addition to failed and warnings, show informational notices (number of IPs available for nodes/pods, addon version relative to current default and latest, etc.)
+
+## High Level Diagram
 
 <p align="center">
   <img src="imgs/checks.png" alt="checks" width="100%">
@@ -161,14 +173,14 @@ Note: the Kubernetes version these apply to will need to be taken into considera
 - What is the guidance for batch workloads?
   - Recommend creating a maintenance window where workloads should avoid being scheduled?
   - `JobFailurePolicy` coming in in 1.26 https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-failure-policy
-- What is the recommended way to manage the lifecycle of Fargate profiles?
-  - Best way to "roll" profiles after the control plane Kubernetes version has been upgraded
+- What is the recommended way to manage the lifecycle of Fargate pods?
+  - After the control plane Kubernetes version has been upgraded, what is the best approach to "roll" the pods in order to pull fresh pods/nodes with the new K8s version?
 - What is the churn calculation for updating node groups?
-  - When updating a self-managed node group, how many instances are spun up before instances are terminated, whats the lifecycle, etc.
-  - Same for EKS managed node group - how much do we surge to (max), etc.
+  - What is the surge calculation - I thought I saw it was `2 * max(min-size, desired-size)` somewhere?
+  - For EKS MNG, the surge limit is capped at 100 nodes - should this be applied to self-managed node groups as well, and if so, how?
   - This is important for:
     - Do users have enough resources at their disposal before the start their upgrade or do they need to request resource limit increases (EC2s)?
-    - We state that the control plane needs at least 5 free IPs before it can be upgraded, but this also will affect the data plane upgrade and churn
+    - How does the number of available IPs affect this process? If a customer knows they only have `x` available IPs in the data plane (say 100), can we provide a calculation that helps them configure their update settings to avoid errors and exhausting IPs while upgrading?
     - How long will the upgrade take users?
     - How can users influence the amount of churn - why should they, what recommendations or guidance do we have?
 - Do we have different guidance for large clusters?

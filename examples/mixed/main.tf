@@ -99,11 +99,12 @@ module "eks" {
   eks_managed_node_groups = {
     # This uses a custom launch template (custom as in module/user supplied)
     standard = {
-      pre_bootstrap_user_data = <<-EOT
-        #!/bin/bash
-        echo "Hello from user data!"
-      EOT
+      # pre_bootstrap_user_data = <<-EOT
+      #   #!/bin/bash
+      #   echo "Hello from user data!"
+      # EOT
 
+      # To show pending changes
       update_launch_template_default_version = false
 
       min_size     = 1
@@ -127,6 +128,16 @@ module "eks" {
       min_size     = 1
       max_size     = 3
       desired_size = 1
+    }
+
+    different = {
+      pre_bootstrap_user_data = <<-EOT
+        echo "Hello from user data!"
+      EOT
+
+      # To show pending changes
+      instance_refresh                       = {}
+      update_launch_template_default_version = false
     }
   }
 

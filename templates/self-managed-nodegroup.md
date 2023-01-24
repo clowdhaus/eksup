@@ -1,4 +1,4 @@
-#### Self-Managed Node Group
+#### Self-Managed Nodegroup
 
 - ℹ️ [Self-managed node updates](https://docs.aws.amazon.com/eks/latest/userguide/update-workers.html)
 
