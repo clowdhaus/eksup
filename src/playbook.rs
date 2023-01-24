@@ -46,6 +46,7 @@ pub struct TemplateData {
   k8s_deprecation_url: String,
   version_skew: Option<String>,
   control_plane_ips: Option<String>,
+  pod_ips: Option<String>,
   cluster_health: Option<String>,
   addon_health: Option<String>,
   addon_version_compatibility: Option<String>,
@@ -111,7 +112,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   let target_version = version::get_target_version(cluster_version)?;
 
   let release_data = get_release_data()?;
-  let release = release_data.get(cluster_version).unwrap();
+  let release = release_data.get(&target_version).unwrap();
 
   let cluster_findings = analysis.cluster;
   let data_plane_findings = analysis.data_plane;
@@ -148,7 +149,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     target_version: target_version.to_owned(),
   };
   let fargate_profiles = data_plane_findings.fargate_profiles;
-  let fargate_profile_template = char_replace(handlebars.render("fargate-profile.md", &fargate_tmpl_data)?);
+  let fargate_profile_template = char_replace(handlebars.render("fargate-node.md", &fargate_tmpl_data)?);
 
   let tmpl_data = TemplateData {
     region,
@@ -162,6 +163,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     },
     version_skew: data_plane_findings.version_skew.to_markdown_table("\t"),
     control_plane_ips: subnet_findings.control_plane_ips.to_markdown_table("\t"),
+    pod_ips: subnet_findings.pod_ips.to_markdown_table("\t"),
     cluster_health: cluster_findings.cluster_health.to_markdown_table("\t"),
     addon_health: addon_findings.health.to_markdown_table("\t"),
     addon_version_compatibility: addon_findings.version_compatibility.to_markdown_table("\t"),

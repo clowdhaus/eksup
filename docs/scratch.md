@@ -175,6 +175,7 @@ Note: the Kubernetes version these apply to will need to be taken into considera
   - `JobFailurePolicy` coming in in 1.26 https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-failure-policy
 - What is the recommended way to manage the lifecycle of Fargate pods?
   - After the control plane Kubernetes version has been upgraded, what is the best approach to "roll" the pods in order to pull fresh pods/nodes with the new K8s version?
+  - Use a mutating webhook to inject `nodeSelector: failure-domain.beta.kubernetes.io/zone: <AZ>` into pods created to distribute across the AZs. (EKS Fargate does not natively do this today - see https://github.com/aws/containers-roadmap/issues/824)
 - What is the churn calculation for updating node groups?
   - What is the surge calculation - I thought I saw it was `2 * max(min-size, desired-size)` somewhere?
   - For EKS MNG, the surge limit is capped at 100 nodes - should this be applied to self-managed node groups as well, and if so, how?

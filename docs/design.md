@@ -1,21 +1,20 @@
 # Design
 
-This document outlines the design and intentions of the project. Not all features may be available at this time and will be marked as such.
+This document outlines the design and intentions of the project. Not all features listed may be available at this time.
 
 ## Goals
 
 There is only one goal:
 
 ```
-Enable users to successfully upgrade their cluster(s) without downtime and/or disruption before the associated
-Kubernetes version end of support date.
+Empower users to routinely upgrade their EKS cluster(s) without downtime and/or disruption.
 ```
 
 To aid in that goal, the following are supporting goals or tenants:
 
 1. The guidance provided is intended to avoid downtime and/or disruption to services running on the cluster.
 2. Intended for use on Amazon EKS clusters; there are no guarantees that this CLI will or will not work on other Kubernetes clusters. The CLI will focus on EKS to avoid the need to support multiple Kubernetes distributions and their associated cloud controller resources and instead focus on the aspects that are specific to EKS and how EKS manages the Kubernetes experience for users. The CLI should offer native support for:
-    - Amazon EKS, Amazon EKS on Outposts (local and extended modes), and EKS-A (EKS Anywhere)
+    - Amazon EKS, Amazon EKS on Outposts (local and extended clusters), and EKS-A (EKS Anywhere)
     - Amazon EKS managed node groups, self-managed node groups, and Amazon EKS Fargate profiles
     - EKS addons
 3. It is designed to produce the least amount of load on the API Server when discovering and analyzing cluster resources. However, this can have some tradeoffs in terms of accuracy and completeness of the information provided to the user; see goal #3 for more information on this tradeoff.

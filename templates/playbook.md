@@ -44,7 +44,7 @@
     - ℹ️ [Kubernetes `{{ target_version }}` release announcement]({{ k8s_release_url }})
     - ℹ️ [EKS `{{ target_version }}` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-{{ target_version }})
 
-2. Per the [Kubernetes version skew policy states](https://kubernetes.io/releases/version-skew-policy/#supported-version-skew) that `kubelet` version must not be newer than `kube-apiserver`, and may be up to two minor versions older. It is recommended that the nodes in the data plane are aligned with the same minor version as the control plane; at minimum, they must not be 2 versions older than the control plane (updating the control plane first would put the version skew at 3 versions older which violates the skew policy).
+2. Per the [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/#supported-version-skew), the `kubelet` version must not be newer than `kube-apiserver`, and may be up to two minor versions older. It is recommended that the nodes in the data plane are aligned with the same minor version as the control plane before upgrading.
 
     <details>
     <summary>📌 CLI Example</summary>
@@ -79,7 +79,7 @@
     ```
     </details>
 
-    ##### 📝 Analysis Results
+    ##### 📝 [K8S001] Analysis Results
 {{ version_skew }}
 
 3. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
@@ -96,7 +96,7 @@
 
     </details>
 
-    ##### 📝 Analysis Results
+    ##### 📝 [EKS001] Analysis Results
 {{ control_plane_ips }}
 
 4. Ensure the cluster is free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster. Note - resolution in some cases may require creating a new cluster. For example, if the cluster primary security group was deleted, at this time, the only course of remediation is to create a new cluster and migrate any workloads over to that cluster (treated as a blue/green cluster upgrade).
@@ -111,7 +111,7 @@
 
     </details>
 
-    ##### 📝 Analysis Results
+    ##### 📝 [EKS002] Analysis Results
 {{ cluster_health }}
 
 5. Ensure the EKS addons in use are using a version that is supported by the intended target Kubernetes version. If an addon is not compatible with the intended target Kubernetes version, upgrade the addon to a version that is compatible before upgrading the cluster.
@@ -137,7 +137,7 @@
 
     </details>
 
-    ##### 📝 Analysis Results
+    ##### 📝 [EKS005] Analysis Results
 {{ addon_version_compatibility }}
 
 5. Check Kubernetes API versions currently in use and ensure any versions that are removed in the next Kubernetes release are updated prior to upgrading the cluster. There are several open source tools that can help you identify deprecated API versions in your Kubernetes manifests. The following open source projects support scanning both your cluster as well as manifest files to identify deprecated and/or removed API versions:
@@ -188,7 +188,32 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
     - For batch workloads:
         - If you are running a critical application on a Karpenter-provisioned node, such as a long running batch job or stateful application, and the node’s TTL has expired, the application will be interrupted when the instance is terminated. By adding a karpenter.sh/do-not-evict annotation to the pod, you are instructing Karpenter to preserve the node until the Pod is terminated or the do-not-evict annotation is removed. See Deprovisioning documentation for further information.
 
-2. Double check [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
+2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
+
+{{#if pod_ips}}
+3. Verify that there is sufficient IP space available to the pods running in the cluster when using custom networking. With the in-place, surge upgrade process, there will be higher IP consumption during the upgrade.
+
+    <details>
+    <summary>📌 CLI Example</summary>
+
+    Ensure you have updated your `kubeconfig` locally before executing the following commands:
+
+    ```sh
+    aws eks update-kubeconfig --region {{ region }}  --name {{ cluster_name }}
+    ```
+
+    Get the number of available IPs in each subnet used by the custom networking `ENIConfig` resources:
+    ```sh
+    aws ec2 describe-subnets --region {{ region }} --subnet-ids \
+        $(kubectl get ENIConfigs -n kube-system -o jsonpath='{.items[*].spec.subnet}') \
+        --query 'Subnets[*].AvailableIpAddressCount'
+    ```
+
+    </details>
+
+    ##### 📝 [AWS002] Analysis Results
+{{ pod_ips }}
+{{/if}}
 
 {{#if eks_managed_nodegroups }}
 {{ eks_managed_nodegroup_template }}
@@ -216,7 +241,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     </details>
 
-    ##### 📝 Analysis Results
+    ##### 📝 [EKS004] Analysis Results
 {{ addon_health }}
 
 ### Addon Upgrade

@@ -186,7 +186,7 @@ impl Findings for Option<InsufficientSubnetIps> {
       Some(table)
       },
       None => {
-        Some(format!("{leading_whitespace}:white_check_mark: - There is sufficient IP space in the subnets used by the control plane"))
+        Some(format!("{leading_whitespace}:white_check_mark: - There is sufficient IP space in the subnets provided"))
       }
     }
   }

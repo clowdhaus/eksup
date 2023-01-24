@@ -19,7 +19,7 @@
 
     </details>
 
-    ##### 📝 Analysis Results
+    ##### 📝 [EKS007] Analysis Results
 {{ self_managed_nodegroup_update }}
 
 ##### Upgrade
@@ -27,21 +27,22 @@
 1. Update the launch template, specifying the ID of an AMI that matches the control plane's Kubernetes version:
 
     ```sh
-    aws ec2 create-launch-template-version --launch-template-id <LAUNCH_TEMPLATE_ID> \
+    aws ec2 create-launch-template-version --region {{ region }}  --launch-template-id <LAUNCH_TEMPLATE_ID> \
       --source-version <LAUNCH_TEMPLATE_VERSION> --launch-template-data 'ImageId=<AMI_ID>'
     ```
 
     You can [retrieve the recommended EKS optimized AL2 AMI ID](https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html) by running the following command:
 
     ```sh
-    aws ssm get-parameter --name /aws/service/eks/optimized-ami/{{ target_version }}/amazon-linux-2/recommended/image_id \
+    aws ssm get-parameter --region {{ region }} \
+      --name /aws/service/eks/optimized-ami/{{ target_version }}/amazon-linux-2/recommended/image_id \
       --query 'Parameter.Value' --output text
     ```
 
 2. Update the autoscaling-group to use the new launch template
 
     ```sh
-    aws autoscaling update-auto-scaling-group --auto-scaling-group-name <ASG_NAME> \
+    aws autoscaling update-auto-scaling-group --region {{ region }} --auto-scaling-group-name <ASG_NAME> \
       --launch-template LaunchTemplateId=<LAUNCH_TEMPLATE_ID>,Version='$Latest'
     ```
 
