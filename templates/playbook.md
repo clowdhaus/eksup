@@ -7,7 +7,7 @@
 | Target version             |                  `v{{ target_version }}`                  |
 | EKS Managed nodegroup(s)  | {{#if eks_managed_nodegroups }} ✅ {{ else }} ➖ {{/if}}  |
 | Self-Managed nodegroup(s) | {{#if self_managed_nodegroups }} ✅ {{ else }} ➖ {{/if}} |
-| Fargate profile(s)         |     {{#if fargate_profile }} ✅ {{ else }} ➖ {{/if}}     |
+| Fargate profile(s)         |     {{#if fargate_profiles }} ✅ {{ else }} ➖ {{/if}}     |
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@
 {{#if self_managed_nodegroups }}
         - [Self-Managed Nodegroup](#self-managed-nodegroup)
 {{/if}}
-{{#if fargate_profile }}
+{{#if fargate_profiles }}
         - [Fargate Profile](#fargate-profile)
 {{/if}}
 - [Upgrade EKS Addons](#upgrade-eks-addons)

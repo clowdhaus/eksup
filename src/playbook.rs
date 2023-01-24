@@ -53,6 +53,8 @@ pub struct TemplateData {
   eks_managed_nodegroup_template: String,
   self_managed_nodegroups: Vec<String>,
   self_managed_nodegroup_template: String,
+  fargate_profiles: Vec<String>,
+  fargate_profile_template: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>, anyhow::Error> {
@@ -78,6 +80,13 @@ struct SelfManagedNodeGroupTemplateData {
   cluster_name: String,
   target_version: String,
   self_managed_nodegroup_update: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct FargateProfileTemplateData {
+  region: String,
+  cluster_name: String,
+  target_version: String,
 }
 
 fn char_replace(text: String) -> String {
@@ -133,6 +142,14 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   let self_managed_nodegroup_template =
     char_replace(handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?);
 
+  let fargate_tmpl_data = FargateProfileTemplateData {
+    region: region.to_owned(),
+    cluster_name: cluster_name.to_owned(),
+    target_version: target_version.to_owned(),
+  };
+  let fargate_profiles = data_plane_findings.fargate_profiles;
+  let fargate_profile_template = char_replace(handlebars.render("fargate-profile.md", &fargate_tmpl_data)?);
+
   let tmpl_data = TemplateData {
     region,
     cluster_name: cluster_name.to_owned(),
@@ -152,6 +169,8 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     eks_managed_nodegroup_template,
     self_managed_nodegroups: data_plane_findings.self_managed_nodegroups,
     self_managed_nodegroup_template,
+    fargate_profiles,
+    fargate_profile_template,
   };
 
   let filename = match &args.filename {

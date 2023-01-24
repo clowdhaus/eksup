@@ -114,6 +114,8 @@ pub(crate) struct DataPlaneFindings {
   pub(crate) eks_managed_nodegroups: Vec<String>,
   /// The names of the self-managed node groups (autoscaling groups)
   pub(crate) self_managed_nodegroups: Vec<String>,
+  /// The names of the Fargate profiles
+  pub(crate) fargate_profiles: Vec<String>,
 }
 
 /// Collects the data plane findings
@@ -129,6 +131,7 @@ async fn get_data_plane_findings(
 
   let eks_mngs = eks::get_eks_managed_nodegroups(eks_client, cluster_name).await?;
   let self_mngs = eks::get_self_managed_nodegroups(asg_client, cluster_name).await?;
+  let fargate_profiles = eks::_get_fargate_profiles(eks_client, cluster_name).await?;
 
   let version_skew = k8s::version_skew(k8s_client, cluster_version).await?;
   let eks_managed_nodegroup_health = eks::eks_managed_nodegroup_health(&eks_mngs).await?;
@@ -156,6 +159,10 @@ async fn get_data_plane_findings(
     self_managed_nodegroups: self_mngs
       .iter()
       .map(|asg| asg.auto_scaling_group_name().unwrap().to_owned())
+      .collect(),
+    fargate_profiles: fargate_profiles
+      .iter()
+      .map(|fp| fp.fargate_profile_name().unwrap().to_owned())
       .collect(),
   })
 }
