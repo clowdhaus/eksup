@@ -1,4 +1,4 @@
-### Self-Managed Node Group
+#### Self-Managed Node Group
 
 - ℹ️ [Self-managed node updates](https://docs.aws.amazon.com/eks/latest/userguide/update-workers.html)
 
@@ -6,7 +6,23 @@
 
 - A recommended starting point for the instance refresh configuration is to use a value of 70% as the minimum healthy percentage and adjust as necessary. Lowering this value will allow more instances to be refreshed at once, however, it will also increase the risk of overwhelming the control plane with requests. Users should aim to replace no more than 100 instances at a time to match the behavior of EKS managed node groups and avoid overwhelming the control plane during an upgrade.
 
-#### Upgrade
+##### Pre-Upgrade
+
+1. Ensure the self-managed nodegroup(s) do not have any pending updates and they are using the latest version of their respective launch templates. If the nodegroup(s) are not using the latest launch template, it is recommended to update to the latest to avoid accidentally introducing any additional and un-intended changes during the upgrade.
+
+    <details>
+    <summary>📌 CLI Example</summary>
+
+    ```sh
+    // TODO
+    ```
+
+    </details>
+
+    ##### 📝 Analysis Results
+{{ self_managed_nodegroup_update }}
+
+##### Upgrade
 
 1. Update the launch template, specifying the ID of an AMI that matches the control plane's Kubernetes version:
 

@@ -47,10 +47,12 @@ pub struct TemplateData {
   version_skew: Option<String>,
   control_plane_ips: Option<String>,
   cluster_health: Option<String>,
-  eks_managed_nodegroups: Vec<String>,
-  eks_managed_nodegroup_template: String,
   addon_health: Option<String>,
   addon_version_compatibility: Option<String>,
+  eks_managed_nodegroups: Vec<String>,
+  eks_managed_nodegroup_template: String,
+  self_managed_nodegroups: Vec<String>,
+  self_managed_nodegroup_template: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>, anyhow::Error> {
@@ -62,11 +64,20 @@ fn get_release_data() -> Result<HashMap<Version, Release>, anyhow::Error> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct EksManagedNodeGroupTemplateData {
+struct EksManagedNodeGroupTemplateData {
   region: String,
   cluster_name: String,
   target_version: String,
   eks_managed_nodegroup_health: Option<String>,
+  eks_managed_nodegroup_update: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct SelfManagedNodeGroupTemplateData {
+  region: String,
+  cluster_name: String,
+  target_version: String,
+  self_managed_nodegroup_update: Option<String>,
 }
 
 pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Results) -> Result<(), anyhow::Error> {
@@ -88,13 +99,26 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
 
   // Render sub-templates for data plane components
   let eks_managed_nodegroup_health = data_plane_findings.eks_managed_nodegroup_health.to_markdown_table("\t");
+  let eks_managed_nodegroup_update = data_plane_findings.eks_managed_nodegroup_update.to_markdown_table("\t");
   let eks_mng_tmpl_data = EksManagedNodeGroupTemplateData {
     region: region.to_owned(),
     cluster_name: cluster_name.to_owned(),
     target_version: target_version.to_owned(),
     eks_managed_nodegroup_health,
+    eks_managed_nodegroup_update,
   };
-  let eks_managed_nodegroup_template = handlebars.render("eks-managed-node-group.md", &eks_mng_tmpl_data)?;
+  let eks_managed_nodegroup_template = handlebars.render("eks-managed-nodegroup.md", &eks_mng_tmpl_data)?;
+
+  let self_managed_nodegroup_update = data_plane_findings
+    .self_managed_nodegroup_update
+    .to_markdown_table("\t");
+  let self_mng_tmpl_data = SelfManagedNodeGroupTemplateData {
+    region: region.to_owned(),
+    cluster_name: cluster_name.to_owned(),
+    target_version: target_version.to_owned(),
+    self_managed_nodegroup_update,
+  };
+  let self_managed_nodegroup_template = handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?;
 
   let tmpl_data = TemplateData {
     region,
@@ -109,27 +133,13 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     version_skew: data_plane_findings.version_skew.to_markdown_table("\t"),
     control_plane_ips: subnet_findings.control_plane_ips.to_markdown_table("\t"),
     cluster_health: cluster_findings.cluster_health.to_markdown_table("\t"),
-    eks_managed_nodegroups: data_plane_findings.eks_managed_nodegroups,
-    eks_managed_nodegroup_template,
     addon_health: addon_findings.health.to_markdown_table("\t"),
     addon_version_compatibility: addon_findings.version_compatibility.to_markdown_table("\t"),
+    eks_managed_nodegroups: data_plane_findings.eks_managed_nodegroups,
+    eks_managed_nodegroup_template,
+    self_managed_nodegroups: data_plane_findings.self_managed_nodegroups,
+    self_managed_nodegroup_template,
   };
-
-  // let self_managed_nodegroup = if playbook.compute.contains(&Compute::SelfManaged) {
-  //   let rendered = handlebars.render("self-managed-node-group.md", &tmpl_data)?;
-  //   Some(rendered)
-  // } else {
-  //   None
-  // };
-  // tmpl_data.self_managed_nodegroup = self_managed_nodegroup;
-
-  // let fargate_profile = if playbook.compute.contains(&Compute::FargateProfile) {
-  //   let rendered = handlebars.render("fargate-profile.md", &tmpl_data)?;
-  //   Some(rendered)
-  // } else {
-  //   None
-  // };
-  // tmpl_data.fargate_profile = fargate_profile;
 
   let filename = match &args.filename {
     Some(filename) => filename,

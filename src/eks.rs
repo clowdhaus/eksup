@@ -768,7 +768,7 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
 
     let mut table = String::new();
     table.push_str(&format!(
-      "{leading_whitespace}|       | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n"
+      "{leading_whitespace}|   -   | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n"
     ));
     table.push_str(&format!(
       "{leading_whitespace}| :---: | :---- | :----------------- | :----------- | :---------- |\n"
@@ -854,7 +854,7 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
 
     let mut table = String::new();
     table.push_str(&format!(
-      "{leading_whitespace}|       | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n"
+      "{leading_whitespace}|   -   | Name  | Launch Template ID | Current Ver. | Latest Ver. |\n"
     ));
     table.push_str(&format!(
       "{leading_whitespace}| :---: | :---- | :----------------- | :----------- | :---------- |\n"

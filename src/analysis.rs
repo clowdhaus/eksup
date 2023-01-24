@@ -112,6 +112,8 @@ pub(crate) struct DataPlaneFindings {
 
   /// The names of the EKS managed node groups
   pub(crate) eks_managed_nodegroups: Vec<String>,
+  /// The names of the self-managed node groups (autoscaling groups)
+  pub(crate) self_managed_nodegroups: Vec<String>,
 }
 
 /// Collects the data plane findings
@@ -150,6 +152,10 @@ async fn get_data_plane_findings(
     eks_managed_nodegroups: eks_mngs
       .iter()
       .map(|mng| mng.nodegroup_name().unwrap().to_owned())
+      .collect(),
+    self_managed_nodegroups: self_mngs
+      .iter()
+      .map(|asg| asg.auto_scaling_group_name().unwrap().to_owned())
       .collect(),
   })
 }

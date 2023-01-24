@@ -6,20 +6,20 @@
 | Current version            |                 `v{{ current_version }}`                  |
 | Target version             |                  `v{{ target_version }}`                  |
 | EKS Managed nodegroup(s)  | {{#if eks_managed_nodegroups }} ✅ {{ else }} ➖ {{/if}}  |
-| Self-Managed nodegroup(s) | {{#if self_managed_nodegroup }} ✅ {{ else }} ➖ {{/if}} |
+| Self-Managed nodegroup(s) | {{#if self_managed_nodegroups }} ✅ {{ else }} ➖ {{/if}} |
 | Fargate profile(s)         |     {{#if fargate_profile }} ✅ {{ else }} ➖ {{/if}}     |
 
 ## Table of Contents
 
 - [Upgrade the Control Plane](#upgrade-the-control-plane)
-    - [CP Pre-Upgrade](#cp-pre-upgrade)
-    - [CP Upgrade](#cp-upgrade)
+    - [Control Plane Pre-Upgrade](#control-plane-pre-upgrade)
+    - [Control Plane Upgrade](#control-plane-upgrade)
 - [Upgrade the Data Plane](#upgrade-the-data-plane)
 {{#if eks_managed_nodegroups }}
-    - [DP Pre-Upgrade](#dp-pre-upgrade)
+    - [Data Plane Pre-Upgrade](#data-plane-pre-upgrade)
         - [EKS Managed Node Group](#eks-managed-node-group)
 {{/if}}
-{{#if self_managed_nodegroup }}
+{{#if self_managed_nodegroups }}
         - [Self-Managed Node Group](#eks-managed-node-group)
 {{/if}}
 {{#if fargate_profile }}
@@ -34,7 +34,7 @@
 
 ## Upgrade the Control Plane
 
-### CP Pre-Upgrade
+### Control Plane Pre-Upgrade
 
 1. Review the following resources for affected changes in the next version of Kubernetes:
 
@@ -127,11 +127,11 @@
       LATEST=$(aws eks describe-addon-versions --region {{ region }} --addon-name ${ADDON} \
         --kubernetes-version {{ target_version }} --query 'addons[0].addonVersions[0].addonVersion' --output text)
       LIST=$(aws eks describe-addon-versions --region {{ region }} --addon-name ${ADDON} \
-        --kubernetes-version {{ target_version }} --query 'addons[0].addonVersions[:3].addonVersion')
+        --kubernetes-version {{ target_version }} --query 'addons[0].addonVersions[*].addonVersion')
 
       echo "${ADDON} current version: ${CURRENT}"
-      echo "${ADDON} latest version: ${LATEST}"
-      echo "${ADDON} latest 3 available versions: ${LIST}"
+      echo "${ADDON} next latest version: ${LATEST}"
+      echo "${ADDON} next available versions: ${LIST}"
     done
     ```
 
@@ -145,7 +145,7 @@
     - https://github.com/FairwindsOps/pluto
     - https://github.com/doitintl/kube-no-trouble
 
-### CP Upgrade
+### Control Plane Upgrade
 
 ℹ️ [Updating an Amazon EKS cluster Kubernetes version](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html)
 
@@ -167,7 +167,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 ## Upgrade the Data Plane
 
-### DP Pre-Upgrade
+### Data Plane Pre-Upgrade
 
 1. Ensure applications and services running on the cluster are setup for high-availability to minimize and avoid disruption during the upgrade process.
     - We strongly recommend that you have [readiness and liveness probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes) configured before upgrading the data plane. This ensures that your pods register as ready/healthy at the appropriate time during an upgrade.
@@ -193,11 +193,11 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 {{#if eks_managed_nodegroups }}
 {{ eks_managed_nodegroup_template }}
 {{/if}}
-{{#if self_managed_nodegroup }}
-{{ self_managed_nodegroup }}
+{{#if self_managed_nodegroups }}
+{{ self_managed_nodegroup_template }}
 {{/if}}
-{{#if fargate_profile }}
-{{ fargate_profile }}
+{{#if fargate_profiles }}
+{{ fargate_profile_template }}
 {{/if}}
 
 ## Upgrade EKS Addons
