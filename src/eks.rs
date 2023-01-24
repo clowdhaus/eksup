@@ -74,12 +74,17 @@ impl Findings for Vec<ClusterHealthIssue> {
 
     for finding in self {
       table.push_str(&format!(
-        "{}| {} | {} | {} | {} |\n",
+        "{}| {} | `{}` | `{}` | {} |\n",
         leading_whitespace,
         finding.remediation.symbol(),
         finding.code,
         finding.message,
-        finding.resource_ids.join(", ")
+        finding
+          .resource_ids
+          .iter()
+          .map(|f| format!("`{f}`"))
+          .collect::<Vec<String>>()
+          .join(", "),
       ))
     }
 
@@ -171,7 +176,7 @@ impl Findings for Option<InsufficientSubnetIps> {
       table.push_str(&format!("{leading_whitespace}|   -   | Subnet IDs  | Available IPs |\n"));
       table.push_str(&format!("{leading_whitespace}| :---: | :---------- | :-----------: |\n"));
       table.push_str(&format!(
-        "{}| {} | {} | {} |\n",
+        "{}| {} | {} | `{}` |\n",
         leading_whitespace,
         finding.remediation.symbol(),
         finding.ids.iter().map(|f| format!("`{f}`")).collect::<Vec<String>>().join(", "),
@@ -311,8 +316,9 @@ async fn get_addon_versions(
 
   // Since we are providing an addon name, we are only concerned with the first and only item
   let addon = describe.addons().unwrap().get(0).unwrap();
-  let latest_version_info = addon.addon_versions().unwrap().get(0).unwrap();
-  let latest_version = latest_version_info.addon_version().unwrap();
+  let addon_version = addon.addon_versions().unwrap();
+  let latest_version = addon_version.first().unwrap().addon_version().unwrap();
+
   // The default version as specified by the EKS API for a given addon and Kubernetes version
   let default_version = addon
     .addon_versions()
@@ -372,20 +378,19 @@ impl Findings for Vec<AddonVersionCompatibility> {
 
     let mut table = String::new();
     table.push_str(&format!(
-      "{leading_whitespace}|   -   | Name  | Version | Current Latest | Next Default | Next Latest |\n"
+      "{leading_whitespace}|   -   | Name  | Version | Next Default | Next Latest |\n"
     ));
     table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---- | :-----: | :------------: | :----------: | :---------: |\n"
+      "{leading_whitespace}| :---: | :---- | :-----: | :----------: | :---------: |\n"
     ));
 
     for finding in self {
       table.push_str(&format!(
-        "{}| {} | {} | {} | {} | {} | {} |\n",
+        "{}| {} | `{}` | `{}` | `{}` | `{}` |\n",
         leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
         finding.version,
-        finding.current_kubernetes_version.latest,
         finding.target_kubernetes_version.default,
         finding.target_kubernetes_version.latest,
       ))
@@ -473,13 +478,18 @@ impl Findings for Vec<AddonHealthIssue> {
 
     for finding in self {
       table.push_str(&format!(
-        "{}| {} | {} | {} | {} | {} |\n",
+        "{}| {} | `{}` | `{}` | `{}` | {} |\n",
         leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
         finding.code,
         finding.message,
-        finding.resource_ids.join(", ")
+        finding
+          .resource_ids
+          .iter()
+          .map(|f| format!("`{f}`"))
+          .collect::<Vec<String>>()
+          .join(", "),
       ))
     }
 
@@ -578,7 +588,7 @@ impl Findings for Vec<NodegroupHealthIssue> {
 
     for finding in self {
       table.push_str(&format!(
-        "{}| {} | {} | {} | {} |\n",
+        "{}| {} | `{}` | `{}` | `{}` |\n",
         leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
@@ -766,7 +776,7 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
 
     for finding in self {
       table.push_str(&format!(
-        "{}| {} | {} | {} | {} | {} |\n",
+        "{}| {} | `{}` | `{}` | `{}` | `{}` |\n",
         leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
@@ -852,7 +862,7 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
 
     for finding in self {
       table.push_str(&format!(
-        "{}| {} | {} | {} | {} | {} |\n",
+        "{}| {} | `{}` | `{}` | `{}` | `{}` |\n",
         leading_whitespace,
         finding.remediation.symbol(),
         finding.name,

@@ -18,7 +18,7 @@ pub(crate) enum Remediation {
 impl Remediation {
   pub(crate) fn symbol(&self) -> &'static str {
     match &self {
-      Remediation::Required => "‼",
+      Remediation::Required => "❌",
       Remediation::Recommended => "⚠️",
     }
   }

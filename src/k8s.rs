@@ -51,7 +51,7 @@ impl Findings for Vec<NodeFinding> {
 
     for (k, v) in counts.iter() {
       summary.push_str(&format!(
-        "{leading_whitespace}| {sym} | {v} | v{kube} | v{cp} |\n",
+        "{leading_whitespace}| {sym} | {v} | `v{kube}` | `v{cp}` |\n",
         sym = k.0,
         kube = k.1,
         cp = k.2
@@ -68,7 +68,7 @@ impl Findings for Vec<NodeFinding> {
 
     for finding in self {
       table.push_str(&format!(
-        "{}| {} | {} | v{} | v{} |\n",
+        "{}| {} | `{}` | `v{}` | `v{}` |\n",
         leading_whitespace,
         finding.remediation.symbol(),
         finding.name,
