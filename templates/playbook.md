@@ -259,5 +259,3 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 - ⚠️ Update applications running on the cluster
 - ⚠️ Update tools that interact with the cluster (kubectl, awscli, etc.)
-
-## References

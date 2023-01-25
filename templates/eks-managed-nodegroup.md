@@ -1,6 +1,7 @@
 #### EKS Managed Nodegroup
 
 ℹ️ [Updating a managed nodegroup](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html)
+
 ℹ️ [Managed nodegroup update behavior](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-update-behavior.html)
 
 The [nodegroup update config](https://docs.aws.amazon.com/eks/latest/APIReference/API_NodegroupUpdateConfig.html) supports updating multiple nodes, up to a max of 100 nodes, in parallel during an upgrade. It is recommended to start with an update configuration of 30% max unavailable percentage and adjust as necessary. Increasing this percentage will reduce the time to upgrade (until the max quota of 100 nodes is reached) but also increase the amount of churn within then nodegroup and therefore increasing the potential for disruption to services running on the nodes. Conversely, reducing the percentage will increase the time to upgrade but also reduce the amount of churn within the nodegroup and therefore reduce the potential for disruption to services running on the nodes. Users should test the impact of the update configuration on their workloads and adjust as necessary to balance between time to upgrade and potential risk for service disruption.

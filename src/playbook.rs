@@ -110,6 +110,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   let cluster_name = cluster.name().unwrap();
   let cluster_version = cluster.version().unwrap();
   let target_version = version::get_target_version(cluster_version)?;
+  let default_playbook_name = format!("{cluster_name}_v{target_version}_upgrade.md");
 
   let release_data = get_release_data()?;
   let release = release_data.get(&target_version).unwrap();
@@ -178,7 +179,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   let filename = match &args.filename {
     Some(filename) => filename,
     // TODO - update default name to include cluster name, versions, etc. that would make it unique
-    None => "playbook.md",
+    None => &default_playbook_name,
   };
 
   // TODO = handlebars should be able to handle backticks and apostrophes
