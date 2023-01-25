@@ -1,0 +1,23 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bad-job
+spec:
+  parallelism: 1
+  completions: 5
+  backoffLimit: 4
+  template:
+    spec:
+      containers:
+        - name: pause
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: dockersock
+              mountPath: '/var/run/docker.sock'
+      restartPolicy: Never
+      volumes:
+        - name: dockersock
+          hostPath:
+            path: /var/run/docker.sock

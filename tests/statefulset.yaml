@@ -1,0 +1,31 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bad-ss
+  labels:
+    app: ss
+spec:
+  replicas: 3
+  serviceName: ss-docker-volume
+  selector:
+    matchLabels:
+      app: ss
+  template:
+    metadata:
+      labels:
+        app: ss
+    spec:
+      containers:
+        - name: pause
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: dockersock
+              mountPath: '/var/run/docker.sock'
+      volumes:
+        - name: dockersock
+          hostPath:
+            path: /var/run/docker.sock

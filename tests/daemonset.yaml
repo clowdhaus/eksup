@@ -1,0 +1,29 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bad-ds
+  labels:
+    app: ds
+spec:
+  selector:
+    matchLabels:
+      app: ds
+  template:
+    metadata:
+      labels:
+        app: ds
+    spec:
+      containers:
+        - name: pause
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: dockersock
+              mountPath: '/var/run/docker.sock'
+      volumes:
+        - name: dockersock
+          hostPath:
+            path: /var/run/docker.sock

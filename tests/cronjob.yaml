@@ -1,0 +1,27 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bad-cron
+spec:
+  schedule: '*/5 * * * *'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: pause
+              image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
+              imagePullPolicy: Always
+              command:
+                - /bin/sh
+                - -c
+                - sleep 300s
+              volumeMounts:
+                - name: dockersock
+                  mountPath: '/var/run/docker.sock'
+          restartPolicy: OnFailure
+          volumes:
+            - name: dockersock
+              hostPath:
+                path: /var/run/docker.sock

@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dpl
+  labels:
+    name: dpl
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-dpl
+  namespace: dpl
+  labels:
+    app: dpl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dpl
+  template:
+    metadata:
+      labels:
+        app: dpl
+    spec:
+      containers:
+        - name: pause
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: dockersock
+              mountPath: '/var/run/docker.sock'
+      volumes:
+        - name: dockersock
+          hostPath:
+            path: /var/run/docker.sock

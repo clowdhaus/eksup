@@ -1,0 +1,30 @@
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: bad-rs
+  labels:
+    app: rs
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rs
+  template:
+    metadata:
+      labels:
+        app: rs
+    spec:
+      containers:
+        - name: pause
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: dockersock
+              mountPath: '/var/run/docker.sock'
+      volumes:
+        - name: dockersock
+          hostPath:
+            path: /var/run/docker.sock
