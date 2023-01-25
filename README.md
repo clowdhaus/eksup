@@ -32,32 +32,76 @@ The end goal of this tool is a playbook that you and your team feel confident in
 
 ## Commands
 
-- `analyze`
-  - text stdout for quick analysis from CLI
-  - `--output-format json --output-type file`: JSON stdout for data collection and reporting from a central location (CronJob), text stdout for quick analysis from CLI
-- `create`
-  - `playbook`
-    - a playbook with generic upgrade steps; informative process on cluster upgrade without need to have a cluster or access a cluster
-    - `--with-analysis`: playbook with the analysis results; most concrete set of information on the current cluster state with guidance
-- `migrate` or `transform`
-  - [Future - TBD] Given a manifest, convert the manifest to the next, stable API version. Some resources only need the API version changed, others will require the schema to be modified to match the new API version
+### Analyze
 
-### Analyze Checks
+Analyze cluster for any potential issues to remediate prior to upgrade.
 
-#### Key
+Show result as plaintext via stdout:
 
-- ℹ️  Informational: Users should be aware, but it is not a hard requirement for upgrading
-- ❌  Required: Users are strongly encouraged to address prior to upgrade to avoid any potential issues
+```sh
+eksup analyze --cluster <cluster> --region <region>
+```
 
-| Type | Code | Description
-| :--: | :---: | :-------------------------------------------------------------------------------------- |
-| ❌ | `K8S001` | The control plane version matches the version used by the data plane |
+Show result as JSON via stdout:
+
+```sh
+eksup analyze --cluster <cluster> --region <region> --format json
+```
+
+Save result as plaintext to file:
+
+```sh
+eksup analyze --cluster <cluster> --region <region> --output analysis.txt
+```
+
+Save result as JSON to S3, ignoring recommendations:
+
+```sh
+eksup analyze --cluster <cluster> --region <region> \
+  --format json --output s3://<bucket>/<filename> --ignore-recommended
+```
+
+### Create
+
+Create a playbook with analysis findings to guide users through pre-upgrade, upgrade, and post-upgrade process.
+
+Create playbook and save locally:
+
+```sh
+eksup create playbook --cluster <cluster> --region <region>
+```
+
+Create playbook and save locally, ignoring recommendations:
+
+```sh
+eksup create playbook --cluster <cluster> --region <region> --ignore-recommended
+```
+
+## Checks
+
+Please refer to [symbol table](https://github.com/clowdhaus/eksup/blob/main/docs/getting-started.md#symbol-table).
+
+### Amazon EKS Checks
+
+| Type |  Code | Description |
+| :--: | :---: | :---------- |
 | ❌ | `EKS001` | At least 5 available IPs for the control plane to upgrade; required for cross account ENI creation |
-| ℹ️ | `AWS001` | Sufficient available IPs for the nodes to support the surge, in-place rolling upgrade. Irrespective of Kubernetes, each EC2 instance |
-| ℹ️ | `AWS002` | Sufficient available IPs for the pods to support the surge, in-place rolling upgrade. This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves |
 | ❌ | `EKS002` | EKS addon(s) are compatible with the next Kubernetes version |
 | ❌ | `EKS003` | No health issues reported for the EKS cluster (control plane) |
 | ❌ | `EKS004` | No health issues reported for the EKS managed node groups. There aren't any available health statuses available from the AWS API for self-managed node groups or Fargate profiles at this time |
 | ❌ | `EKS005` | No health issues reported for the EKS addons |
-| ℹ️ | `EKS006` | EKS managed node group(s) are using latest launch template version; no pending updates |
-| ℹ️ | `EKS007` | Self-managed node group(s) are using latest launch template version; no pending updates |
+| ⚠️ | `EKS006` | EKS managed node group(s) are using latest launch template version; no pending updates |
+| ⚠️ | `EKS007` | Self-managed node group(s) are using latest launch template version; no pending updates |
+
+### Kubernetes Checks
+
+| Type |  Code | Description |
+| :--: | :---: | :---------- |
+| ❌ | `K8S001` | The control plane version matches the version used by the data plane |
+
+### AWS Checks
+
+| Type |  Code | Description |
+| :--: | :---: | :---------- |
+| ⚠️ | `AWS001` | Sufficient available IPs for the nodes to support the surge, in-place rolling upgrade. Irrespective of Kubernetes, each EC2 instance |
+| ⚠️ | `AWS002` | Sufficient available IPs for the pods to support the surge, in-place rolling upgrade. This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves |

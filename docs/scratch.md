@@ -3,57 +3,6 @@ A check must be able to answer `yes` to one of the following questions, dependin
 - Required: It will adversely affect the cluster and/or the services/applications running on the cluster during an upgrade
 - Recommended: It \*has the potential to affect the cluster and/or the services/applications running on the cluster during an upgrade
 
-## Reference
-
-### Analyze
-
-Analyze cluster for any potential issues to remediate prior to upgrade.
-
-Show result as plaintext via stdout:
-
-```sh
-eksup analyze --cluster <cluster> --region <region>
-```
-
-Show result as JSON via stdout:
-
-```sh
-eksup analyze --cluster <cluster> --region <region> --format json
-```
-
-Save result as plaintext to file:
-
-```sh
-eksup analyze --cluster <cluster> --region <region> --output analysis.txt
-```
-
-Save result as JSON to S3, ignoring recommendations:
-
-```sh
-eksup analyze \
-  --cluster <cluster> \
-  --region <region> \
-  --format json \
-  --output s3://<bucket>/<filename> \
-  --ignore-recommended
-```
-
-### Create
-
-Create a playbook with analysis findings to guide users through pre-upgrade, upgrade, and post-upgrade process.
-
-Create playbook and save locally:
-
-```sh
-eksup create playbook --cluster <cluster> --region <region>
-```
-
-Create playbook and save locally, ignoring recommendations:
-
-```sh
-eksup create playbook --cluster <cluster> --region <region> --ignore-recommended
-```
-
 ## 🚧 ToDo 🚧
 
 - [ ] Add summary at top of results shown to user for stdout and playbook
@@ -148,6 +97,8 @@ Note: the Kubernetes version these apply to will need to be taken into considera
 - [ ] Configuration file to allow users more control over what checks they want to opt in/out of, the values of those checks, etc.
 - [ ] Progress indicator https://github.com/console-rs/indicatif
 - [ ] Ability to convert from one resource API version to another (where possible)
+  - `migrate` or `transform`
+  - Given a manifest, convert the manifest to the next, stable API version. Some resources only need the API version changed, others will require the schema to be modified to match the new API version
 - [ ] Add snippets/information for commonly used provisioning tools to explain how those fit into the guidance
   - `terraform-aws-eks`/`eksctl` - how to upgrade a cluster with these tools, what will they do for the user (ensure addon versions are aligned with the Kubernetes version, the ordering of upgrade steps, etc.)
 - [ ] Configure output levels
@@ -155,12 +106,6 @@ Note: the Kubernetes version these apply to will need to be taken into considera
   2. (default, no flags) - show failed checks on hard requirements
   3. `--warn` - in addition to failed, show warnings (low number of IPs available for nodes/pods, addon version older than current default, etc.)
   4. `--info` - in addition to failed and warnings, show informational notices (number of IPs available for nodes/pods, addon version relative to current default and latest, etc.)
-
-## High Level Diagram
-
-<p align="center">
-  <img src="imgs/checks.png" alt="checks" width="100%">
-</p>
 
 ## Notes
 

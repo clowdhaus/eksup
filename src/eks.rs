@@ -172,22 +172,31 @@ impl Findings for Option<InsufficientSubnetIps> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     match self {
       Some(finding) => {
-      let mut table = String::new();
-      table.push_str(&format!("{leading_whitespace}|   -   | Subnet IDs  | Available IPs |\n"));
-      table.push_str(&format!("{leading_whitespace}| :---: | :---------- | :-----------: |\n"));
-      table.push_str(&format!(
-        "{}| {} | {} | `{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.ids.iter().map(|f| format!("`{f}`")).collect::<Vec<String>>().join(", "),
-        finding.available_ips,
-      ));
+        let mut table = String::new();
+        table.push_str(&format!(
+          "{leading_whitespace}|   -   | Subnet IDs  | Available IPs |\n"
+        ));
+        table.push_str(&format!(
+          "{leading_whitespace}| :---: | :---------- | :-----------: |\n"
+        ));
+        table.push_str(&format!(
+          "{}| {} | {} | `{}` |\n",
+          leading_whitespace,
+          finding.remediation.symbol(),
+          finding
+            .ids
+            .iter()
+            .map(|f| format!("`{f}`"))
+            .collect::<Vec<String>>()
+            .join(", "),
+          finding.available_ips,
+        ));
 
-      Some(table)
-      },
-      None => {
-        Some(format!("{leading_whitespace}:white_check_mark: - There is sufficient IP space in the subnets provided"))
+        Some(table)
       }
+      None => Some(format!(
+        "{leading_whitespace}:white_check_mark: - There is sufficient IP space in the subnets provided"
+      )),
     }
   }
 }

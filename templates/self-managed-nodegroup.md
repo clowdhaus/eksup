@@ -27,7 +27,8 @@
 1. Update the launch template, specifying the ID of an AMI that matches the control plane's Kubernetes version:
 
     ```sh
-    aws ec2 create-launch-template-version --region {{ region }}  --launch-template-id <LAUNCH_TEMPLATE_ID> \
+    aws ec2 create-launch-template-version --region {{ region }}  \
+      --launch-template-id <LAUNCH_TEMPLATE_ID> \
       --source-version <LAUNCH_TEMPLATE_VERSION> --launch-template-data 'ImageId=<AMI_ID>'
     ```
 
@@ -42,7 +43,8 @@
 2. Update the autoscaling-group to use the new launch template
 
     ```sh
-    aws autoscaling update-auto-scaling-group --region {{ region }} --auto-scaling-group-name <ASG_NAME> \
+    aws autoscaling update-auto-scaling-group --region {{ region }}
+      --auto-scaling-group-name <ASG_NAME> \
       --launch-template LaunchTemplateId=<LAUNCH_TEMPLATE_ID>,Version='$Latest'
     ```
 

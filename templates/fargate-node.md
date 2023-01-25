@@ -9,12 +9,20 @@ The Kubernetes version used by Fargate nodes is referenced from the control plan
 
 1. To update the Fargate node(s) used, use the Kubernetes [eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to evict the node while respecting `PodDisruptionBudgets` and `terminationGracePeriodSeconds`.
 
-      ```sh
-      kubectl drain <FARGATE-NODE> --delete-emptydir-data
-      ```
+    Ensure you have updated your `kubeconfig` locally before executing the following commands:
 
-Fargate nodes are identified by their `fargate-*` name prefix.
+    ```sh
+    aws eks update-kubeconfig --region {{ region }}  --name {{ cluster_name }}
+    ```
 
-      ```sh
-      kubectl get nodes | grep '\bfargate-'
-      ```
+    Fargate nodes are identified by their `fargate-*` name prefix.
+
+    ```sh
+    kubectl get nodes | grep '\bfargate-'
+    ```
+
+    Drain the node to ensure the `PodDisruptionBudgets` and `terminationGracePeriodSeconds`
+
+    ```sh
+    kubectl drain <FARGATE-NODE> --delete-emptydir-data
+    ```
