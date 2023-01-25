@@ -1,7 +1,10 @@
-// use k8s_openapi::api::{apps, batch, core, policy};
 use std::collections::BTreeMap;
 
-use k8s_openapi::api::core;
+use k8s_openapi::api::{apps, batch, core};
+use k8s_openapi::api::{
+  apps::v1::{DaemonSetSpec, DeploymentSpec, ReplicaSetSpec, StatefulSetSpec},
+  batch::v1::{CronJobSpec, JobSpec},
+};
 use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -14,7 +17,6 @@ use crate::{
 /// Node details as viewed from the Kubernetes API
 ///
 /// Contains information related to the Kubernetes component versions
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct NodeFinding {
   pub(crate) name: String,
@@ -60,10 +62,10 @@ impl Findings for Vec<NodeFinding> {
 
     let mut table = String::new();
     table.push_str(&format!(
-      "{leading_whitespace}|  -  | Node Name  | Kubelet Version | Control Plane Version |\n"
+      "{leading_whitespace}|   -   | Node Name | Kubelet Version | Control Plane Version |\n"
     ));
     table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---- | :-------------- | :-------------------- |\n"
+      "{leading_whitespace}| :---: | :-------- | :-------------- | :-------------------- |\n"
     ));
 
     for finding in self {
@@ -155,6 +157,201 @@ pub(crate) async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>, an
   Ok(eniconfigs)
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct Metadata {
+  pub(crate) name: String,
+  pub(crate) namespace: String,
+  pub(crate) labels: BTreeMap<String, String>,
+  pub(crate) annotations: BTreeMap<String, String>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct Deployment {
+  pub(crate) metadata: Metadata,
+  pub(crate) spec: DeploymentSpec,
+}
+
+pub(crate) async fn _get_deployments(client: &Client) -> Result<Vec<Deployment>, anyhow::Error> {
+  let api: Api<apps::v1::Deployment> = Api::all(client.clone());
+  let deployment_list = api.list(&Default::default()).await?;
+
+  let deployments = deployment_list
+    .items
+    .iter()
+    .map(|dplmnt| {
+      let objmeta = dplmnt.metadata.clone();
+      let spec = dplmnt.spec.clone().unwrap();
+
+      let metadata = Metadata {
+        name: objmeta.name.unwrap(),
+        namespace: objmeta.namespace.unwrap(),
+        labels: objmeta.labels.unwrap_or_default(),
+        annotations: objmeta.annotations.unwrap_or_default(),
+      };
+      Deployment { metadata, spec }
+    })
+    .collect();
+
+  Ok(deployments)
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct ReplicaSet {
+  pub(crate) metadata: Metadata,
+  pub(crate) spec: ReplicaSetSpec,
+}
+
+async fn _get_replicasets(client: &Client) -> Result<Vec<ReplicaSet>, anyhow::Error> {
+  let api: Api<apps::v1::ReplicaSet> = Api::all(client.clone());
+  let replicaset_list = api.list(&Default::default()).await?;
+
+  let replicasets = replicaset_list
+    .items
+    .iter()
+    .map(|repl| {
+      let objmeta = repl.metadata.clone();
+      let spec = repl.spec.clone().unwrap();
+
+      let metadata = Metadata {
+        name: objmeta.name.unwrap(),
+        namespace: objmeta.namespace.unwrap(),
+        labels: objmeta.labels.unwrap_or_default(),
+        annotations: objmeta.annotations.unwrap_or_default(),
+      };
+      ReplicaSet { metadata, spec }
+    })
+    .collect();
+
+  Ok(replicasets)
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct StatefulSet {
+  pub(crate) metadata: Metadata,
+  pub(crate) spec: StatefulSetSpec,
+}
+
+async fn _get_statefulsets(client: &Client) -> Result<Vec<StatefulSet>, anyhow::Error> {
+  let api: Api<apps::v1::StatefulSet> = Api::all(client.clone());
+  let statefulset_list = api.list(&Default::default()).await?;
+
+  let statefulsets = statefulset_list
+    .items
+    .iter()
+    .map(|sset| {
+      let objmeta = sset.metadata.clone();
+      let spec = sset.spec.clone().unwrap();
+
+      let metadata = Metadata {
+        name: objmeta.name.unwrap(),
+        namespace: objmeta.namespace.unwrap(),
+        labels: objmeta.labels.unwrap_or_default(),
+        annotations: objmeta.annotations.unwrap_or_default(),
+      };
+      StatefulSet { metadata, spec }
+    })
+    .collect();
+
+  Ok(statefulsets)
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct DaemonSet {
+  pub(crate) metadata: Metadata,
+  pub(crate) spec: DaemonSetSpec,
+}
+
+async fn _get_daemonset(client: &Client) -> Result<Vec<DaemonSet>, anyhow::Error> {
+  let api: Api<apps::v1::DaemonSet> = Api::all(client.clone());
+  let daemonset_list = api.list(&Default::default()).await?;
+
+  let daemonsets = daemonset_list
+    .items
+    .iter()
+    .map(|dset| {
+      let objmeta = dset.metadata.clone();
+      let spec = dset.spec.clone().unwrap();
+
+      let metadata = Metadata {
+        name: objmeta.name.unwrap(),
+        namespace: objmeta.namespace.unwrap(),
+        labels: objmeta.labels.unwrap_or_default(),
+        annotations: objmeta.annotations.unwrap_or_default(),
+      };
+      DaemonSet { metadata, spec }
+    })
+    .collect();
+
+  Ok(daemonsets)
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct Job {
+  pub(crate) metadata: Metadata,
+  pub(crate) spec: JobSpec,
+}
+
+async fn _get_jobs(client: &Client) -> Result<Vec<Job>, anyhow::Error> {
+  let api: Api<batch::v1::Job> = Api::all(client.clone());
+  let job_list = api.list(&Default::default()).await?;
+
+  let jobs = job_list
+    .items
+    .iter()
+    .map(|job| {
+      let objmeta = job.metadata.clone();
+      let spec = job.spec.clone().unwrap();
+
+      let metadata = Metadata {
+        name: objmeta.name.unwrap(),
+        namespace: objmeta.namespace.unwrap(),
+        labels: objmeta.labels.unwrap_or_default(),
+        annotations: objmeta.annotations.unwrap_or_default(),
+      };
+      Job { metadata, spec }
+    })
+    .collect();
+
+  Ok(jobs)
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct CronJob {
+  pub(crate) metadata: Metadata,
+  pub(crate) spec: CronJobSpec,
+}
+
+async fn _get_cronjobs(client: &Client) -> Result<Vec<CronJob>, anyhow::Error> {
+  let api: Api<batch::v1::CronJob> = Api::all(client.clone());
+  let cronjob_list = api.list(&Default::default()).await?;
+
+  let cronjobs = cronjob_list
+    .items
+    .iter()
+    .map(|cjob| {
+      let objmeta = cjob.metadata.clone();
+      let spec = cjob.spec.clone().unwrap();
+
+      let metadata = Metadata {
+        name: objmeta.name.unwrap(),
+        namespace: objmeta.namespace.unwrap(),
+        labels: objmeta.labels.unwrap_or_default(),
+        annotations: objmeta.annotations.unwrap_or_default(),
+      };
+      CronJob { metadata, spec }
+    })
+    .collect();
+
+  Ok(cronjobs)
+}
+
 // async fn _get_podsecuritypolicies(
 //   client: &Client,
 // ) -> Result<Vec<policy::v1beta1::PodSecurityPolicy>, anyhow::Error> {
@@ -162,46 +359,4 @@ pub(crate) async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>, an
 //   let nodes = api.list(&Default::default()).await?;
 
 //   Ok(nodes.items)
-// }
-
-// async fn _get_cronjobs(client: &Client) -> Result<Vec<batch::v1::CronJob>, anyhow::Error> {
-//   let api: Api<batch::v1::CronJob> = Api::all(client.clone());
-//   let cronjobs = api.list(&Default::default()).await?;
-
-//   Ok(cronjobs.items)
-// }
-
-// async fn _get_daemonset(client: &Client) -> Result<Vec<apps::v1::DaemonSet>, anyhow::Error> {
-//   let api: Api<apps::v1::DaemonSet> = Api::all(client.clone());
-//   let daemonsets = api.list(&Default::default()).await?;
-
-//   Ok(daemonsets.items)
-// }
-
-// async fn _get_deployments(client: &Client) -> Result<Vec<apps::v1::Deployment>, anyhow::Error> {
-//   let api: Api<apps::v1::Deployment> = Api::all(client.clone());
-//   let deployments = api.list(&Default::default()).await?;
-
-//   Ok(deployments.items)
-// }
-
-// async fn _get_jobs(client: &Client) -> Result<Vec<batch::v1::Job>, anyhow::Error> {
-//   let api: Api<batch::v1::Job> = Api::all(client.clone());
-//   let jobs = api.list(&Default::default()).await?;
-
-//   Ok(jobs.items)
-// }
-
-// async fn _get_replicasets(client: &Client) -> Result<Vec<apps::v1::ReplicaSet>, anyhow::Error> {
-//   let api: Api<apps::v1::ReplicaSet> = Api::all(client.clone());
-//   let replicasets = api.list(&Default::default()).await?;
-
-//   Ok(replicasets.items)
-// }
-
-// async fn _get_statefulsets(client: &Client) -> Result<Vec<apps::v1::StatefulSet>, anyhow::Error> {
-//   let api: Api<apps::v1::StatefulSet> = Api::all(client.clone());
-//   let statefulsets = api.list(&Default::default()).await?;
-
-//   Ok(statefulsets.items)
 // }
