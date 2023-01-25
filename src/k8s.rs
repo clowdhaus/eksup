@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
 
-use k8s_openapi::api::{apps, batch, core};
 use k8s_openapi::api::{
+  apps,
   apps::v1::{DaemonSetSpec, DeploymentSpec, ReplicaSetSpec, StatefulSetSpec},
+  batch,
   batch::v1::{CronJobSpec, JobSpec},
+  core,
 };
 use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;
@@ -157,6 +159,112 @@ pub(crate) async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>, an
   Ok(eniconfigs)
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct Resource {
+  /// Name of the resources
+  pub(crate) name: String,
+  /// Namespace where the resource is provisioned
+  pub(crate) namespace: String,
+  /// Kind of the resource
+  pub(crate) kind: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct MinReplicaFinding {
+  pub(crate) resource: Resource,
+  /// Number of replicas
+  pub(crate) replicas: i32,
+  pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct MinReadySecondsFinding {
+  pub(crate) resource: Resource,
+  /// Min ready seconds
+  pub(crate) seconds: i32,
+  pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct UpdateStrategyFinding {
+  pub(crate) resource: Resource,
+  /// Update strategy
+  pub(crate) strategy: String,
+  pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct PodDisruptionBudgetFinding {
+  pub(crate) resource: Resource,
+  /// Has pod associated pod disruption budget
+  /// TODO - more relevant information than just present?
+  pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct PodTopologyDistributionFinding {
+  pub(crate) resource: Resource,
+  ///
+  pub(crate) anti_affinity: Option<String>,
+  ///
+  pub(crate) toplogy_spread_constraints: Option<String>,
+  pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct ProbeFinding {
+  pub(crate) resource: Resource,
+  ///
+  pub(crate) readiness: Option<String>,
+  pub(crate) liveness: Option<String>,
+  pub(crate) startup: Option<String>,
+
+  pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct TerminationGracePeriodFinding {
+  pub(crate) resource: Resource,
+  /// Min ready seconds
+  pub(crate) seconds: i32,
+  pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct DockerSocketFinding {
+  pub(crate) resource: Resource,
+  ///
+  pub(crate) volumes: Vec<String>,
+  pub(crate) remediation: finding::Remediation,
+  pub(crate) fcode: finding::Code,
+}
+
+trait K8sFindings {
+  /// K8S002 - check if resources contain a minimum of 3 replicas
+  fn min_replicas(&self) -> Result<Vec<MinReplicaFinding>, anyhow::Error>;
+  /// K8S003 - check if resources contain minReadySeconds > 0
+  fn min_ready_seconds(&self) -> Result<Vec<MinReadySecondsFinding>, anyhow::Error>;
+  /// K8S004 - check if resources use correct upate strategy
+  fn update_strategy(&self) -> Result<Vec<UpdateStrategyFinding>, anyhow::Error>;
+  /// K8S005 - check if resources have associated podDisruptionBudgets
+  fn pod_disruption_budget(&self) -> Result<Vec<PodDisruptionBudgetFinding>, anyhow::Error>;
+  /// K8S006 - check if resources have podAntiAffinity or topologySpreadConstraints
+  fn pod_topology_distribution(&self) -> Result<Vec<PodTopologyDistributionFinding>, anyhow::Error>;
+  /// K8S007 - check if resources have readinessProbe
+  fn readiness_probe(&self) -> Result<Vec<ProbeFinding>, anyhow::Error>;
+  /// K8S008 - check if resources have TerminationGracePeriodSeconds > 0
+  fn termination_grace_period(&self) -> Result<Vec<TerminationGracePeriodFinding>, anyhow::Error>;
+  /// K8S009 - check if resources use the Docker socket
+  fn docker_socket(&self) -> Result<Vec<DockerSocketFinding>, anyhow::Error>;
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct Metadata {
@@ -195,6 +303,31 @@ pub(crate) async fn _get_deployments(client: &Client) -> Result<Vec<Deployment>,
     .collect();
 
   Ok(deployments)
+}
+
+impl K8sFindings for Deployment {
+  fn min_replicas(&self) -> Result<Vec<MinReplicaFinding>, anyhow::Error> {
+    let mut findings = Vec::new();
+
+    for obj in self {
+      if obj.spec.replicas.unwrap_or(1) < 3 {
+        let resource = Resource {
+          name: obj.metadata.name.clone(),
+          namespace: obj.metadata.namespace.clone(),
+          kind: "Deployment".to_string(),
+        };
+
+        findings.push(MinReplicaFinding {
+          resource,
+          replicas,
+          remediation: finding::Remediation::Required,
+          fcode: finding::Code::K8S002,
+        });
+      }
+    }
+
+    Ok(findings)
+  }
 }
 
 #[allow(dead_code)]
