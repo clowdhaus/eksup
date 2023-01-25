@@ -27,3 +27,52 @@ spec:
         - name: dockersock
           hostPath:
             path: /var/run/docker.sock
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: good-ds
+  labels:
+    app: ds
+spec:
+  selector:
+    matchLabels:
+      app: ds
+  template:
+    metadata:
+      labels:
+        app: ds
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 20001
+        fsGroup: 30001
+      containers:
+        - name: pause
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+              ephemeral-storage: 100M
+            limits:
+              cpu: 100m
+              memory: 100Mi
+              ephemeral-storage: 100M
+          securityContext:
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: tmp
+          hostPath:
+            path: /tmp

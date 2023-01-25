@@ -21,3 +21,41 @@ spec:
         - name: dockersock
           hostPath:
             path: /var/run/docker.sock
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: good-job
+spec:
+  parallelism: 1
+  completions: 5
+  backoffLimit: 4
+  template:
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 20001
+        fsGroup: 30001
+      containers:
+        - name: pause
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+              ephemeral-storage: 100M
+            limits:
+              cpu: 100m
+              memory: 100Mi
+              ephemeral-storage: 100M
+          securityContext:
+            readOnlyRootFilesystem: true
+      restartPolicy: Never
+      volumes:
+        - name: tmp
+          hostPath:
+            path: /tmp
