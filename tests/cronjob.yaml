@@ -1,8 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cronjob
+  labels:
+    name: cronjob
 ---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: bad-cron
+  namespace: cronjob
 spec:
   schedule: '*/5 * * * *'
   jobTemplate:
@@ -30,6 +37,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: good-cron
+  namespace: cronjob
 spec:
   schedule: '*/5 * * * *'
   startingDeadlineSeconds: 10
@@ -57,13 +65,7 @@ spec:
                   cpu: 100m
                   memory: 100Mi
                   ephemeral-storage: 100M
-              securityContext:
-                readOnlyRootFilesystem: true
           restartPolicy: OnFailure
-          securityContext:
-            runAsUser: 10001
-            runAsGroup: 20001
-            fsGroup: 30001
           volumes:
             - name: tmp
               hostPath:

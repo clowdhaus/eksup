@@ -1,33 +1,33 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: dpl
+  name: deployment
   labels:
-    name: dpl
+    name: deployment
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bad-dpl
-  namespace: dpl
+  namespace: deployment
   labels:
-    app: dpl
+    app: bad-dpl
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dpl
+      app: bad-dpl
   template:
     metadata:
       labels:
-        app: dpl
+        app: bad-dpl
     spec:
       containers:
-        - name: pause
-          image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
+        - name: goproxy
+          image: registry.k8s.io/goproxy:0.1
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 8080
           volumeMounts:
             - name: dockersock
               mountPath: '/var/run/docker.sock'
@@ -40,49 +40,38 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: good-dpl
-  namespace: dpl
+  namespace: deployment
   labels:
-    app: dpl
+    app: good-dpl
 spec:
   replicas: 3
-  minReadySeconds: 10
+  minReadySeconds: 3
   selector:
     matchLabels:
-      app: dpl
+      app: good-dpl
   template:
     metadata:
       labels:
-        app: dpl
+        app: good-dpl
     spec:
-      securityContext:
-        runAsUser: 10001
-        runAsGroup: 20001
-        fsGroup: 30001
       containers:
-        - name: pause
-          image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
-          imagePullPolicy: Always
+        - name: goproxy
+          image: registry.k8s.io/goproxy:0.1
           ports:
-            - containerPort: 80
+          - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-          resources:
-            requests:
-              cpu: 100m
-              memory: 100Mi
-              ephemeral-storage: 100M
-            limits:
-              cpu: 100m
-              memory: 100Mi
-              ephemeral-storage: 100M
-          securityContext:
-            readOnlyRootFilesystem: true
-          readinessProbe:
-            tcpSocket:
-              port: 80
-            initialDelaySeconds: 5
-            periodSeconds: 10
       volumes:
         - name: tmp
           hostPath:

@@ -191,11 +191,36 @@ pub(crate) async fn analyze(
   let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
   let k8s_client = kube::Client::try_default().await?;
 
-  let dplmnts = k8s::_get_deployments(&k8s_client).await?;
+  let cronjobs = k8s::_get_cronjobs(&k8s_client).await?;
+  let daemonsets = k8s::_get_daemonsets(&k8s_client).await?;
+  let deployments = k8s::_get_deployments(&k8s_client).await?;
+  let jobs = k8s::_get_jobs(&k8s_client).await?;
+  let replicasets = k8s::_get_replicasets(&k8s_client).await?;
+  let statefulsets = k8s::_get_statefulsets(&k8s_client).await?;
 
-  for dplmnt in dplmnts {
-    println!("{:#?}", dplmnt.min_replicas()?);
-    println!("{:#?}", dplmnt.min_ready_seconds()?);
+  for cron in cronjobs {
+    println!("{:#?}", cron.min_replicas()?);
+    println!("{:#?}", cron.min_ready_seconds()?);
+  }
+  for daemon in daemonsets {
+    println!("{:#?}", daemon.min_replicas()?);
+    println!("{:#?}", daemon.min_ready_seconds()?);
+  }
+  for deploy in deployments {
+    println!("{:#?}", deploy.min_replicas()?);
+    println!("{:#?}", deploy.min_ready_seconds()?);
+  }
+  for job in jobs {
+    println!("{:#?}", job.min_replicas()?);
+    println!("{:#?}", job.min_ready_seconds()?);
+  }
+    for repl in replicasets {
+    println!("{:#?}", repl.min_replicas()?);
+    println!("{:#?}", repl.min_ready_seconds()?);
+  }
+    for set in statefulsets {
+    println!("{:#?}", set.min_replicas()?);
+    println!("{:#?}", set.min_ready_seconds()?);
   }
 
   let cluster_name = cluster.name().unwrap();

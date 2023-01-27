@@ -392,7 +392,7 @@ pub(crate) async fn _get_deployments(client: &Client) -> Result<Vec<StdResource>
   Ok(deployments)
 }
 
-async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
   let api: Api<apps::v1::ReplicaSet> = Api::all(client.clone());
   let replicaset_list = api.list(&Default::default()).await?;
 
@@ -425,7 +425,7 @@ async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>, anyhow::E
   Ok(replicasets)
 }
 
-async fn _get_statefulsets(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_statefulsets(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
   let api: Api<apps::v1::StatefulSet> = Api::all(client.clone());
   let statefulset_list = api.list(&Default::default()).await?;
 
@@ -458,7 +458,7 @@ async fn _get_statefulsets(client: &Client) -> Result<Vec<StdResource>, anyhow::
   Ok(statefulsets)
 }
 
-async fn _get_daemonset(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_daemonsets(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
   let api: Api<apps::v1::DaemonSet> = Api::all(client.clone());
   let daemonset_list = api.list(&Default::default()).await?;
 
@@ -491,7 +491,7 @@ async fn _get_daemonset(client: &Client) -> Result<Vec<StdResource>, anyhow::Err
   Ok(daemonsets)
 }
 
-async fn _get_jobs(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_jobs(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
   let api: Api<batch::v1::Job> = Api::all(client.clone());
   let job_list = api.list(&Default::default()).await?;
 
@@ -524,7 +524,7 @@ async fn _get_jobs(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
   Ok(jobs)
 }
 
-async fn _get_cronjobs(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_cronjobs(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
   let api: Api<batch::v1::CronJob> = Api::all(client.clone());
   let cronjob_list = api.list(&Default::default()).await?;
 
