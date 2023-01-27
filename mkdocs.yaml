@@ -1,0 +1,59 @@
+site_author: ClowdHaus
+site_name: EKS Cluster Upgrade Guidance
+site_description: EKS Cluster Upgrade Guidance
+copyright: 'Copyright &copy; ClowdHaus 2023'
+repo_name: clowdhaus/eksup
+repo_url: https://github.com/clowdhaus/eksup
+edit_uri: "https://github.com/clowdhaus/eksup/tree/main/docs"
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Design: design.md
+  - Scratch: scratch.md
+
+theme:
+  name: material
+  logo: imgs/favicon.ico
+  favicon: imgs/favicon.ico
+  font:
+    text: ember
+  palette:
+    primary: orange
+    accent: deep orange
+  icon:
+    repo: fontawesome/brands/github
+    admonition:
+      note: octicons/tag-16
+      abstract: octicons/checklist-16
+      info: octicons/info-16
+      tip: octicons/squirrel-16
+      success: octicons/check-16
+      question: octicons/question-16
+      warning: octicons/alert-16
+      failure: octicons/x-circle-16
+      danger: octicons/zap-16
+      bug: octicons/bug-16
+      example: octicons/beaker-16
+      quote: octicons/quote-16
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+
+plugins:
+  - search:
+      lang:
+        - en
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - pymdownx.critic
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - toc:
+      permalink: true

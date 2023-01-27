@@ -214,11 +214,11 @@ pub(crate) async fn analyze(
     println!("{:#?}", job.min_replicas()?);
     println!("{:#?}", job.min_ready_seconds()?);
   }
-    for repl in replicasets {
+  for repl in replicasets {
     println!("{:#?}", repl.min_replicas()?);
     println!("{:#?}", repl.min_ready_seconds()?);
   }
-    for set in statefulsets {
+  for set in statefulsets {
     println!("{:#?}", set.min_replicas()?);
     println!("{:#?}", set.min_ready_seconds()?);
   }
