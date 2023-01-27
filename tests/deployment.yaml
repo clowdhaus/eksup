@@ -44,7 +44,8 @@ metadata:
   labels:
     app: dpl
 spec:
-  replicas: 1
+  replicas: 3
+  minReadySeconds: 10
   selector:
     matchLabels:
       app: dpl

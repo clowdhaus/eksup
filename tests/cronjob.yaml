@@ -37,10 +37,6 @@ spec:
     spec:
       template:
         spec:
-          securityContext:
-            runAsUser: 10001
-            runAsGroup: 20001
-            fsGroup: 30001
           containers:
             - name: pause
               image: public.ecr.aws/eks-distro/kubernetes/pause:3.8
@@ -64,6 +60,10 @@ spec:
               securityContext:
                 readOnlyRootFilesystem: true
           restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 10001
+            runAsGroup: 20001
+            fsGroup: 30001
           volumes:
             - name: tmp
               hostPath:

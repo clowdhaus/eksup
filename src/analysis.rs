@@ -4,7 +4,10 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::{eks, k8s};
+use crate::{
+  eks,
+  k8s::{self, K8sFindings},
+};
 
 /// Findings related to the cluster itself, primarily the control plane
 #[allow(dead_code)]
@@ -187,6 +190,13 @@ pub(crate) async fn analyze(
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
   let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
   let k8s_client = kube::Client::try_default().await?;
+
+  let dplmnts = k8s::_get_deployments(&k8s_client).await?;
+
+  for dplmnt in dplmnts {
+    println!("{:#?}", dplmnt.min_replicas()?);
+    println!("{:#?}", dplmnt.min_ready_seconds()?);
+  }
 
   let cluster_name = cluster.name().unwrap();
   let cluster_version = cluster.version().unwrap();

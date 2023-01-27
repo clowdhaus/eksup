@@ -33,19 +33,19 @@ A check must be able to answer `yes` to one of the following questions, dependin
 
 ### Kubernetes Highly Available
 
-|   Check    | Deployment | ReplicaSet | ReplicationController | StatefulSet | Job | CronJob |
-| :--------: | :--------: | :--------: | :-------------------: | :---------: | :-: | :-----: |
-| [`K8S001`] |     -      |     -      |           -           |      -      |  -  |    -    |
-| [`K8S002`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |
-| [`K8S003`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |
-| [`K8S004`] |     ✅     |     ✅     |          ❌           |     ✅      | ❌  |   ❌    |
-| [`K8S005`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |
-| [`K8S006`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |
-| [`K8S007`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |
-| [`K8S008`] |     ❌     |     ❌     |          ❌           |     ✅      | ❌  |   ❌    |
-| [`K8S009`] |     ✅     |     ✅     |          ✅           |     ✅      | ✅  |   ✅    |
-| [`K8S010`] |     -      |     -      |           -           |      -      |  -  |    -    |
-| [`K8S011`] |     -      |     -      |           -           |      -      |  -  |    -    |
+|   Check    | Deployment | ReplicaSet | ReplicationController | StatefulSet | Job | CronJob | Daemonset |
+| :--------: | :--------: | :--------: | :-------------------: | :---------: | :-: | :-----: | :-------: |
+| [`K8S001`] |     -      |     -      |           -           |      -      |  -  |    -    |     -     |
+| [`K8S002`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
+| [`K8S003`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
+| [`K8S004`] |     ✅     |     ✅     |          ❌           |     ✅      | ❌  |   ❌    |    ❌     |
+| [`K8S005`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
+| [`K8S006`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
+| [`K8S007`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
+| [`K8S008`] |     ❌     |     ❌     |          ❌           |     ✅      | ❌  |   ❌    |    ❌     |
+| [`K8S009`] |     ✅     |     ✅     |          ✅           |     ✅      | ✅  |   ✅    |    ✅     |
+| [`K8S010`] |     -      |     -      |           -           |      -      |  -  |    -    |     -     |
+| [`K8S011`] |     -      |     -      |           -           |      -      |  -  |    -    |     -     |
 
 - [ ] [`K8S002`] `.spec.replicas` set >= 3
 - [ ] [`K8S003`] `.spec.minReadySeconds` set > 0 - https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
