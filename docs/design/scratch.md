@@ -132,7 +132,7 @@ Note: the Kubernetes version these apply to will need to be taken into considera
 - Do we have different guidance for large clusters?
   - See note on [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity)
 
-## Kubernetes Future Features
+## Kubernetes Upcoming Features
 
 Relevant features that are coming in future releases of Kubernetes. A feature is "relevant" in in this context if it is something that would be checked and reported on by `eksup` to aid in upgrades:
 

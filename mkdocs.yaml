@@ -8,9 +8,15 @@ edit_uri: "https://github.com/clowdhaus/eksup/tree/main/docs"
 
 nav:
   - Home: index.md
-  - Getting Started: getting-started.md
-  - Design: design.md
-  - Scratch: scratch.md
+  - Process:
+      - Getting Started: process/index.md
+      - Upgrade Control Plane: process/upgrade-control-plane.md
+      - Upgrade Data Plane: process/upgrade-data-plane.md
+      - Upgrade Addons: process/upgrade-addons.md
+  - Design:
+    - Overview: design/overview.md
+    - Checks: design/checks.md
+    - Scratch: design/scratch.md
 
 theme:
   name: material

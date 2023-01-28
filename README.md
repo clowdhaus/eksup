@@ -37,45 +37,44 @@ cargo build --release
 
 `eksup` uses Rust stable for production builds, but nightly for local development for formatting and linting. It is not a requirement to use nightly, but if running `fmt` you may see a few warnings on certain features only being available on nightly.
 
-- Ensure that you have rust installed locally
-- Build the project to pull down dependencies and ensure everything is working
+Build the project to pull down dependencies and ensure everything is setup properly:
 
-  ```sh
-  cargo build
-  ```
+```sh
+cargo build
+```
 
-- To format the codebase:
+To format the codebase:
 
-  If using nightly to use features defined in [rustfmt.toml](rustfmt.toml), run the following:
+If using nightly to use features defined in [rustfmt.toml](rustfmt.toml), run the following:
 
-  ```sh
-  cargo +nightly fmt --all
-  ```
+```sh
+cargo +nightly fmt --all
+```
 
-  If using stable, run the following:
+If using stable, run the following:
 
-  ```sh
-  cargo fmt --all
-  ```
+```sh
+cargo fmt --all
+```
 
-- To lint the codebase:
+To execute lint checks:
 
-  ```sh
-  cargo clippy --all-targets --all-features
-  ```
+```sh
+cargo clippy --all-targets --all-features
+```
 
-- To run `eksup` locally for development, simply pass `eksup` commands and arguments after `cargo run --` as follows:
+To run `eksup` locally for development, simply pass `eksup` commands and arguments after `cargo run --` as follows:
 
-  ```sh
-  cargo run -- analyze --cluster <cluster> --region <region>
-  ```
+```sh
+cargo run -- analyze --cluster <cluster> --region <region>
+```
 
-  You can think of `cargo run --` as an alias for `eksup` when running locally.
-  Note: you will need to have access to the cluster you are analyzing. This is generally done by ensuring you have a valid `~/.kube/config` file; one can be created/updated by running:
+You can think of `cargo run --` as an alias for `eksup` when running locally.
+Note: you will need to have access to the cluster you are analyzing. This is generally done by ensuring you have a valid `~/.kube/config` file; one can be created/updated by running:
 
-  ```sh
-  aws eks update-kubeconfig --name <cluster> --region <region>
-  ```
+```sh
+aws eks update-kubeconfig --name <cluster> --region <region>
+```
 
 ### Running Tests
 
