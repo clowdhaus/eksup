@@ -46,7 +46,6 @@ pub(crate) async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluste
 /// Cluster health issue data
 ///
 /// Nearly identical to the SDK's `ClusterIssue` but allows us to serialize/deserialize
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct ClusterHealthIssue {
   pub(crate) code: String,
@@ -123,7 +122,6 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealt
 }
 
 /// Container for the subnet IDs and their total available IPs
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SubnetIPs {
   ids: Vec<String>,
@@ -159,7 +157,6 @@ async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<S
 }
 
 /// Subnet details that can affect upgrade behavior
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct InsufficientSubnetIps {
   pub(crate) ids: Vec<String>,
@@ -294,7 +291,6 @@ pub(crate) async fn get_addons(client: &EksClient, cluster_name: &str) -> Result
   Ok(addons)
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AddonVersion {
   /// Latest supported version of the addon
@@ -359,7 +355,6 @@ async fn get_addon_versions(client: &EksClient, name: &str, kubernetes_version: 
 /// The intended goal is to be able to plot a path of what steps a user either
 /// needs to take to upgrade the cluster, or should consider taking in terms
 /// of a recommendation to update to the latest supported version.
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AddonVersionCompatibility {
   pub(crate) name: String,
@@ -454,7 +449,6 @@ pub(crate) async fn addon_version_compatibility(
 /// Addon health issue data
 ///
 /// Nearly identical to the SDK's `AddonIssue` but allows us to serialize/deserialize
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AddonHealthIssue {
   pub(crate) name: String,
@@ -566,7 +560,6 @@ pub(crate) async fn get_eks_managed_nodegroups(client: &EksClient, cluster_name:
 ///
 /// Nearly similar to the SDK's `NodegroupHealth` but flattened
 /// and without `Option()`s to make it a bit more ergonomic here
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct NodegroupHealthIssue {
   pub(crate) name: String,
@@ -697,7 +690,6 @@ pub(crate) async fn _get_fargate_profiles(client: &EksClient, cluster_name: &str
   Ok(profiles)
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct LaunchTemplate {
   /// Name of the launch template
@@ -735,7 +727,6 @@ async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchTempl
   }
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct ManagedNodeGroupUpdate {
   /// EKS managed node group name
@@ -826,7 +817,6 @@ pub(crate) async fn eks_managed_nodegroup_update(
   }
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AutoscalingGroupUpdate {
   /// Autoscaling group name

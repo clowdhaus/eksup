@@ -5,13 +5,9 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-  eks,
-  k8s::{self, K8sFindings},
-};
+use crate::{eks, k8s};
 
 /// Findings related to the cluster itself, primarily the control plane
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct ClusterFindings {
   /// The health of the cluster as reported by the Amazon EKS API
@@ -26,7 +22,6 @@ async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings> {
 }
 
 /// Networking/subnet findings, primarily focused on IP exhaustion/number of available IPs
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct SubnetFindings {
   /// The Amazon EKS service requires at least 5 available IPs in order to upgrade a cluster in-place
@@ -66,7 +61,6 @@ async fn get_subnet_findings(
 /// Either native EKS addons or addons deployed through the AWS Marketplace integration.
 /// It does NOT include custom addons or services deployed by users using kubectl/Helm/etc.,
 /// it is only evaluating those that can be accessed via the AWS EKS API
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AddonFindings {
   /// Determines whether or not the current addon version is supported by Amazon EKS in the
@@ -97,7 +91,6 @@ async fn get_addon_findings(
 ///
 /// This does not include findings for resources that are running on the cluster, within the data plane
 /// (pods, deployments, etc.)
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct DataPlaneFindings {
   /// The skew/diff between the cluster control plane (API Server) and the nodes in the data plane (kubelet)
@@ -172,7 +165,6 @@ async fn get_data_plane_findings(
 }
 
 /// Container of all findings collected
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Results {
   pub(crate) cluster: ClusterFindings,
@@ -189,38 +181,6 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
   let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
   let k8s_client = kube::Client::try_default().await?;
 
-  let cronjobs = k8s::_get_cronjobs(&k8s_client).await?;
-  let daemonsets = k8s::_get_daemonsets(&k8s_client).await?;
-  let deployments = k8s::_get_deployments(&k8s_client).await?;
-  let jobs = k8s::_get_jobs(&k8s_client).await?;
-  let replicasets = k8s::_get_replicasets(&k8s_client).await?;
-  let statefulsets = k8s::_get_statefulsets(&k8s_client).await?;
-
-  for cron in cronjobs {
-    println!("{:#?}", cron.min_replicas()?);
-    println!("{:#?}", cron.min_ready_seconds()?);
-  }
-  for daemon in daemonsets {
-    println!("{:#?}", daemon.min_replicas()?);
-    println!("{:#?}", daemon.min_ready_seconds()?);
-  }
-  for deploy in deployments {
-    println!("{:#?}", deploy.min_replicas()?);
-    println!("{:#?}", deploy.min_ready_seconds()?);
-  }
-  for job in jobs {
-    println!("{:#?}", job.min_replicas()?);
-    println!("{:#?}", job.min_ready_seconds()?);
-  }
-  for repl in replicasets {
-    println!("{:#?}", repl.min_replicas()?);
-    println!("{:#?}", repl.min_ready_seconds()?);
-  }
-  for set in statefulsets {
-    println!("{:#?}", set.min_replicas()?);
-    println!("{:#?}", set.min_ready_seconds()?);
-  }
-
   let cluster_name = cluster.name().unwrap();
   let cluster_version = cluster.version().unwrap();
 
@@ -228,6 +188,7 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
   let subnet_findings = get_subnet_findings(&ec2_client, &k8s_client, cluster).await?;
   let addon_findings = get_addon_findings(&eks_client, cluster_name, cluster_version).await?;
   let dataplane_findings = get_data_plane_findings(&asg_client, &ec2_client, &eks_client, &k8s_client, cluster).await?;
+  let _k8s_findings = k8s::get_resources(&k8s_client).await?;
 
   Ok(Results {
     cluster: cluster_findings,

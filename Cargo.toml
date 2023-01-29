@@ -16,7 +16,7 @@ categories = [
   "command-line-utilities",
   "text-processing",
 ]
-exclude = ["/.github", ".gitignore", "docs", "examples"]
+exclude = ["/.github", ".gitignore", "docs", "examples", "tests"]
 
 default-run = "eksup"
 
@@ -44,3 +44,9 @@ serde_json = "1.0"
 serde_yaml = "0.9"
 tokio = { version = "1.23", features = ["full"] }
 tracing = "0.1"
+
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"  # Optimize for size.
+lto = true
+codegen-units = 1

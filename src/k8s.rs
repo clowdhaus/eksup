@@ -295,7 +295,6 @@ pub struct StdUpdateStrategy {
 
 /// This is a generalized spec used across all resource types that
 /// we are inspecting for finding violations
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct StdSpec {
   /// Minimum number of seconds for which a newly created pod should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)
@@ -311,7 +310,6 @@ pub(crate) struct StdSpec {
   pub template: Option<PodTemplateSpec>,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct StdResource {
   pub(crate) metadata: StdMetadata,
@@ -360,7 +358,7 @@ impl K8sFindings for StdResource {
   }
 }
 
-pub(crate) async fn _get_deployments(client: &Client) -> Result<Vec<StdResource>> {
+async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::Deployment> = Api::all(client.clone());
   let deployment_list = api.list(&Default::default()).await?;
 
@@ -393,7 +391,7 @@ pub(crate) async fn _get_deployments(client: &Client) -> Result<Vec<StdResource>
   Ok(deployments)
 }
 
-pub(crate) async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
+async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::ReplicaSet> = Api::all(client.clone());
   let replicaset_list = api.list(&Default::default()).await?;
 
@@ -426,7 +424,7 @@ pub(crate) async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>
   Ok(replicasets)
 }
 
-pub(crate) async fn _get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
+async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::StatefulSet> = Api::all(client.clone());
   let statefulset_list = api.list(&Default::default()).await?;
 
@@ -459,7 +457,7 @@ pub(crate) async fn _get_statefulsets(client: &Client) -> Result<Vec<StdResource
   Ok(statefulsets)
 }
 
-pub(crate) async fn _get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
+async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::DaemonSet> = Api::all(client.clone());
   let daemonset_list = api.list(&Default::default()).await?;
 
@@ -492,7 +490,7 @@ pub(crate) async fn _get_daemonsets(client: &Client) -> Result<Vec<StdResource>>
   Ok(daemonsets)
 }
 
-pub(crate) async fn _get_jobs(client: &Client) -> Result<Vec<StdResource>> {
+async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::Job> = Api::all(client.clone());
   let job_list = api.list(&Default::default()).await?;
 
@@ -525,7 +523,7 @@ pub(crate) async fn _get_jobs(client: &Client) -> Result<Vec<StdResource>> {
   Ok(jobs)
 }
 
-pub(crate) async fn _get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
+async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::CronJob> = Api::all(client.clone());
   let cronjob_list = api.list(&Default::default()).await?;
 
@@ -563,14 +561,14 @@ pub(crate) async fn _get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
 
 // // https://github.com/kube-rs/kube/issues/428
 // // https://github.com/kubernetes/apimachinery/blob/373a5f752d44989b9829888460844849878e1b6e/pkg/apis/meta/v1/helpers.go#L34
-// pub(crate) async fn _get_pod_disruption_budgets(client: &Client) -> Result<Vec<PodDisruptionBudget>> {
+// pub(crate) async fn get_pod_disruption_budgets(client: &Client) -> Result<Vec<PodDisruptionBudget>> {
 //   let api: Api<policy::v1beta1::PodDisruptionBudget> = Api::all(client.clone());
 //   let pdb_list = api.list(&Default::default()).await?;
 
 //   Ok(pdb_list.items)
 // }
 
-// async fn _get_podsecuritypolicies(
+// async fn get_podsecuritypolicies(
 //   client: &Client,
 // ) -> Result<Vec<policy::v1beta1::PodSecurityPolicy>> {
 //   let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.clone());
@@ -578,3 +576,47 @@ pub(crate) async fn _get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
 
 //   Ok(nodes.items)
 // }
+
+pub(crate) async fn get_resources(client: &Client) -> Result<Vec<StdResource>> {
+  let cronjobs = get_cronjobs(client).await?;
+  let daemonsets = get_daemonsets(client).await?;
+  let deployments = get_deployments(client).await?;
+  let jobs = get_jobs(client).await?;
+  let replicasets = get_replicasets(client).await?;
+  let statefulsets = get_statefulsets(client).await?;
+
+  // for cron in &cronjobs {
+  //   println!("{:#?}", cron.min_replicas()?);
+  //   println!("{:#?}", cron.min_ready_seconds()?);
+  // }
+  // for daemon in &daemonsets {
+  //   println!("{:#?}", daemon.min_replicas()?);
+  //   println!("{:#?}", daemon.min_ready_seconds()?);
+  // }
+  // for deploy in deployments {
+  //   println!("{:#?}", deploy.min_replicas()?);
+  //   println!("{:#?}", deploy.min_ready_seconds()?);
+  // }
+  // for job in jobs {
+  //   println!("{:#?}", job.min_replicas()?);
+  //   println!("{:#?}", job.min_ready_seconds()?);
+  // }
+  // for repl in replicasets {
+  //   println!("{:#?}", repl.min_replicas()?);
+  //   println!("{:#?}", repl.min_ready_seconds()?);
+  // }
+  // for set in statefulsets {
+  //   println!("{:#?}", set.min_replicas()?);
+  //   println!("{:#?}", set.min_ready_seconds()?);
+  // }
+
+  let mut resources = Vec::new();
+  resources.extend(cronjobs);
+  resources.extend(daemonsets);
+  resources.extend(deployments);
+  resources.extend(jobs);
+  resources.extend(replicasets);
+  resources.extend(statefulsets);
+
+  Ok(resources)
+}
