@@ -1,6 +1,6 @@
 use std::{collections::HashSet, env};
 
-use anyhow::bail;
+use anyhow::{bail, Result};
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_autoscaling::{
   model::{AutoScalingGroup, Filter as AsgFilter},
@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// Get the configuration to authn/authz with AWS that will be used across AWS clients
-pub(crate) async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig, anyhow::Error> {
+pub(crate) async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig> {
   let aws_region = match region {
     Some(region) => Region::new(region.to_owned()),
     None => env::var("AWS_REGION").ok().map(Region::new).unwrap(),
@@ -33,14 +33,14 @@ pub(crate) async fn get_config(region: &Option<String>) -> Result<aws_config::Sd
 }
 
 /// Describe the cluster to get its full details
-pub(crate) async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster, anyhow::Error> {
-  let req = client.describe_cluster().name(name);
-  let resp = req.send().await?;
+pub(crate) async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
+  let request = client.describe_cluster().name(name);
+  let response = request.send().await?;
 
-  // TODO - handle error check here for cluster not found
-  let cluster = resp.cluster.unwrap_or_else(|| panic!("Cluster {name} not found"));
-
-  Ok(cluster)
+  match response.cluster {
+    Some(cluster) => Ok(cluster),
+    None => bail!("Cluster {name} not found"),
+  }
 }
 
 /// Cluster health issue data
@@ -93,7 +93,7 @@ impl Findings for Vec<ClusterHealthIssue> {
 }
 
 /// Check for any reported health issues on the cluster control plane
-pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue>, anyhow::Error> {
+pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue>> {
   let health = cluster.health();
 
   match health {
@@ -136,7 +136,7 @@ struct SubnetIPs {
 /// IP contention/exhaustion across the various subnets in use
 /// by the control plane ENIs, the nodes, and the pods (when custom
 /// networking is enabled)
-async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<SubnetIPs, anyhow::Error> {
+async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<SubnetIPs> {
   let subnets = client
     .describe_subnets()
     .set_subnet_ids(Some(subnet_ids))
@@ -204,7 +204,7 @@ impl Findings for Option<InsufficientSubnetIps> {
 pub(crate) async fn control_plane_ips(
   ec2_client: &Ec2Client,
   cluster: &Cluster,
-) -> Result<Option<InsufficientSubnetIps>, anyhow::Error> {
+) -> Result<Option<InsufficientSubnetIps>> {
   let subnet_ids = cluster.resources_vpc_config().unwrap().subnet_ids().unwrap().to_owned();
 
   let subnet_ips = get_subnet_ips(ec2_client, subnet_ids).await?;
@@ -232,7 +232,7 @@ pub(crate) async fn pod_ips(
   k8s_client: &K8sClient,
   required_ips: i32,
   recommended_ips: i32,
-) -> Result<Option<InsufficientSubnetIps>, anyhow::Error> {
+) -> Result<Option<InsufficientSubnetIps>> {
   let eniconfigs = k8s::get_eniconfigs(k8s_client).await?;
   if eniconfigs.is_empty() {
     return Ok(None);
@@ -264,7 +264,7 @@ pub(crate) async fn pod_ips(
   Ok(Some(finding))
 }
 
-pub(crate) async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Addon>, anyhow::Error> {
+pub(crate) async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Addon>> {
   let addon_names = client
     .list_addons()
     .cluster_name(cluster_name)
@@ -310,11 +310,7 @@ pub(crate) struct AddonVersion {
 ///
 /// Returns associated version details for a given addon that, primarily used
 /// for version compatibility checks and/or upgrade recommendations
-async fn get_addon_versions(
-  client: &EksClient,
-  name: &str,
-  kubernetes_version: &str,
-) -> Result<AddonVersion, anyhow::Error> {
+async fn get_addon_versions(client: &EksClient, name: &str, kubernetes_version: &str) -> Result<AddonVersion> {
   // Get all of the addon versions supported for the given addon and Kubernetes version
   let describe = client
     .describe_addon_versions()
@@ -414,7 +410,7 @@ pub(crate) async fn addon_version_compatibility(
   client: &EksClient,
   cluster_version: &str,
   addons: &[Addon],
-) -> Result<Vec<AddonVersionCompatibility>, anyhow::Error> {
+) -> Result<Vec<AddonVersionCompatibility>> {
   let mut addon_versions = Vec::new();
   let target_k8s_version = format!("1.{}", version::parse_minor(cluster_version)? + 1);
 
@@ -506,7 +502,7 @@ impl Findings for Vec<AddonHealthIssue> {
   }
 }
 
-pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>, anyhow::Error> {
+pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>> {
   let health_issues = addons
     .iter()
     .flat_map(|addon| {
@@ -536,10 +532,7 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssu
   Ok(health_issues)
 }
 
-pub(crate) async fn get_eks_managed_nodegroups(
-  client: &EksClient,
-  cluster_name: &str,
-) -> Result<Vec<Nodegroup>, anyhow::Error> {
+pub(crate) async fn get_eks_managed_nodegroups(client: &EksClient, cluster_name: &str) -> Result<Vec<Nodegroup>> {
   let nodegroup_names = client
     .list_nodegroups()
     .cluster_name(cluster_name)
@@ -611,9 +604,7 @@ impl Findings for Vec<NodegroupHealthIssue> {
 }
 
 /// Check for any reported health issues on EKS managed node groups
-pub(crate) async fn eks_managed_nodegroup_health(
-  nodegroups: &[Nodegroup],
-) -> Result<Vec<NodegroupHealthIssue>, anyhow::Error> {
+pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Result<Vec<NodegroupHealthIssue>> {
   let health_issues = nodegroups
     .iter()
     .flat_map(|nodegroup| {
@@ -642,7 +633,7 @@ pub(crate) async fn eks_managed_nodegroup_health(
 pub(crate) async fn get_self_managed_nodegroups(
   client: &AsgClient,
   cluster_name: &str,
-) -> Result<Vec<AutoScalingGroup>, anyhow::Error> {
+) -> Result<Vec<AutoScalingGroup>> {
   let keys = vec![
     format!("k8s.io/cluster/{cluster_name}"),
     format!("kubernetes.io/cluster/{cluster_name}"),
@@ -676,10 +667,7 @@ pub(crate) async fn get_self_managed_nodegroups(
   }
 }
 
-pub(crate) async fn _get_fargate_profiles(
-  client: &EksClient,
-  cluster_name: &str,
-) -> Result<Vec<FargateProfile>, anyhow::Error> {
+pub(crate) async fn _get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Result<Vec<FargateProfile>> {
   let profile_names = client
     .list_fargate_profiles()
     .cluster_name(cluster_name)
@@ -722,7 +710,7 @@ pub(crate) struct LaunchTemplate {
   pub(crate) latest_version: String,
 }
 
-async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchTemplate, anyhow::Error> {
+async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchTemplate> {
   let output = client
     .describe_launch_templates()
     .set_launch_template_ids(Some(vec![id.to_string()]))
@@ -802,7 +790,7 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
 pub(crate) async fn eks_managed_nodegroup_update(
   client: &Ec2Client,
   nodegroup: &Nodegroup,
-) -> Result<Vec<ManagedNodeGroupUpdate>, anyhow::Error> {
+) -> Result<Vec<ManagedNodeGroupUpdate>> {
   let launch_template_spec = nodegroup.launch_template();
 
   // On EKS managed node groups, there are between 1 and 2 launch templates that influence the node group.
@@ -898,7 +886,7 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
 pub(crate) async fn self_managed_nodegroup_update(
   client: &Ec2Client,
   asg: &AutoScalingGroup,
-) -> Result<Option<AutoscalingGroupUpdate>, anyhow::Error> {
+) -> Result<Option<AutoscalingGroupUpdate>> {
   let name = asg.auto_scaling_group_name().unwrap().to_owned();
   let launch_template_id = asg.launch_template().unwrap().launch_template_id().unwrap().to_owned();
   let launch_template = get_launch_template(client, &launch_template_id).await?;

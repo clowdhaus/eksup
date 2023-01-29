@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use anyhow::Result;
 use k8s_openapi::api::{
   apps, batch,
   core::{self, v1::PodTemplateSpec},
@@ -83,7 +84,7 @@ impl Findings for Vec<NodeFinding> {
 }
 
 /// Returns all of the nodes in the cluster
-pub(crate) async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<NodeFinding>, anyhow::Error> {
+pub(crate) async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<NodeFinding>> {
   let api: Api<core::v1::Node> = Api::all(client.clone());
   let node_list = api.list(&Default::default()).await?;
 
@@ -149,7 +150,7 @@ pub(crate) struct EniConfigSpec {
 ///
 /// This is used to extract the subnet ID(s) to retrieve the number of
 /// available IPs in the subnet(s) when custom networking is enabled
-pub(crate) async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>, anyhow::Error> {
+pub(crate) async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
   let api = Api::<ENIConfig>::all(client.clone());
   let eniconfigs: Vec<ENIConfig> = api.list(&Default::default()).await?.items;
 
@@ -236,19 +237,19 @@ pub(crate) struct DockerSocketFinding {
 pub(crate) trait K8sFindings {
   fn get_resource(&self) -> Resource;
   /// K8S002 - check if resources contain a minimum of 3 replicas
-  fn min_replicas(&self) -> Result<Option<MinReplicaFinding>, anyhow::Error>;
+  fn min_replicas(&self) -> Result<Option<MinReplicaFinding>>;
   /// K8S003 - check if resources contain minReadySeconds > 0
-  fn min_ready_seconds(&self) -> Result<Option<MinReadySecondsFinding>, anyhow::Error>;
+  fn min_ready_seconds(&self) -> Result<Option<MinReadySecondsFinding>>;
   // /// K8S004 - check if resources use correct upate strategy
-  // fn update_strategy(&self) -> Result<Option<UpdateStrategyFinding>, anyhow::Error>;
+  // fn update_strategy(&self) -> Result<Option<UpdateStrategyFinding>>;
   // /// K8S005 - check if resources have associated podDisruptionBudgets
-  // fn pod_disruption_budget(&self) -> Result<Option<PodDisruptionBudgetFinding>, anyhow::Error>;
+  // fn pod_disruption_budget(&self) -> Result<Option<PodDisruptionBudgetFinding>>;
   // /// K8S006 - check if resources have podAntiAffinity or topologySpreadConstraints
-  // fn pod_topology_distribution(&self) -> Result<Option<PodTopologyDistributionFinding>, anyhow::Error>;
+  // fn pod_topology_distribution(&self) -> Result<Option<PodTopologyDistributionFinding>>;
   // /// K8S007 - check if resources have readinessProbe
-  // fn readiness_probe(&self) -> Result<Option<ProbeFinding>, anyhow::Error>;
+  // fn readiness_probe(&self) -> Result<Option<ProbeFinding>>;
   // /// K8S009 - check if resources use the Docker socket
-  // fn docker_socket(&self) -> Result<Option<DockerSocketFinding>, anyhow::Error>;
+  // fn docker_socket(&self) -> Result<Option<DockerSocketFinding>>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -326,7 +327,7 @@ impl K8sFindings for StdResource {
     }
   }
 
-  fn min_replicas(&self) -> Result<Option<MinReplicaFinding>, anyhow::Error> {
+  fn min_replicas(&self) -> Result<Option<MinReplicaFinding>> {
     let replicas = self.spec.replicas.unwrap_or(1);
     let finding = if replicas < 3 {
       Some(MinReplicaFinding {
@@ -342,7 +343,7 @@ impl K8sFindings for StdResource {
     Ok(finding)
   }
 
-  fn min_ready_seconds(&self) -> Result<Option<MinReadySecondsFinding>, anyhow::Error> {
+  fn min_ready_seconds(&self) -> Result<Option<MinReadySecondsFinding>> {
     let seconds = self.spec.min_ready_seconds.unwrap_or(0);
     let finding = if seconds < 1 {
       Some(MinReadySecondsFinding {
@@ -359,7 +360,7 @@ impl K8sFindings for StdResource {
   }
 }
 
-pub(crate) async fn _get_deployments(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_deployments(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::Deployment> = Api::all(client.clone());
   let deployment_list = api.list(&Default::default()).await?;
 
@@ -392,7 +393,7 @@ pub(crate) async fn _get_deployments(client: &Client) -> Result<Vec<StdResource>
   Ok(deployments)
 }
 
-pub(crate) async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::ReplicaSet> = Api::all(client.clone());
   let replicaset_list = api.list(&Default::default()).await?;
 
@@ -425,7 +426,7 @@ pub(crate) async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>
   Ok(replicasets)
 }
 
-pub(crate) async fn _get_statefulsets(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::StatefulSet> = Api::all(client.clone());
   let statefulset_list = api.list(&Default::default()).await?;
 
@@ -458,7 +459,7 @@ pub(crate) async fn _get_statefulsets(client: &Client) -> Result<Vec<StdResource
   Ok(statefulsets)
 }
 
-pub(crate) async fn _get_daemonsets(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::DaemonSet> = Api::all(client.clone());
   let daemonset_list = api.list(&Default::default()).await?;
 
@@ -491,7 +492,7 @@ pub(crate) async fn _get_daemonsets(client: &Client) -> Result<Vec<StdResource>,
   Ok(daemonsets)
 }
 
-pub(crate) async fn _get_jobs(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_jobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::Job> = Api::all(client.clone());
   let job_list = api.list(&Default::default()).await?;
 
@@ -524,7 +525,7 @@ pub(crate) async fn _get_jobs(client: &Client) -> Result<Vec<StdResource>, anyho
   Ok(jobs)
 }
 
-pub(crate) async fn _get_cronjobs(client: &Client) -> Result<Vec<StdResource>, anyhow::Error> {
+pub(crate) async fn _get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::CronJob> = Api::all(client.clone());
   let cronjob_list = api.list(&Default::default()).await?;
 
@@ -562,7 +563,7 @@ pub(crate) async fn _get_cronjobs(client: &Client) -> Result<Vec<StdResource>, a
 
 // // https://github.com/kube-rs/kube/issues/428
 // // https://github.com/kubernetes/apimachinery/blob/373a5f752d44989b9829888460844849878e1b6e/pkg/apis/meta/v1/helpers.go#L34
-// pub(crate) async fn _get_pod_disruption_budgets(client: &Client) -> Result<Vec<PodDisruptionBudget>, anyhow::Error> {
+// pub(crate) async fn _get_pod_disruption_budgets(client: &Client) -> Result<Vec<PodDisruptionBudget>> {
 //   let api: Api<policy::v1beta1::PodDisruptionBudget> = Api::all(client.clone());
 //   let pdb_list = api.list(&Default::default()).await?;
 
@@ -571,7 +572,7 @@ pub(crate) async fn _get_cronjobs(client: &Client) -> Result<Vec<StdResource>, a
 
 // async fn _get_podsecuritypolicies(
 //   client: &Client,
-// ) -> Result<Vec<policy::v1beta1::PodSecurityPolicy>, anyhow::Error> {
+// ) -> Result<Vec<policy::v1beta1::PodSecurityPolicy>> {
 //   let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.clone());
 //   let nodes = api.list(&Default::default()).await?;
 

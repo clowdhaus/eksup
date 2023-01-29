@@ -1,5 +1,6 @@
 use std::fmt;
 
+use anyhow::Result;
 use clap::ValueEnum;
 use seq_macro::seq;
 use serde::{Deserialize, Serialize};
@@ -45,7 +46,7 @@ seq!(N in 20..=24 {
 /// upgrade restrictions of one minor version upgrade at a time, return the
 /// next minor Kubernetes version
 /// TODO: This will change in the future when the strategy allows for `BlueGreen` upgrades
-pub(crate) fn get_target_version(current_version: &str) -> Result<String, anyhow::Error> {
+pub(crate) fn get_target_version(current_version: &str) -> Result<String> {
   let current_minor_version = current_version.split('.').collect::<Vec<&str>>()[1].parse::<i32>()?;
 
   Ok(format!("1.{}", current_minor_version + 1))
@@ -55,7 +56,7 @@ pub(crate) fn get_target_version(current_version: &str) -> Result<String, anyhow
 ///
 /// For example, the format Amazon EKS of v1.20.7-eks-123456 returns 20
 /// Or the format of v1.22.7 returns 22
-pub(crate) fn parse_minor(version: &str) -> Result<u32, anyhow::Error> {
+pub(crate) fn parse_minor(version: &str) -> Result<u32> {
   let version = version.split('.').collect::<Vec<&str>>();
   let minor = version[1].parse::<u32>()?;
 
@@ -65,7 +66,7 @@ pub(crate) fn parse_minor(version: &str) -> Result<u32, anyhow::Error> {
 /// Given a version, normalize to a consistent format
 ///
 /// For example, the format Amazon EKS uses is v1.20.7-eks-123456 which is normalized to 1.20
-pub(crate) fn normalize(version: &str) -> Result<String, anyhow::Error> {
+pub(crate) fn normalize(version: &str) -> Result<String> {
   let version = version.split('.').collect::<Vec<&str>>();
   let normalized = format!("{}.{}", version[0].replace('v', ""), version[1]);
 

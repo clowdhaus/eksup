@@ -1,5 +1,6 @@
 use std::{fs::File, io::prelude::*};
 
+use anyhow::Result;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
@@ -19,11 +20,7 @@ impl Default for Format {
   }
 }
 
-pub(crate) async fn output(
-  results: &analysis::Results,
-  format: &Format,
-  filename: &Option<String>,
-) -> Result<(), anyhow::Error> {
+pub(crate) async fn output(results: &analysis::Results, format: &Format, filename: &Option<String>) -> Result<()> {
   let output = match format {
     Format::Json => serde_json::to_string(&results)?,
     Format::Text => format!("{results:#?}"),

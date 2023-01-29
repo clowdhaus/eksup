@@ -13,12 +13,12 @@ mod version;
 
 use std::process;
 
-use anyhow::*;
+use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Commands, CreateCommands};
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> Result<()> {
   let cli = Cli::parse();
 
   match &cli.commands {

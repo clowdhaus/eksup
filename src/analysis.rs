@@ -1,3 +1,4 @@
+use anyhow::Result;
 use aws_sdk_autoscaling::Client as AsgClient;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{model::Cluster, Client as EksClient};
@@ -18,7 +19,7 @@ pub(crate) struct ClusterFindings {
 }
 
 /// Collects the cluster findings from the Amazon EKS API
-async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings, anyhow::Error> {
+async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings> {
   let cluster_health = eks::cluster_health(cluster).await?;
 
   Ok(ClusterFindings { cluster_health })
@@ -48,7 +49,7 @@ async fn get_subnet_findings(
   ec2_client: &Ec2Client,
   k8s_client: &K8sClient,
   cluster: &Cluster,
-) -> Result<SubnetFindings, anyhow::Error> {
+) -> Result<SubnetFindings> {
   let control_plane_ips = eks::control_plane_ips(ec2_client, cluster).await?;
   // TODO - The required and recommended number of IPs need to be configurable to allow users who have better
   // TODO - context on their environment as to what should be required and recommended
@@ -80,7 +81,7 @@ async fn get_addon_findings(
   eks_client: &EksClient,
   cluster_name: &str,
   cluster_version: &str,
-) -> Result<AddonFindings, anyhow::Error> {
+) -> Result<AddonFindings> {
   let addons = eks::get_addons(eks_client, cluster_name).await?;
 
   let version_compatibility = eks::addon_version_compatibility(eks_client, cluster_version, &addons).await?;
@@ -128,7 +129,7 @@ async fn get_data_plane_findings(
   eks_client: &EksClient,
   k8s_client: &kube::Client,
   cluster: &Cluster,
-) -> Result<DataPlaneFindings, anyhow::Error> {
+) -> Result<DataPlaneFindings> {
   let cluster_name = cluster.name().unwrap();
   let cluster_version = cluster.version().unwrap();
 
@@ -181,10 +182,7 @@ pub(crate) struct Results {
 }
 
 /// Analyze the cluster provided to collect all reported findings
-pub(crate) async fn analyze(
-  aws_shared_config: &aws_config::SdkConfig,
-  cluster: &Cluster,
-) -> Result<Results, anyhow::Error> {
+pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: &Cluster) -> Result<Results> {
   // Construct clients once
   let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);

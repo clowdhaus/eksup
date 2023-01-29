@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs};
 
+use anyhow::Result;
 use aws_sdk_eks::model::Cluster;
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
@@ -58,7 +59,7 @@ pub struct TemplateData {
   fargate_profile_template: String,
 }
 
-fn get_release_data() -> Result<HashMap<Version, Release>, anyhow::Error> {
+fn get_release_data() -> Result<HashMap<Version, Release>> {
   let data_file = Templates::get("data.yaml").unwrap();
   let contents = std::str::from_utf8(data_file.data.as_ref())?;
   let data: HashMap<Version, Release> = serde_yaml::from_str(contents)?;
@@ -102,7 +103,7 @@ fn char_replace(text: String) -> String {
     .replace("&#x3D;", "=")
 }
 
-pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Results) -> Result<(), anyhow::Error> {
+pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Results) -> Result<()> {
   let mut handlebars = Handlebars::new();
   handlebars.register_embed_templates::<Templates>()?;
 
