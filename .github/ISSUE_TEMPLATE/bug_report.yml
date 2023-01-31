@@ -1,0 +1,80 @@
+name: Bug report
+description: Report a reproducible bug to help us improve
+title: "Bug: TITLE"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for submitting a bug report. Please add as much information as possible to help us reproduce, and remove any potential sensitive data.
+  - type: textarea
+    id: expected_behaviour
+    attributes:
+      label: Expected Behaviour
+      description: Please share details on the behaviour you expected
+    validations:
+      required: true
+  - type: textarea
+    id: current_behaviour
+    attributes:
+      label: Current Behaviour
+      description: Please share details on the current issue
+    validations:
+      required: true
+  - type: textarea
+    id: code_snippet
+    attributes:
+      label: Code snippet
+      description: Please share a code snippet to help us reproduce the issue
+      render: sh
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Possible Solution
+      description: If known, please suggest a potential resolution
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Please share how we might be able to reproduce this issue
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: eksup version
+      placeholder: "latest"
+      value: latest
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS x86_64
+        - macOS arm64
+        - Linux x86_64
+        - Linux arm64
+        - Windows x86_64
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output
+      description: If available, please share any output from the command
+      render: Text
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        **Disclaimer**: We value your time and bandwidth. As such, any pull requests created on non-triaged issues might not be successful.
