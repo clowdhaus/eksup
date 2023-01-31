@@ -11,6 +11,5 @@ target
 
 .DS_Store
 
-# Do not ignore templates, but ignore generated playbooks
+# Ignore generated playbooks
 *upgrade.md
-!templates/*.md
