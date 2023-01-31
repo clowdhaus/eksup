@@ -1,6 +1,6 @@
 # eksup
 
-See [clowdhaus.github.io/eksup](https://clowdhaus.github.io/eksup/) for docuemntation on `eksup`.
+See the docs at [clowdhaus.github.io/eksup](https://clowdhaus.github.io/eksup/)
 
 ## Installation
 

@@ -2,33 +2,25 @@
 
 ## Why Is This Needed
 
-Kubernetes releases a new version [approximately every 4 months](https://kubernetes.io/releases/release/). Each minor version is supported for 12 months after it's first released by the Kubernetes community, and Amazon EKS supports a Kubernetes version for 14 months once made available on Amazon EKS. In line with the Kubernetes community support for Kubernetes versions, Amazon EKS is committed to supporting at least four versions of Kubernetes at any given time. This means that Amazon EKS users need to be prepared to upgrade their cluster version(s) at least once a year. However, there are a number of factors that can make each upgrade different and unique. Factors that can change between each upgrade cycle include:
+Kubernetes releases a new version [approximately every 4 months](https://kubernetes.io/releases/release/). Each minor version is supported for 12 months after it's first released by the Kubernetes community, and Amazon EKS supports a Kubernetes version for 14 months once made available. In line with the Kubernetes community support for versions, Amazon EKS is committed to supporting at least four versions of Kubernetes at any given time. This means that Amazon EKS users need to be prepared to upgrade their cluster version(s) at least once a year. However, there are a number of factors that can make each upgrade different and unique that users will need to evaluate prior to each upgrade. Factors that can change between each upgrade cycle include:
 
 - New team members who are inexperienced with the upgrade process, and/or prior team members who have experience in cluster upgrades are no longer on the team
 - Different Kubernetes APIs are marked as deprecated or removed from the next release
 - Kubernetes resources that were previously provided by Kubernetes "in-tree" are now provided as external resources (i.e - moving Kubernetes in-tree cloud provider code out to their respective standalone projects such as ALB ingress controller "in-tree" to the external ALB load balancer controller)
 - Various changes and deprecations in the components used by Kubernetes (i.e - moving from `kube-dns` to `CoreDNS`, moving from Docker engine to `containerd` for container runtime, dropping support for `dockershim`, etc.)
-- Changes in your applications, your architecture, or the amount of traffic your clusters are handling. As teams and organizations grow, clusters will grow and change as well, consuming more resources and potentially pushing some of the limits of what your previous architecture was designed to support (i.e. - number of available IPs might become constrained, stateful workloads may have been added to the cluster, etc.)
+- Changes in your applications, your architecture, or the amount of traffic your clusters are handling. Over time, the number of available IPs for the cluster resources may shrink, stateful workloads may have been added to the cluster, etc., and these factors can influence the upgrade process.
 
 ### What It Is
 
 `eksup` is a CLI that helps users prepare for a cluster upgrade - providing users as much relevant information as possible for their upgrade.
 
-`eksup` gives users the ability to analyze their cluster(s) against the next version of Kubernetes and generate a playbook that provides both the steps to upgrade the cluster as well as the relevant information users should be aware of. This gives teams the ability to prepare their clusters for the upgrade based on the information provided in the analysis, as well as a means to practice and rehearse their upgrade process starting with a development or sandbox environment cluster, working their way up through their environments towards production. Any learnings discovered during this rehearsal and rollout process can be captured and used to improve the upgrade process for both the current cycle as well as the next. Users are encouraged to save their playbooks as historical artifacts for future reference to ensure that with each cycle, the team has a better understanding of the upgrade process and more confidence in swiftly working through cluster upgrades before their Kubernetes version support expires.
-
-This CLI produces a cluster upgrade playbook that attempts to:
-
-- Educate users on the overall process of upgrading an Amazon EKS cluster (order of operations, which parts AWS manages and which parts are the user's responsibility, etc.)
-- Provide one approach as the basis for upgrading a cluster that users can modify/customize to suit their cluster configuration/architecture and business requirements
-- Provide recommendations on what to check for and precautions to consider before upgrading, how to perform the cluster upgrade, and considerations for configuring your cluster and/or applications to minimize risk and disruption during the upgrade process
-
-The end goal of this tool is a playbook that you and your team feel confident in executing repeatedly each upgrade cycle. After each upgrade, reflect on the process with your team and capture any learnings so that you can continuously improve and build confidence in the upgrade process.
+`eksup` gives users the ability to analyze their cluster(s) against the next version of Kubernetes, highlighting any findings that may affect the upgrade process. In addition, `eksup` has the ability to generate a playbook tailored to the cluster analyzed that provides the process for upgrading the cluster including the findings that require remediation. The playbook output allows users to edit the upgrade steps to suit their cluster configuration and business requirements plus capture any specific learnings during the upgrade process. Since most users typically perform upgrades on nonproduction clusters first, any additional steps or call-outs that are discovered during the upgrade process can be captured and used to improve the upgrade process for their production clusters. Users are encouraged to save their playbooks as historical artifacts for future reference to ensure that with each cycle, the team has a better understanding of the upgrade process and more confidence in swiftly working through cluster upgrades before their Kubernetes version support expires.
 
 ### What It Is NOT
 
-- `eksup` is not a tool that will perform the cluster upgrade. It is assumed that clusters are generally created using an infrastructure as code approach through tools such as Terraform, `eksctl`, CloudFormation, etc., and therefore users are encouraged to use those tools to perform the upgrade to avoid any resource definition conflicts.
-- It does not perform any modifications on the live resources it identifies as needing, or recommending, changes. Again, following the approach of infrastructure as code, users are encouraged to make these changes through their normal change control process at the appropriate time (either before or after upgrading the cluster).
-  - In the future, `eksup` may provide functionality to help in converting a Kubernetes resource from one API version to the next. However, this will occur on the users local filesystem and not against a live cluster. `eksup` will always operate from the perspective of infrastructure as code; any feature requests that support this tenant are encouraged.
+- `eksup` is not a tool that will perform the cluster upgrade. It is assumed that clusters are generally created using an infrastructure as code approach through tools such as Terraform, `eksctl`, or CloudFormation. Therefore, users are encouraged to use those tools to perform the upgrade to avoid any resource definition conflicts.
+- It does not perform any modifications on the resources it identifies as needing, or recommending, changes. Again, following the approach of infrastructure as code, users are encouraged to make these changes through their normal change control process at the appropriate time in the upgrade process.
+  - In the future, `eksup` may provide functionality to help in converting a Kubernetes manifest definition from one API version to the next. However, this will occur on the users local filesystem and not against a live cluster. `eksup` will always operate from the perspective of infrastructure as code; any feature requests that support this tenant are encouraged.
 
 ## Commands
 
@@ -111,6 +103,12 @@ eksup analyze --cluster <cluster> --region <region> \
 ### Create
 
 Create a playbook with analysis findings to guide users through pre-upgrade, upgrade, and post-upgrade process.
+
+This CLI produces a cluster upgrade playbook that attempts to:
+
+- Educate users on the overall process of upgrading an Amazon EKS cluster (order of operations, which parts AWS manages and which parts are the user's responsibility, etc.)
+- Provide one approach as the basis for upgrading a cluster that users can modify/customize to suit their cluster configuration/architecture and business requirements
+- Provide recommendations on what to check for and precautions to consider before upgrading, how to perform the cluster upgrade, and considerations for configuring your cluster and/or applications to minimize risk and disruption during the upgrade process
 
 ```sh linenums="1"
 Create a playbook for upgrading an Amazon EKS cluster
