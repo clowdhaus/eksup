@@ -10,13 +10,10 @@ nav:
   - Home: index.md
   - Process:
       - Getting Started: process/index.md
-      - Upgrade Control Plane: process/upgrade-control-plane.md
-      - Upgrade Data Plane: process/upgrade-data-plane.md
-      - Upgrade Addons: process/upgrade-addons.md
+      - Commands: process/commands.md
+      - Checks: process/checks.md
   - Design:
     - Overview: design/overview.md
-    - Checks: design/checks.md
-    - Scratch: design/scratch.md
 
 theme:
   name: material
@@ -45,6 +42,10 @@ theme:
   features:
     - navigation.tabs
     - navigation.tabs.sticky
+  highlightjs: true
+  hljs_languages:
+      - yaml
+      - rust
 
 plugins:
   - search:
@@ -56,6 +57,7 @@ markdown_extensions:
   - codehilite
   - footnotes
   - pymdownx.critic
+  - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
@@ -63,3 +65,6 @@ markdown_extensions:
   - pymdownx.superfences
   - toc:
       permalink: true
+
+extra_css:
+  - stylesheets/extra.css

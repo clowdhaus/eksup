@@ -11,5 +11,6 @@ target
 
 .DS_Store
 
-# Ignore generated playbooks
+# Ignore generated playbooks unless they are examples
 *upgrade.md
+!examples/*upgrade.md

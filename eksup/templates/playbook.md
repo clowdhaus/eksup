@@ -170,23 +170,8 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 ### Data Plane Pre-Upgrade
 
 1. Ensure applications and services running on the cluster are setup for high-availability to minimize and avoid disruption during the upgrade process.
-    - We strongly recommend that you have [readiness and liveness probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes) configured before upgrading the data plane. This ensures that your pods register as ready/healthy at the appropriate time during an upgrade.
-    - For stateless workloads
-        - Specify multiple replicas for your [replica set(s)](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)
-        - Specify [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) for replica sets
-    - For stateful workloads
-        - ℹ️ [Exploring Upgrade Strategies for Stateful Sets in Kubernetes](https://www.velotio.com/engineering-blog/exploring-upgrade-strategies-for-stateful-sets-in-kubernetes)
-        - ⚠️ TODO - what guidance for cluster backup before upgrade
-            - [Velero](https://github.com/vmware-tanzu/velero-plugin-for-aws)
-            - [Portworx](https://github.com/portworx/aws-helm/tree/master/portworx)
-        - Specify multiple replicas for your [stateful set(s)](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
-        - Specify [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) for stateful sets
-            - This is useful for stateful application where there needs to be a quorum for the number of replicas to be available during an upgrade.
-            - [1.24+ only - maximum unavailable pods](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#maximum-unavailable-pods)
-        - If your stateful set does not require unique ordering, typically associated with processes that utilize leader election, switching to a `parallel` strategy for [`podManagementPolicy`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#parallel-pod-management) will speed up your scale up/down time as well as reduce the time needed to upgrade your cluster.
-        - If you are running a critical application on a Karpenter-provisioned node, such as a long running batch job or stateful application, and the node’s TTL has expired, the application will be interrupted when the instance is terminated. By adding a karpenter.sh/do-not-evict annotation to the pod, you are instructing Karpenter to preserve the node until the Pod is terminated or the do-not-evict annotation is removed. See Deprovisioning documentation for further information.
-    - For batch workloads:
-        - If you are running a critical application on a Karpenter-provisioned node, such as a long running batch job or stateful application, and the node’s TTL has expired, the application will be interrupted when the instance is terminated. By adding a karpenter.sh/do-not-evict annotation to the pod, you are instructing Karpenter to preserve the node until the Pod is terminated or the do-not-evict annotation is removed. See Deprovisioning documentation for further information.
+
+    🚧 TODO - fill in analysis results
 
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
 
@@ -257,5 +242,5 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 ## Post Upgrade
 
-- ⚠️ Update applications running on the cluster
-- ⚠️ Update tools that interact with the cluster (kubectl, awscli, etc.)
+- Update applications running on the cluster
+- Update tools that interact with the cluster (kubectl, awscli, etc.)

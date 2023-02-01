@@ -30,7 +30,9 @@ pub(crate) struct NodeFinding {
 impl Findings for Vec<NodeFinding> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
-      return Some(format!("{leading_whitespace}:white_check_mark: - No reported findings regarding version skew between the control plane and nodes"));
+      return Some(format!(
+        "{leading_whitespace}✅ - No reported findings regarding version skew between the control plane and nodes"
+      ));
     }
     let mut counts: BTreeMap<(String, String, String), isize> = BTreeMap::new();
     for node in self {
@@ -240,15 +242,13 @@ pub(crate) trait K8sFindings {
   fn min_replicas(&self) -> Result<Option<MinReplicaFinding>>;
   /// K8S003 - check if resources contain minReadySeconds > 0
   fn min_ready_seconds(&self) -> Result<Option<MinReadySecondsFinding>>;
-  // /// K8S004 - check if resources use correct upate strategy
-  // fn update_strategy(&self) -> Result<Option<UpdateStrategyFinding>>;
-  // /// K8S005 - check if resources have associated podDisruptionBudgets
+  // /// K8S004 - check if resources have associated podDisruptionBudgets
   // fn pod_disruption_budget(&self) -> Result<Option<PodDisruptionBudgetFinding>>;
-  // /// K8S006 - check if resources have podAntiAffinity or topologySpreadConstraints
+  // /// K8S005 - check if resources have podAntiAffinity or topologySpreadConstraints
   // fn pod_topology_distribution(&self) -> Result<Option<PodTopologyDistributionFinding>>;
-  // /// K8S007 - check if resources have readinessProbe
+  // /// K8S006 - check if resources have readinessProbe
   // fn readiness_probe(&self) -> Result<Option<ProbeFinding>>;
-  // /// K8S009 - check if resources use the Docker socket
+  // /// K8S008 - check if resources use the Docker socket
   // fn docker_socket(&self) -> Result<Option<DockerSocketFinding>>;
 }
 

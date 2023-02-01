@@ -23,4 +23,4 @@ To aid in that goal, the following are supporting goals or tenants:
 
 ### High Level Diagram
 
-![High level diagram](https://raw.githubusercontent.com/clowdhaus/eksup/blob/main/docs/imgs/checks.png)
+![High level diagram](https://raw.githubusercontent.com/clowdhaus/eksup/main/docs/imgs/checks.png)

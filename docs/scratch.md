@@ -38,31 +38,23 @@ A check must be able to answer `yes` to one of the following questions, dependin
 | [`K8S001`] |     -      |     -      |           -           |      -      |  -  |    -    |     -     |
 | [`K8S002`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
 | [`K8S003`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
-| [`K8S004`] |     ✅     |     ✅     |          ❌           |     ✅      | ❌  |   ❌    |    ❌     |
+| [`K8S004`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
 | [`K8S005`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
 | [`K8S006`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
-| [`K8S007`] |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
-| [`K8S008`] |     ❌     |     ❌     |          ❌           |     ✅      | ❌  |   ❌    |    ❌     |
-| [`K8S009`] |     ✅     |     ✅     |          ✅           |     ✅      | ✅  |   ✅    |    ✅     |
+| [`K8S007`] |     ❌     |     ❌     |          ❌           |     ✅      | ❌  |   ❌    |    ❌     |
+| [`K8S008`] |     ✅     |     ✅     |          ✅           |     ✅      | ✅  |   ✅    |    ✅     |
+| [`K8S009`] |     -      |     -      |           -           |      -      |  -  |    -    |     -     |
 | [`K8S010`] |     -      |     -      |           -           |      -      |  -  |    -    |     -     |
-| [`K8S011`] |     -      |     -      |           -           |      -      |  -  |    -    |     -     |
 
 - [ ] [`K8S002`] `.spec.replicas` set >= 3
 - [ ] [`K8S003`] `.spec.minReadySeconds` set > 0 - https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
-- [ ] [`K8S004`] rolling update strategy is used
-  - `.spec.strategy.type` != `Recreate` - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment
-    - (Deployment, ReplicaSet) - excludes ReplicationController which recommends blue/green upgrade
-    - [ ] `.spec.strategy.rollingUpdate.maxUnavailable` is set (Recommended)
-    - [ ] `.spec.strategy.rollingUpdate.maxSurge` is set (Recommended)
-  - [ ] `.spec.updateStrategy.type` != `OnDelete` - https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#rolling-updates
-    - (StatefulSet)
-- [ ] [`K8S005`] `podDisruptionBudgets` set & at least one of `minAvailable` or `maxUnavailable` is set
-- [ ] [`K8S006`] Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` set to avoid multiple pods from being scheduled on the same node. https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+- [ ] [`K8S004`] `podDisruptionBudgets` set & at least one of `minAvailable` or `maxUnavailable` is set
+- [ ] [`K8S005`] Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` set to avoid multiple pods from being scheduled on the same node. https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   - [ ] Prefer topology hints over affinity `Note: Inter-pod affinity and anti-affinity require substantial amount of processing which can slow down scheduling in large clusters significantly. We do not recommend using them in clusters larger than several hundred nodes.` https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
-- [ ] [`K8S007`] `.spec.containers[*].readinessProbe` set
+- [ ] [`K8S006`] `.spec.containers[*].readinessProbe` set
   - [ ] `.spec.containers[*].livenessProbe` , if set, is NOT the same as `.spec.containers[*].readinessProbe`
   - [ ] `.spec.containers[*].startupProbe` is set if `.spec.containers[*].livenessProbe` is set
-- [ ] [`K8S008`] `pod.Spec.TerminationGracePeriodSeconds` > 0 - The StatefulSet should not specify a pod.Spec.TerminationGracePeriodSeconds of 0 https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#deployment-and-scaling-guarantees
+- [ ] [`K8S007`] `pod.Spec.TerminationGracePeriodSeconds` > 0 - The StatefulSet should not specify a pod.Spec.TerminationGracePeriodSeconds of 0 https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#deployment-and-scaling-guarantees
   - (StatefulSet)
 
 #### Job/CronJob
@@ -73,10 +65,10 @@ A check must be able to answer `yes` to one of the following questions, dependin
 
 Note: the Kubernetes version these apply to will need to be taken into consideration to avoid telling users about checks that do not apply to their version.
 
-- [ ] [`K8S009`] Detect docker socket use (1.24+ affected) https://github.com/aws-containers/kubectl-detector-for-docker-socket
-- [ ] [`K8S010`] Warn on pod security policy use (deprecated 1.21, removed 1.25) https://kubernetes.io/docs/concepts/security/pod-security-policy/
+- [ ] [`K8S008`] Detect docker socket use (1.24+ affected) https://github.com/aws-containers/kubectl-detector-for-docker-socket
+- [ ] [`K8S009`] Warn on pod security policy use (deprecated 1.21, removed 1.25) https://kubernetes.io/docs/concepts/security/pod-security-policy/
   - [ ] Advise to switch to pod security admission https://kubernetes.io/docs/concepts/security/pod-security-admission/
-- [ ] [`K8S011`] In-tree to CSI migration https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/ ?
+- [ ] [`K8S010`] In-tree to CSI migration https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/ ?
   - [ ] The [in-tree Amazon EBS storage provisioner](https://kubernetes.io/docs/concepts/storage/volumes/#awselasticblockstore) is deprecated. If you are upgrading your cluster to version 1.23, then you must first install the Amazon EBS driver before updating your cluster. For more information, see [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html). If you have pods running on a version 1.22 or earlier cluster, then you must install the Amazon EBS driver before updating your cluster to version 1.23 to avoid service interruption. https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html
   - Blog https://aws.amazon.com/blogs/containers/migrating-amazon-eks-clusters-from-gp2-to-gp3-ebs-volumes/
 
@@ -142,3 +134,26 @@ Relevant features that are coming in future releases of Kubernetes. A feature is
   - See recommendation below for `podFailurePolicy`
 - `.spec.podFailurePolicy` for Jobs/CronJobs [`Kubernetes v1.26 [beta]`](https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-failure-policy)
   - Recommend to `Ignore` conditions caused by preemption, API-initiated eviction, or taint-based eviction so that upgrade type evictions do not count against `.spec.backoffLimit` and the jobs will be re-tried. Note - `.spec.restartPolicy` will need to be set to `Never` and `PodDisruptionCondition` must be set for PodDisruptionBudgets
+
+## Misc
+
+- Update strategies should be reviewed for 3rd party addons. For example, once the cluster is upgrade, users should review the other addons/controllers/operators running on the cluster and update if necessary. While not directly tied to the cluster upgrade itself, its important to at least inform that this is a recommended practice for users to follow to avoid downtimes when upgrading those components following a cluster upgrade.
+  - `.spec.strategy.type` != `Recreate` - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment
+    - (Deployment, ReplicaSet) - excludes ReplicationController which recommends blue/green upgrade
+    - [ ] `.spec.strategy.rollingUpdate.maxUnavailable` is set (Recommended)
+    - [ ] `.spec.strategy.rollingUpdate.maxSurge` is set (Recommended)
+  - [ ] `.spec.updateStrategy.type` != `OnDelete` - https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#rolling-updates
+    - (StatefulSet)
+
+### Data Plane Pre-Upgrade
+
+- We strongly recommend that you have [readiness and liveness probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes) configured before upgrading the data plane. This ensures that your pods register as ready/healthy at the appropriate time during an upgrade.
+    - For stateful workloads
+        - ℹ️ [Exploring Upgrade Strategies for Stateful Sets in Kubernetes](https://www.velotio.com/engineering-blog/exploring-upgrade-strategies-for-stateful-sets-in-kubernetes)
+        - ⚠️ TODO - what guidance for cluster backup before upgrade
+            - [Velero](https://github.com/vmware-tanzu/velero-plugin-for-aws)
+            - [Portworx](https://github.com/portworx/aws-helm/tree/master/portworx)
+            - [1.24+ only - maximum unavailable pods](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#maximum-unavailable-pods)
+        - If your stateful set does not require unique ordering, typically associated with processes that utilize leader election, switching to a `parallel` strategy for [`podManagementPolicy`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#parallel-pod-management) will speed up your scale up/down time as well as reduce the time needed to upgrade your cluster.
+
+- If you are running a critical application on a Karpenter-provisioned node, such as a long running batch job or stateful application, and the node’s TTL has expired, the application will be interrupted when the instance is terminated. By adding a karpenter.sh/do-not-evict annotation to the pod, you are instructing Karpenter to preserve the node until the Pod is terminated or the do-not-evict annotation is removed. See Deprovisioning documentation for further information.

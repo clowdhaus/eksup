@@ -59,7 +59,7 @@ impl Findings for Vec<ClusterHealthIssue> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return Some(format!(
-        "{leading_whitespace}:white_check_mark: - There are no reported health issues on the cluster control plane"
+        "{leading_whitespace}✅ - There are no reported health issues on the cluster control plane"
       ));
     }
 
@@ -192,7 +192,7 @@ impl Findings for Option<InsufficientSubnetIps> {
         Some(table)
       }
       None => Some(format!(
-        "{leading_whitespace}:white_check_mark: - There is sufficient IP space in the subnets provided"
+        "{leading_whitespace}✅ - There is sufficient IP space in the subnets provided"
       )),
     }
   }
@@ -372,7 +372,7 @@ impl Findings for Vec<AddonVersionCompatibility> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return Some(format!(
-        "{leading_whitespace}:white_check_mark: - There are no reported addon version compatibility issues."
+        "{leading_whitespace}✅ - There are no reported addon version compatibility issues."
       ));
     }
 
@@ -463,7 +463,7 @@ impl Findings for Vec<AddonHealthIssue> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return Some(format!(
-        "{leading_whitespace}:white_check_mark: - There are no reported addon health issues."
+        "{leading_whitespace}✅ - There are no reported addon health issues."
       ));
     }
 
@@ -573,7 +573,7 @@ impl Findings for Vec<NodegroupHealthIssue> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return Some(format!(
-        "{leading_whitespace}:white_check_mark: - There are no reported nodegroup health issues."
+        "{leading_whitespace}✅ - There are no reported nodegroup health issues."
       ));
     }
 
@@ -750,7 +750,7 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return Some(format!(
-        "{leading_whitespace}:white_check_mark: - There are no pending updates for the EKS managed nodegroup(s)"
+        "{leading_whitespace}✅ - There are no pending updates for the EKS managed nodegroup(s)"
       ));
     }
 
@@ -835,7 +835,7 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
     if self.is_empty() {
       return Some(format!(
-        "{leading_whitespace}:white_check_mark: - There are no pending updates for the self-managed nodegroup(s)"
+        "{leading_whitespace}✅ - There are no pending updates for the self-managed nodegroup(s)"
       ));
     }
 

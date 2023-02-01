@@ -7,10 +7,12 @@ use crate::version;
 /// This allows for filtering of findings shown to user
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Remediation {
-  /// A finding that requires remediation prior to upgrading to avoid downtime or disruption
+  /// A finding that requires remediation prior to upgrading to be able to perform the upgrade
+  /// and avoid downtime or disruption
   Required,
-  /// A finding that users are recommended to remediate prior to upgrade, but failure
-  /// to do so does not pose a risk to downtime or disruption during the upgrade
+  /// A finding that users are encouraged to evaluate the recommendation and determine if it
+  /// is applicable and whether or not to act upon that recommendation.
+  /// Not remediating the finding does not prevent the upgrade from occurring.
   Recommended,
 }
 
@@ -103,18 +105,15 @@ pub(crate) enum Code {
   /// Insufficient number of `.spec.minReadySeconds`
   K8S003,
 
-  /// Incorrect update strategy is used
+  /// Missing `podDisruptionBudgets`
   K8S004,
 
-  /// Missing `podDisruptionBudgets`
+  /// Pod distribution settings put availability at risk
   K8S005,
 
-  /// Pod distribution settings put availability at risk
+  /// `pod.spec.containers[*].readinessProbe` not set
   K8S006,
 
-  /// `pod.spec.containers[*].readinessProbe` not set
-  K8S007,
-
   /// `pod.spec.TerminationGracePeriodSeconds` is set to zero
-  K8S008,
+  K8S007,
 }
