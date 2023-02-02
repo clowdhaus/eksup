@@ -1,0 +1,147 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  create-release:
+    name: create-release
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      eksup_version: ${{ env.EKSUP_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get the release version from the tag
+        shell: bash
+        if: env.EKSUP_VERSION == ''
+        run: |
+          echo "EKSUP_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "version is: ${{ env.EKSUP_VERSION }}"
+
+      - name: Generate a changelog
+        id: changelog
+        uses: orhun/git-cliff-action@v2
+        with:
+          args: --latest --strip header -o CHANGELOG.md
+
+      - name: Check release
+        run: cat CHANGELOG.md
+
+      - name: Release
+        id: release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+
+  build-release:
+    name: build-release
+    needs: ['create-release']
+    permissions:
+      contents: write
+    runs-on: ${{ matrix.os }}
+    env:
+      # For some builds, we use cross to test on 32-bit and big-endian systems
+      CARGO: cargo
+      # When CARGO is set to CROSS, this is set to `--target matrix.target`
+      TARGET_FLAGS: ""
+      # When CARGO is set to CROSS, TARGET_DIR includes matrix.target
+      TARGET_DIR: ./target
+      # Emit backtraces on panics.
+      RUST_BACKTRACE: 1
+    strategy:
+      matrix:
+        build: [linux, linux-arm, macos, win-msvc, win32-msvc] # win-gnu,
+        include:
+        - build: linux
+          os: ubuntu-22.04
+          rust: nightly
+          target: x86_64-unknown-linux-musl
+        - build: linux-arm
+          os: ubuntu-22.04
+          rust: nightly
+          target: arm-unknown-linux-gnueabihf
+        - build: macos
+          os: macos-12
+          rust: nightly
+          target: x86_64-apple-darwin
+        - build: macos-arm
+          os: macos-12
+          rust: nightly
+          target: aarch64-apple-darwin
+        - build: win-msvc
+          os: windows-2022
+          rust: nightly
+          target: x86_64-pc-windows-msvc
+        # # https://github.com/actions/runner-images/issues/1143
+        # - build: win-gnu
+        #   os: windows-2022
+        #   rust: nightly-x86_64-gnu
+        #   target: x86_64-pc-windows-gnu
+        - build: win32-msvc
+          os: windows-2022
+          rust: nightly
+          target: i686-pc-windows-msvc
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        target: ${{ matrix.target }}
+
+    - name: Use Cross
+      shell: bash
+      run: |
+        cargo install cross
+        echo "CARGO=cross" >> $GITHUB_ENV
+        echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
+        echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+
+    - name: Show command used for Cargo
+      run: |
+        echo "cargo command is: ${{ env.CARGO }}"
+        echo "target flag is: ${{ env.TARGET_FLAGS }}"
+        echo "target dir is: ${{ env.TARGET_DIR }}"
+
+    - name: Build release binary
+      run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
+
+    - name: Build archive
+      shell: bash
+      run: |
+        STAGING="eksup-${{ needs.create-release.outputs.eksup_version }}-${{ matrix.target }}"
+        mkdir -p "${STAGING}"
+
+        cp {README.md,LICENSE} "${STAGING}/"
+
+        if [ "${{ matrix.os }}" = "windows-2022" ]; then
+          cp "target/${{ matrix.target }}/release/eksup.exe" "${STAGING}/"
+          7z a "${STAGING}.zip" "${STAGING}"
+          echo "ASSET=${STAGING}.zip" >> $GITHUB_ENV
+        else
+          cp "target/${{ matrix.target }}/release/eksup" "${STAGING}/"
+          tar czf "${STAGING}.tar.gz" "${STAGING}"
+          echo "ASSET=${STAGING}.tar.gz" >> $GITHUB_ENV
+        fi
+
+    - name: Upload release archive
+      uses: actions/upload-release-asset@v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ${{ env.ASSET }}
+        asset_name: ${{ env.ASSET }}
+        asset_content_type: application/octet-stream
