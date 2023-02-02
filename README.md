@@ -9,7 +9,7 @@ See the docs at [clowdhaus.github.io/eksup](https://clowdhaus.github.io/eksup/)
 ### Homebrew (macOS and Linux)
 
 ```sh
-brew install clowdhaus/eksup/eksup
+brew install clowdhaus/taps/eksup
 ```
 
 ### Cargo (rust)
@@ -30,7 +30,7 @@ git clone https://github.com/clowdhaus/eksup
 cd eksup
 cargo build --release
 ./target/release/eksup --version
-0.1.0
+0.1.1-alpha
 ```
 
 ## Local Development
