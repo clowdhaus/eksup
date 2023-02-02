@@ -138,6 +138,8 @@ Table below shows the checks that are applicable, or not, to the respective Kube
 
 #### K8S001
 
+!!! info "🚧 _Not yet implemented_"
+
 **❌ Remediation required**
 
 The version skew between the control plane (API Server) and the data plane (kubelet) violates the Kubernetes version skew policy, or will violate the version skew policy after the control plane has been upgraded.
@@ -153,6 +155,8 @@ While Kubernetes does support a version skew of n-2 between the API Server and k
 [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/#supported-version-skew)
 
 #### K8S002
+
+!!! info "🚧 _Not yet implemented_"
 
 **❌ Remediation required**
 
@@ -171,6 +175,8 @@ Multiple replicas, along with the use of `PodDisruptionBudget`, are required to 
 
 #### K8S003
 
+!!! info "🚧 _Not yet implemented_"
+
 **❌ Remediation required**
 
 `minReadySeconds` has been set to a value greater than 0 seconds for `StatefulSet`
@@ -183,6 +189,8 @@ You can read more about why this is necessary for `StatefulSet` [here](https://k
 
 #### K8S004
 
+!!! info "🚧 _Not yet implemented_"
+
 **❌ Remediation required**
 
 At least one `podDisruptionBudget` covers the workload, and at least one of `minAvailable` or `maxUnavailable` is set
@@ -190,6 +198,8 @@ At least one `podDisruptionBudget` covers the workload, and at least one of `min
 The Kubernetes eviction API is the preferred method for draining nodes for replacement during an upgrade. The eviction API respects `PodDisruptionBudget` and will not evict pods that would violate the `PodDisruptionBudget` to ensure application availability, when specified.
 
 #### K8S005
+
+!!! info "🚧 _Not yet implemented_"
 
 **❌ Remediation required**
 
@@ -207,6 +217,8 @@ Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` is 
 
 #### K8S006
 
+!!! info "🚧 _Not yet implemented_"
+
 **❌ Remediation required**
 
 A `readinessProbe` must be set to ensure traffic is not sent to pods before they are ready following their re-deployment from a node replacement.
@@ -216,6 +228,8 @@ A `readinessProbe` must be set to ensure traffic is not sent to pods before they
 If a `livenessProbe`  is provided, it should not be the same as `readinessProbe`, and a `startupProbe` should also accompany it.
 
 #### K8S007
+
+!!! info "🚧 _Not yet implemented_"
 
 **❌ Remediation required**
 
@@ -228,6 +242,8 @@ The `StatefulSet` should not specify a `TerminationGracePeriodSeconds` of 0
 [Force Delete StatefulSet Pods](https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/)
 
 #### K8S008
+
+!!! info "🚧 _Not yet implemented_"
 
 Pod volumes should not mount the `docker.sock` file with the removal of the Dockershim starting in Kubernetes `v1.24`
 
@@ -245,6 +261,8 @@ For clusters on Kubernetes <`v1.22`
 
 #### K8S009
 
+!!! info "🚧 _Not yet implemented_"
+
 The pod security policy resource has been removed started in Kubernetes `v1.25`
 
 **❌ Remediation required**
@@ -260,6 +278,8 @@ For clusters on Kubernetes <`v1.23`
 [PodSecurityPolicy Deprecation: Past, Present, and Future](https://kubernetes.io/blog/2021/04/06/podsecuritypolicy-deprecation-past-present-and-future/)
 
 #### K8S010
+
+!!! info "🚧 _Not yet implemented_"
 
 The [in-tree Amazon EBS storage provisioner](https://kubernetes.io/docs/concepts/storage/volumes/#awselasticblockstore) is deprecated. If you are upgrading your cluster to version `v1.23`, then you must first install the Amazon EBS driver before updating your cluster. For more information, see [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html).
 
