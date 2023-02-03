@@ -57,6 +57,7 @@ pub struct TemplateData {
   self_managed_nodegroup_template: String,
   fargate_profiles: Vec<String>,
   fargate_profile_template: String,
+  min_replicas: Option<String>,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
@@ -120,6 +121,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
   let data_plane_findings = analysis.data_plane;
   let subnet_findings = analysis.subnets;
   let addon_findings = analysis.addons;
+  let kubernetes_findings = analysis.kubernetes;
 
   // Render sub-templates for data plane components
   let eks_managed_nodegroup_health = data_plane_findings.eks_managed_nodegroup_health.to_markdown_table("\t");
@@ -175,6 +177,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     self_managed_nodegroup_template,
     fargate_profiles,
     fargate_profile_template,
+    min_replicas: kubernetes_findings.min_replicas.to_markdown_table("\t"),
   };
 
   let filename = match &args.filename {

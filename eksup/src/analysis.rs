@@ -5,7 +5,7 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::{eks, k8s};
+use crate::{eks, k8s, k8s::K8sFindings};
 
 /// Findings related to the cluster itself, primarily the control plane
 #[derive(Debug, Serialize, Deserialize)]
@@ -87,24 +87,18 @@ async fn get_addon_findings(
   })
 }
 
-/// Findings collected from the Kubernetes workload resources running on the cluster
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct K8sWorkloadResourceFindings {
-  /// Reports any health issues as reported by the Amazon EKS addon API
+pub(crate) struct KubernetesFindings {
   pub(crate) min_replicas: Vec<k8s::MinReplicas>,
 }
 
-// /// Collects the findings from the Kubernetes workload resources running on the cluster
-// async fn get_k8s_workload_findings(
-//   k8s_client: &K8sClient,
-//   cluster: &Cluster,
-// ) -> Result<K8sWorkloadResourceFindings> {
-//   let min_replicas = k8s::min_replicas(k8s_client, cluster).await?;
-//   Ok(SubnetFindings {
-//     control_plane_ips,
-//     pod_ips,
-//   })
-// }
+async fn get_kubernetes_findings(k8s_client: &K8sClient) -> Result<KubernetesFindings> {
+  let resources = k8s::get_resources(k8s_client).await?;
+
+  let min_replicas = resources.iter().filter_map(|s| s.min_replicas()).collect();
+
+  Ok(KubernetesFindings { min_replicas })
+}
 
 /// Findings related to the data plane infrastructure components
 ///
@@ -190,6 +184,7 @@ pub(crate) struct Results {
   pub(crate) subnets: SubnetFindings,
   pub(crate) data_plane: DataPlaneFindings,
   pub(crate) addons: AddonFindings,
+  pub(crate) kubernetes: KubernetesFindings,
 }
 
 /// Analyze the cluster provided to collect all reported findings
@@ -207,12 +202,13 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
   let subnet_findings = get_subnet_findings(&ec2_client, &k8s_client, cluster).await?;
   let addon_findings = get_addon_findings(&eks_client, cluster_name, cluster_version).await?;
   let dataplane_findings = get_data_plane_findings(&asg_client, &ec2_client, &eks_client, &k8s_client, cluster).await?;
-  let _k8s_findings = k8s::get_resources(&k8s_client).await?;
+  let kubernetes_findings = get_kubernetes_findings(&k8s_client).await?;
 
   Ok(Results {
     cluster: cluster_findings,
     subnets: subnet_findings,
     addons: addon_findings,
     data_plane: dataplane_findings,
+    kubernetes: kubernetes_findings,
   })
 }

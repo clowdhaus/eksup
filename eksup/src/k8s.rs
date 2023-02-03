@@ -209,15 +209,6 @@ pub(crate) struct MinReadySecondsFinding {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct UpdateStrategyFinding {
-  pub(crate) resource: Resource,
-  /// Update strategy
-  pub(crate) strategy: String,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct PodDisruptionBudgetFinding {
   pub(crate) resource: Resource,
   /// Has pod associated pod disruption budget
@@ -270,9 +261,9 @@ pub(crate) struct DockerSocketFinding {
 pub(crate) trait K8sFindings {
   fn get_resource(&self) -> Resource;
   /// K8S002 - check if resources contain a minimum of 3 replicas
-  fn min_replicas(&self) -> Result<Option<MinReplicas>>;
+  fn min_replicas(&self) -> Option<MinReplicas>;
   /// K8S003 - check if resources contain minReadySeconds > 0
-  fn min_ready_seconds(&self) -> Result<Option<MinReadySecondsFinding>>;
+  fn min_ready_seconds(&self) -> Option<MinReadySecondsFinding>;
   // /// K8S004 - check if resources have associated podDisruptionBudgets
   // fn pod_disruption_budget(&self) -> Result<Option<PodDisruptionBudgetFinding>>;
   // /// K8S005 - check if resources have podAntiAffinity or topologySpreadConstraints
@@ -300,28 +291,6 @@ pub(crate) struct StdMetadata {
   pub(crate) kind: String,
   pub(crate) labels: BTreeMap<String, String>,
   pub(crate) annotations: BTreeMap<String, String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum UpdateStrategy {
-  RollingUpdate,
-  ReCreate,
-  OnDelete,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StdUpdateStrategy {
-  /// RollingUpdate is used to communicate parameters when Type is RollingUpdateStatefulSetStrategyType.
-  pub rolling_update: Option<UpdateStrategy>,
-
-  /// Type indicates the type of the StatefulSetUpdateStrategy. Default is RollingUpdate.
-  pub type_: Option<String>,
-
-  /// The maximum number of pods that can be scheduled above the desired number of pods. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Defaults to 25%. Example: when this is set to 30%, the new ReplicaSet can be scaled up immediately when the rolling update starts, such that the total number of old and new pods do not exceed 130% of desired pods. Once old pods have been killed, new ReplicaSet can be scaled up further, ensuring that total number of pods running at any time during the update is at most 130% of desired pods.
-  pub max_surge: Option<k8s_openapi::apimachinery::pkg::util::intstr::IntOrString>,
-
-  /// The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Defaults to 25%. Example: when this is set to 30%, the old ReplicaSet can be scaled down to 70% of desired pods immediately when the rolling update starts. Once new pods are ready, old ReplicaSet can be scaled down further, followed by scaling up the new ReplicaSet, ensuring that the total number of pods available at all times during the update is at least 70% of desired pods.
-  pub max_unavailable: Option<k8s_openapi::apimachinery::pkg::util::intstr::IntOrString>,
 }
 
 /// This is a generalized spec used across all resource types that
@@ -353,25 +322,30 @@ impl K8sFindings for StdResource {
     }
   }
 
-  fn min_replicas(&self) -> Result<Option<MinReplicas>> {
-    let replicas = self.spec.replicas.unwrap_or(1);
-    let finding = if replicas < 3 {
-      Some(MinReplicas {
-        resource: self.get_resource(),
-        replicas,
-        remediation: finding::Remediation::Required,
-        fcode: finding::Code::K8S002,
-      })
-    } else {
-      None
-    };
+  fn min_replicas(&self) -> Option<MinReplicas> {
+    let replicas = self.spec.replicas;
 
-    Ok(finding)
+    match replicas {
+      Some(replicas) => {
+        if replicas < 3 {
+          Some(MinReplicas {
+            resource: self.get_resource(),
+            replicas,
+            remediation: finding::Remediation::Required,
+            fcode: finding::Code::K8S002,
+          })
+        } else {
+          None
+        }
+      }
+      None => None,
+    }
   }
 
-  fn min_ready_seconds(&self) -> Result<Option<MinReadySecondsFinding>> {
+  fn min_ready_seconds(&self) -> Option<MinReadySecondsFinding> {
     let seconds = self.spec.min_ready_seconds.unwrap_or(0);
-    let finding = if seconds < 1 {
+
+    if seconds < 1 {
       Some(MinReadySecondsFinding {
         resource: self.get_resource(),
         seconds,
@@ -380,9 +354,7 @@ impl K8sFindings for StdResource {
       })
     } else {
       None
-    };
-
-    Ok(finding)
+    }
   }
 }
 
@@ -408,7 +380,6 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
       let spec = StdSpec {
         min_ready_seconds: spec.min_ready_seconds,
         replicas: spec.replicas,
-        // strategy: spec.strategy,
         template: Some(spec.template),
       };
 
@@ -419,7 +390,7 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
   Ok(deployments)
 }
 
-async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
+async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::ReplicaSet> = Api::all(client.clone());
   let replicaset_list = api.list(&Default::default()).await?;
 
@@ -441,7 +412,6 @@ async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
       let spec = StdSpec {
         min_ready_seconds: spec.min_ready_seconds,
         replicas: spec.replicas,
-        // strategy: None,
         template: spec.template,
       };
 
@@ -474,7 +444,6 @@ async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
       let spec = StdSpec {
         min_ready_seconds: spec.min_ready_seconds,
         replicas: spec.replicas,
-        // strategy: spec.update_strategy,
         template: Some(spec.template),
       };
 
@@ -507,7 +476,6 @@ async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
       let spec = StdSpec {
         min_ready_seconds: spec.min_ready_seconds,
         replicas: None,
-        // strategy: spec.update_strategy,
         template: Some(spec.template),
       };
 
@@ -540,7 +508,6 @@ async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
       let spec = StdSpec {
         min_ready_seconds: None,
         replicas: None,
-        // strategy: None,
         template: Some(spec.template),
       };
 
@@ -573,7 +540,6 @@ async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
       let spec = StdSpec {
         min_ready_seconds: None,
         replicas: None,
-        // strategy: None,
         template: match spec.job_template.spec {
           Some(spec) => Some(spec.template),
           None => None,
@@ -610,40 +576,15 @@ pub(crate) async fn get_resources(client: &Client) -> Result<Vec<StdResource>> {
   let daemonsets = get_daemonsets(client).await?;
   let deployments = get_deployments(client).await?;
   let jobs = get_jobs(client).await?;
-  let replicasets = get_replicasets(client).await?;
+  // let replicasets = get_replicasets(client).await?;
   let statefulsets = get_statefulsets(client).await?;
-
-  // for cron in &cronjobs {
-  //   println!("{:#?}", cron.min_replicas()?);
-  //   println!("{:#?}", cron.min_ready_seconds()?);
-  // }
-  // for daemon in &daemonsets {
-  //   println!("{:#?}", daemon.min_replicas()?);
-  //   println!("{:#?}", daemon.min_ready_seconds()?);
-  // }
-  // for deploy in deployments {
-  //   println!("{:#?}", deploy.min_replicas()?);
-  //   println!("{:#?}", deploy.min_ready_seconds()?);
-  // }
-  // for job in jobs {
-  //   println!("{:#?}", job.min_replicas()?);
-  //   println!("{:#?}", job.min_ready_seconds()?);
-  // }
-  // for repl in replicasets {
-  //   println!("{:#?}", repl.min_replicas()?);
-  //   println!("{:#?}", repl.min_ready_seconds()?);
-  // }
-  // for set in statefulsets {
-  //   println!("{:#?}", set.min_replicas()?);
-  //   println!("{:#?}", set.min_ready_seconds()?);
-  // }
 
   let mut resources = Vec::new();
   resources.extend(cronjobs);
   resources.extend(daemonsets);
   resources.extend(deployments);
   resources.extend(jobs);
-  resources.extend(replicasets);
+  // resources.extend(replicasets);
   resources.extend(statefulsets);
 
   Ok(resources)
