@@ -160,12 +160,43 @@ pub(crate) async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct MinReplicaFinding {
+pub(crate) struct MinReplicas {
   pub(crate) resource: Resource,
   /// Number of replicas
   pub(crate) replicas: i32,
   pub(crate) remediation: finding::Remediation,
   pub(crate) fcode: finding::Code,
+}
+
+impl Findings for Vec<MinReplicas> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+    if self.is_empty() {
+      return Some(format!(
+        "{leading_whitespace}✅ - All relevant Kubernetes workloads have at least 3 replicas specified"
+      ));
+    }
+
+    let mut table = String::new();
+    table.push_str(&format!(
+      "{leading_whitespace}|  -  | Name | Namespace | Kind | Minimum Replicas |\n"
+    ));
+    table.push_str(&format!(
+      "{leading_whitespace}| :---: | :--- | :------ | :--- | :--------------- |\n"
+    ));
+
+    for finding in self {
+      table.push_str(&format!(
+        "{leading_whitespace}| {} | {} | {} | {} | {} |\n",
+        finding.remediation.symbol(),
+        finding.resource.name,
+        finding.resource.namespace,
+        finding.resource.kind,
+        finding.replicas,
+      ))
+    }
+
+    Some(format!("{table}\n"))
+  }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -239,7 +270,7 @@ pub(crate) struct DockerSocketFinding {
 pub(crate) trait K8sFindings {
   fn get_resource(&self) -> Resource;
   /// K8S002 - check if resources contain a minimum of 3 replicas
-  fn min_replicas(&self) -> Result<Option<MinReplicaFinding>>;
+  fn min_replicas(&self) -> Result<Option<MinReplicas>>;
   /// K8S003 - check if resources contain minReadySeconds > 0
   fn min_ready_seconds(&self) -> Result<Option<MinReadySecondsFinding>>;
   // /// K8S004 - check if resources have associated podDisruptionBudgets
@@ -303,9 +334,6 @@ pub(crate) struct StdSpec {
   /// Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.
   pub replicas: Option<i32>,
 
-  // TODO - need to do something here
-  // /// The deployment strategy to use to replace existing pods with new ones.
-  // pub strategy: Option<DeploymentStrategy>,
   /// Template describes the pods that will be created.
   pub template: Option<PodTemplateSpec>,
 }
@@ -325,10 +353,10 @@ impl K8sFindings for StdResource {
     }
   }
 
-  fn min_replicas(&self) -> Result<Option<MinReplicaFinding>> {
+  fn min_replicas(&self) -> Result<Option<MinReplicas>> {
     let replicas = self.spec.replicas.unwrap_or(1);
     let finding = if replicas < 3 {
-      Some(MinReplicaFinding {
+      Some(MinReplicas {
         resource: self.get_resource(),
         replicas,
         remediation: finding::Remediation::Required,

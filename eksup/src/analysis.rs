@@ -87,6 +87,25 @@ async fn get_addon_findings(
   })
 }
 
+/// Findings collected from the Kubernetes workload resources running on the cluster
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct K8sWorkloadResourceFindings {
+  /// Reports any health issues as reported by the Amazon EKS addon API
+  pub(crate) min_replicas: Vec<k8s::MinReplicas>,
+}
+
+// /// Collects the findings from the Kubernetes workload resources running on the cluster
+// async fn get_k8s_workload_findings(
+//   k8s_client: &K8sClient,
+//   cluster: &Cluster,
+// ) -> Result<K8sWorkloadResourceFindings> {
+//   let min_replicas = k8s::min_replicas(k8s_client, cluster).await?;
+//   Ok(SubnetFindings {
+//     control_plane_ips,
+//     pod_ips,
+//   })
+// }
+
 /// Findings related to the data plane infrastructure components
 ///
 /// This does not include findings for resources that are running on the cluster, within the data plane
