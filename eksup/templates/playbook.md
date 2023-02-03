@@ -79,7 +79,7 @@
     ```
     </details>
 
-    ##### 📝 [K8S001] Analysis Results
+    #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
 {{ version_skew }}
 
 3. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
@@ -96,7 +96,7 @@
 
     </details>
 
-    ##### 📝 [EKS001] Analysis Results
+    #### Check [[EKS001]](https://clowdhaus.github.io/eksup/process/checks/#eks001)
 {{ control_plane_ips }}
 
 4. Ensure the cluster is free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster. Note - resolution in some cases may require creating a new cluster. For example, if the cluster primary security group was deleted, at this time, the only course of remediation is to create a new cluster and migrate any workloads over to that cluster (treated as a blue/green cluster upgrade).
@@ -111,7 +111,7 @@
 
     </details>
 
-    ##### 📝 [EKS002] Analysis Results
+    #### Check [[EKS002]](https://clowdhaus.github.io/eksup/process/checks/#eks002)
 {{ cluster_health }}
 
 5. Ensure the EKS addons in use are using a version that is supported by the intended target Kubernetes version. If an addon is not compatible with the intended target Kubernetes version, upgrade the addon to a version that is compatible before upgrading the cluster.
@@ -137,7 +137,7 @@
 
     </details>
 
-    ##### 📝 [EKS005] Analysis Results
+    #### Check [[EKS005]](https://clowdhaus.github.io/eksup/process/checks/#eks005)
 {{ addon_version_compatibility }}
 
 5. Check Kubernetes API versions currently in use and ensure any versions that are removed in the next Kubernetes release are updated prior to upgrading the cluster. There are several open source tools that can help you identify deprecated API versions in your Kubernetes manifests. The following open source projects support scanning both your cluster as well as manifest files to identify deprecated and/or removed API versions:
@@ -196,7 +196,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     </details>
 
-    ##### 📝 [AWS002] Analysis Results
+    #### Check [[AWS002]](https://clowdhaus.github.io/eksup/process/checks/#aws002)
 {{ pod_ips }}
 {{/if}}
 
@@ -226,7 +226,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     </details>
 
-    ##### 📝 [EKS004] Analysis Results
+    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/process/checks/#eks004)
 {{ addon_health }}
 
 ### Addon Upgrade

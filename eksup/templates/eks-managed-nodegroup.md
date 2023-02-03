@@ -22,7 +22,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
 
     </details>
 
-    ##### 📝 [EKS003] Analysis Results
+    #### Check [[EKS003]](https://clowdhaus.github.io/eksup/process/checks/#eks003)
 {{ eks_managed_nodegroup_health }}
 
 2. Ensure the EKS managed nodegroup(s) do not have any pending updates and they are using the latest version of their respective launch templates. If the nodegroup(s) are not using the latest launch template, it is recommended to update to the latest to avoid accidentally introducing any additional and un-intended changes during the upgrade.
@@ -36,7 +36,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
 
     </details>
 
-    ##### 📝 [EKS006] Analysis Results
+    Check [[EKS006]](https://clowdhaus.github.io/eksup/process/checks/#eks006)
 {{ eks_managed_nodegroup_update }}
 
 ##### Upgrade
@@ -72,7 +72,7 @@ EKS optimized AMI provided by Amazon EKS:
 
 ##### Process
 
-The following events take place when a nodegroup detects changes that require nodes to be cycled and replaced, such as upgrading the Kubernetes version or deployng a new AMI:
+The following events take place when a nodegroup detects changes that require nodes to be cycled and replaced, such as upgrading the Kubernetes version or deploying a new AMI:
 
 For each node in the nodegroup:
   - The node is cordoned so that Kubernetes does not schedule new Pods on it.

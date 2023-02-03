@@ -19,7 +19,7 @@ A starting point for the instance refresh configuration is to use a value of 70%
 
     </details>
 
-    ##### 📝 [EKS007] Analysis Results
+    Check [[EKS007]](https://clowdhaus.github.io/eksup/process/checks/#eks007)
 {{ self_managed_nodegroup_update }}
 
 ##### Upgrade

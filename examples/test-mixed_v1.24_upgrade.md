@@ -70,7 +70,7 @@
     ```
     </details>
 
-    ##### 📝 [K8S001] Analysis Results
+    #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
 	|  -  | Nodes | Kubelet Version | Control Plane Version |
 	| :---: | :---: | :-------------- | :-------------------- |
 	| ⚠️ | 2 | `v1.22` | `v1.23` |
@@ -78,10 +78,10 @@
 
 	|   -   | Node Name | Kubelet Version | Control Plane Version |
 	| :---: | :-------- | :-------------- | :-------------------- |
-	| ❌ | `ip-10-0-21-97.ec2.internal` | `v1.21` | `v1.23` |
-	| ❌ | `ip-10-0-31-138.ec2.internal` | `v1.21` | `v1.23` |
-	| ⚠️ | `ip-10-0-46-208.ec2.internal` | `v1.22` | `v1.23` |
-	| ⚠️ | `ip-10-0-6-50.ec2.internal` | `v1.22` | `v1.23` |
+	| ⚠️ | `ip-10-0-13-231.ec2.internal` | `v1.22` | `v1.23` |
+	| ❌ | `ip-10-0-40-240.ec2.internal` | `v1.21` | `v1.23` |
+	| ❌ | `ip-10-0-41-155.ec2.internal` | `v1.21` | `v1.23` |
+	| ⚠️ | `ip-10-0-7-3.ec2.internal` | `v1.22` | `v1.23` |
 
 
 
@@ -99,7 +99,7 @@
 
     </details>
 
-    ##### 📝 [EKS001] Analysis Results
+    #### Check [[EKS001]](https://clowdhaus.github.io/eksup/process/checks/#eks001)
 	✅ - There is sufficient IP space in the subnets provided
 
 4. Ensure the cluster is free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster. Note - resolution in some cases may require creating a new cluster. For example, if the cluster primary security group was deleted, at this time, the only course of remediation is to create a new cluster and migrate any workloads over to that cluster (treated as a blue/green cluster upgrade).
@@ -114,7 +114,7 @@
 
     </details>
 
-    ##### 📝 [EKS002] Analysis Results
+    #### Check [[EKS002]](https://clowdhaus.github.io/eksup/process/checks/#eks002)
 	✅ - There are no reported health issues on the cluster control plane
 
 5. Ensure the EKS addons in use are using a version that is supported by the intended target Kubernetes version. If an addon is not compatible with the intended target Kubernetes version, upgrade the addon to a version that is compatible before upgrading the cluster.
@@ -140,7 +140,7 @@
 
     </details>
 
-    ##### 📝 [EKS005] Analysis Results
+    #### Check [[EKS005]](https://clowdhaus.github.io/eksup/process/checks/#eks005)
 	|   -   | Name  | Version | Next Default | Next Latest |
 	| :---: | :---- | :-----: | :----------: | :---------: |
 	| ⚠️ | `coredns` | `v1.8.4-eksbuild.2` | `v1.8.7-eksbuild.3` | `v1.8.7-eksbuild.3` |
@@ -203,7 +203,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     </details>
 
-    ##### 📝 [AWS002] Analysis Results
+    #### Check [[AWS002]](https://clowdhaus.github.io/eksup/process/checks/#aws002)
 	✅ - There is sufficient IP space in the subnets provided
 
 #### EKS Managed Nodegroup
@@ -230,7 +230,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
 
     </details>
 
-    ##### 📝 [EKS003] Analysis Results
+    #### Check [[EKS003]](https://clowdhaus.github.io/eksup/process/checks/#eks003)
 	✅ - There are no reported nodegroup health issues.
 
 2. Ensure the EKS managed nodegroup(s) do not have any pending updates and they are using the latest version of their respective launch templates. If the nodegroup(s) are not using the latest launch template, it is recommended to update to the latest to avoid accidentally introducing any additional and un-intended changes during the upgrade.
@@ -244,10 +244,10 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
 
     </details>
 
-    ##### 📝 [EKS006] Analysis Results
+    Check [[EKS006]](https://clowdhaus.github.io/eksup/process/checks/#eks006)
 	|   -   | MNG Name  | Launch Template ID | Current | Latest |
 	| :---: | :-------- | :----------------- | :-----: | :----: |
-	| ⚠️ | `standard-2023012520034032750000002d` | `lt-06aa285a3b55fa0b6` | `1` | `2` |
+	| ⚠️ | `standard-2023020223592170250000002d` | `lt-066f4621afc89c753` | `1` | `2` |
 
 
 ##### Upgrade
@@ -283,7 +283,7 @@ EKS optimized AMI provided by Amazon EKS:
 
 ##### Process
 
-The following events take place when a nodegroup detects changes that require nodes to be cycled and replaced, such as upgrading the Kubernetes version or deployng a new AMI:
+The following events take place when a nodegroup detects changes that require nodes to be cycled and replaced, such as upgrading the Kubernetes version or deploying a new AMI:
 
 For each node in the nodegroup:
   - The node is cordoned so that Kubernetes does not schedule new Pods on it.
@@ -320,10 +320,10 @@ A starting point for the instance refresh configuration is to use a value of 70%
 
     </details>
 
-    ##### 📝 [EKS007] Analysis Results
+    Check [[EKS007]](https://clowdhaus.github.io/eksup/process/checks/#eks007)
 	|   -   | ASG Name | Launch Template ID | Current | Latest |
 	| :---: | :------- | :----------------- | :-----: | :----: |
-	| ⚠️ | `different-20230125200340605200000031` | `lt-00c9c5fd3111c1e01` | `1` | `2` |
+	| ⚠️ | `different-20230202235921829700000031` | `lt-0105b5eee96aa8737` | `1` | `2` |
 
 
 ##### Upgrade
@@ -406,7 +406,7 @@ The Kubernetes version used by Fargate nodes is referenced from the control plan
 
     </details>
 
-    ##### 📝 [EKS004] Analysis Results
+    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/process/checks/#eks004)
 	✅ - There are no reported addon health issues.
 
 ### Addon Upgrade
