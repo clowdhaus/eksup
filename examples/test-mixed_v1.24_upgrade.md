@@ -190,6 +190,9 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 
 
+    #### Check [[K8S003]](https://clowdhaus.github.io/eksup/process/checks/#k8s003)
+	✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0
+
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
 
 3. Verify that there is sufficient IP space available to the pods running in the cluster when using custom networking. With the in-place, surge upgrade process, there will be higher IP consumption during the upgrade.

@@ -200,12 +200,43 @@ impl Findings for Vec<MinReplicas> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct MinReadySecondsFinding {
+pub(crate) struct MinReadySeconds {
   pub(crate) resource: Resource,
   /// Min ready seconds
   pub(crate) seconds: i32,
   pub(crate) remediation: finding::Remediation,
   pub(crate) fcode: finding::Code,
+}
+
+impl Findings for Vec<MinReadySeconds> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+    if self.is_empty() {
+      return Some(format!(
+        "{leading_whitespace}✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0"
+      ));
+    }
+
+    let mut table = String::new();
+    table.push_str(&format!(
+      "{leading_whitespace}|  -  | Name | Namespace | Kind | minReadySeconds |\n"
+    ));
+    table.push_str(&format!(
+      "{leading_whitespace}| :---: | :--- | :------ | :--- | :--------------- |\n"
+    ));
+
+    for finding in self {
+      table.push_str(&format!(
+        "{leading_whitespace}| {} | {} | {} | {} | {} |\n",
+        finding.remediation.symbol(),
+        finding.resource.name,
+        finding.resource.namespace,
+        finding.resource.kind,
+        finding.seconds,
+      ))
+    }
+
+    Some(format!("{table}\n"))
+  }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -263,7 +294,7 @@ pub(crate) trait K8sFindings {
   /// K8S002 - check if resources contain a minimum of 3 replicas
   fn min_replicas(&self) -> Option<MinReplicas>;
   /// K8S003 - check if resources contain minReadySeconds > 0
-  fn min_ready_seconds(&self) -> Option<MinReadySecondsFinding>;
+  fn min_ready_seconds(&self) -> Option<MinReadySeconds>;
   // /// K8S004 - check if resources have associated podDisruptionBudgets
   // fn pod_disruption_budget(&self) -> Result<Option<PodDisruptionBudgetFinding>>;
   // /// K8S005 - check if resources have podAntiAffinity or topologySpreadConstraints
@@ -342,18 +373,23 @@ impl K8sFindings for StdResource {
     }
   }
 
-  fn min_ready_seconds(&self) -> Option<MinReadySecondsFinding> {
-    let seconds = self.spec.min_ready_seconds.unwrap_or(0);
+  fn min_ready_seconds(&self) -> Option<MinReadySeconds> {
+    let seconds = self.spec.min_ready_seconds;
 
-    if seconds < 1 {
-      Some(MinReadySecondsFinding {
-        resource: self.get_resource(),
-        seconds,
-        remediation: finding::Remediation::Required,
-        fcode: finding::Code::K8S003,
-      })
-    } else {
-      None
+    match seconds {
+      Some(seconds) => {
+        if seconds < 1 {
+          Some(MinReadySeconds {
+            resource: self.get_resource(),
+            seconds,
+            remediation: finding::Remediation::Required,
+            fcode: finding::Code::K8S003,
+          })
+        } else {
+          None
+        }
+      }
+      None => None,
     }
   }
 }

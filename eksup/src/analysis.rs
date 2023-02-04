@@ -5,7 +5,11 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::{eks, k8s, k8s::K8sFindings};
+use crate::{
+  eks,
+  finding::Findings,
+  k8s::{self, K8sFindings},
+};
 
 /// Findings related to the cluster itself, primarily the control plane
 #[derive(Debug, Serialize, Deserialize)]
@@ -87,17 +91,22 @@ async fn get_addon_findings(
   })
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct KubernetesFindings {
-  pub(crate) min_replicas: Vec<k8s::MinReplicas>,
+  pub(crate) min_replicas: Option<String>,
+  pub(crate) min_ready_seconds: Option<String>,
 }
 
 async fn get_kubernetes_findings(k8s_client: &K8sClient) -> Result<KubernetesFindings> {
   let resources = k8s::get_resources(k8s_client).await?;
 
-  let min_replicas = resources.iter().filter_map(|s| s.min_replicas()).collect();
+  let min_replicas: Vec<k8s::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();
+  let min_ready_seconds: Vec<k8s::MinReadySeconds> = resources.iter().filter_map(|s| s.min_ready_seconds()).collect();
 
-  Ok(KubernetesFindings { min_replicas })
+  Ok(KubernetesFindings {
+    min_replicas: min_replicas.to_markdown_table("\t"),
+    min_ready_seconds: min_ready_seconds.to_markdown_table("\t"),
+  })
 }
 
 /// Findings related to the data plane infrastructure components
