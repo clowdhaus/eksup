@@ -46,8 +46,8 @@ A check must be able to answer `yes` to one of the following questions, dependin
 | [`K8S009`] |     -      |     -      |           -           |      -      |  -  |    -    |     -     |
 | [`K8S010`] |     -      |     -      |           -           |      -      |  -  |    -    |     -     |
 
-- [ ] [`K8S002`] `.spec.replicas` set >= 3
-- [ ] [`K8S003`] `.spec.minReadySeconds` set > 0 - https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
+- [x] [`K8S002`] `.spec.replicas` set >= 3
+- [x] [`K8S003`] `.spec.minReadySeconds` set > 0 - https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
 - [ ] [`K8S004`] `podDisruptionBudgets` set & at least one of `minAvailable` or `maxUnavailable` is set
 - [ ] [`K8S005`] Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` set to avoid multiple pods from being scheduled on the same node. https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   - [ ] Prefer topology hints over affinity `Note: Inter-pod affinity and anti-affinity require substantial amount of processing which can slow down scheduling in large clusters significantly. We do not recommend using them in clusters larger than several hundred nodes.` https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
@@ -56,10 +56,6 @@ A check must be able to answer `yes` to one of the following questions, dependin
   - [ ] `.spec.containers[*].startupProbe` is set if `.spec.containers[*].livenessProbe` is set
 - [ ] [`K8S007`] `pod.Spec.TerminationGracePeriodSeconds` > 0 - The StatefulSet should not specify a pod.Spec.TerminationGracePeriodSeconds of 0 https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#deployment-and-scaling-guarantees
   - (StatefulSet)
-
-#### Job/CronJob
-
-- [ ] [`K8S---`] `.spec.suspend` set to `true` before upgrading, removed after upgrade (see questions - what is the best guidance for batch workloads?)
 
 ### Kubernetes Deprecations
 

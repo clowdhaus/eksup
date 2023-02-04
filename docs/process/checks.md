@@ -138,8 +138,6 @@ Table below shows the checks that are applicable, or not, to the respective Kube
 
 #### K8S001
 
-!!! info "🚧 _Not yet implemented_"
-
 **❌ Remediation required**
 
 The version skew between the control plane (API Server) and the data plane (kubelet) violates the Kubernetes version skew policy, or will violate the version skew policy after the control plane has been upgraded.
@@ -155,8 +153,6 @@ While Kubernetes does support a version skew of n-2 between the API Server and k
 [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/#supported-version-skew)
 
 #### K8S002
-
-!!! info "🚧 _Not yet implemented_"
 
 **❌ Remediation required**
 
@@ -174,8 +170,6 @@ Multiple replicas, along with the use of `PodDisruptionBudget`, are required to 
 [EKS Best Practices - Reliability](https://aws.github.io/aws-eks-best-practices/reliability/docs/application/#run-multiple-replicas)
 
 #### K8S003
-
-!!! info "🚧 _Not yet implemented_"
 
 **❌ Remediation required**
 

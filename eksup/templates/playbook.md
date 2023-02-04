@@ -5,9 +5,9 @@
 | Amazon EKS cluster         |                 `{{ cluster_name }}`                      |
 | Current version            |                 `v{{ current_version }}`                  |
 | Target version             |                  `v{{ target_version }}`                  |
-| EKS Managed nodegroup(s)  | {{#if eks_managed_nodegroups }} ✅ {{ else }} ➖ {{/if}}  |
-| Self-Managed nodegroup(s) | {{#if self_managed_nodegroups }} ✅ {{ else }} ➖ {{/if}} |
-| Fargate profile(s)         |     {{#if fargate_profiles }} ✅ {{ else }} ➖ {{/if}}     |
+| EKS Managed nodegroup(s)  | {{#if data_plane_findings.eks_managed_nodegroups }} ✅ {{ else }} ➖ {{/if}}  |
+| Self-Managed nodegroup(s) | {{#if data_plane_findings.self_managed_nodegroups }} ✅ {{ else }} ➖ {{/if}} |
+| Fargate profile(s)         |     {{#if data_plane_findings.fargate_profiles }} ✅ {{ else }} ➖ {{/if}}     |
 
 ## Table of Contents
 
@@ -15,14 +15,14 @@
     - [Control Plane Pre-Upgrade](#control-plane-pre-upgrade)
     - [Control Plane Upgrade](#control-plane-upgrade)
 - [Upgrade the Data Plane](#upgrade-the-data-plane)
-{{#if eks_managed_nodegroups }}
+{{#if data_plane_findings.eks_managed_nodegroups }}
     - [Data Plane Pre-Upgrade](#data-plane-pre-upgrade)
         - [EKS Managed Nodegroup](#eks-managed-nodegroup)
 {{/if}}
-{{#if self_managed_nodegroups }}
+{{#if data_plane_findings.self_managed_nodegroups }}
         - [Self-Managed Nodegroup](#self-managed-nodegroup)
 {{/if}}
-{{#if fargate_profiles }}
+{{#if data_plane_findings.fargate_profiles }}
         - [Fargate Profile](#fargate-profile)
 {{/if}}
 - [Upgrade EKS Addons](#upgrade-eks-addons)
@@ -80,7 +80,7 @@
     </details>
 
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
-{{ version_skew }}
+{{ data_plane_findings.version_skew }}
 
 3. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
 
@@ -206,13 +206,13 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 {{ pod_ips }}
 {{/if}}
 
-{{#if eks_managed_nodegroups }}
+{{#if data_plane_findings.eks_managed_nodegroups }}
 {{ eks_managed_nodegroup_template }}
 {{/if}}
-{{#if self_managed_nodegroups }}
+{{#if data_plane_findings.self_managed_nodegroups }}
 {{ self_managed_nodegroup_template }}
 {{/if}}
-{{#if fargate_profiles }}
+{{#if data_plane_findings.fargate_profiles }}
 {{ fargate_profile_template }}
 {{/if}}
 
