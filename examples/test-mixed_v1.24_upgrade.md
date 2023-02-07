@@ -78,10 +78,10 @@
 
 	|   -   | Node Name | Kubelet Version | Control Plane Version |
 	| :---: | :-------- | :-------------- | :-------------------- |
-	| ⚠️ | `ip-10-0-13-231.ec2.internal` | `v1.22` | `v1.23` |
-	| ❌ | `ip-10-0-40-240.ec2.internal` | `v1.21` | `v1.23` |
-	| ❌ | `ip-10-0-41-155.ec2.internal` | `v1.21` | `v1.23` |
-	| ⚠️ | `ip-10-0-7-3.ec2.internal` | `v1.22` | `v1.23` |
+	| ❌ | `ip-10-0-21-97.ec2.internal` | `v1.21` | `v1.23` |
+	| ❌ | `ip-10-0-31-138.ec2.internal` | `v1.21` | `v1.23` |
+	| ⚠️ | `ip-10-0-46-208.ec2.internal` | `v1.22` | `v1.23` |
+	| ⚠️ | `ip-10-0-6-50.ec2.internal` | `v1.22` | `v1.23` |
 
 
 
@@ -181,6 +181,18 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     🚧 TODO - fill in analysis results
 
+    #### Check [[K8S002]](https://clowdhaus.github.io/eksup/process/checks/#k8s002)
+	|  -  | Name | Namespace | Kind | Minimum Replicas |
+	| :---: | :--- | :------ | :--- | :--------------- |
+	| ❌ | bad-dpl | deployment | Deployment | 1 |
+	| ❌ | coredns | kube-system | Deployment | 2 |
+	| ❌ | bad-ss | statefulset | StatefulSet | 1 |
+
+
+
+    #### Check [[K8S003]](https://clowdhaus.github.io/eksup/process/checks/#k8s003)
+	✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0
+
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
 
 3. Verify that there is sufficient IP space available to the pods running in the cluster when using custom networking. With the in-place, surge upgrade process, there will be higher IP consumption during the upgrade.
@@ -247,7 +259,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
     Check [[EKS006]](https://clowdhaus.github.io/eksup/process/checks/#eks006)
 	|   -   | MNG Name  | Launch Template ID | Current | Latest |
 	| :---: | :-------- | :----------------- | :-----: | :----: |
-	| ⚠️ | `standard-2023020223592170250000002d` | `lt-066f4621afc89c753` | `1` | `2` |
+	| ⚠️ | `standard-2023012520034032750000002d` | `lt-06aa285a3b55fa0b6` | `1` | `2` |
 
 
 ##### Upgrade
@@ -323,7 +335,7 @@ A starting point for the instance refresh configuration is to use a value of 70%
     Check [[EKS007]](https://clowdhaus.github.io/eksup/process/checks/#eks007)
 	|   -   | ASG Name | Launch Template ID | Current | Latest |
 	| :---: | :------- | :----------------- | :-----: | :----: |
-	| ⚠️ | `different-20230202235921829700000031` | `lt-0105b5eee96aa8737` | `1` | `2` |
+	| ⚠️ | `different-20230125200340605200000031` | `lt-00c9c5fd3111c1e01` | `1` | `2` |
 
 
 ##### Upgrade

@@ -5,10 +5,14 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::{eks, k8s};
+use crate::{
+  eks::{self, ManagedNodeGroupUpdate},
+  finding::Findings,
+  k8s::{self, K8sFindings},
+};
 
 /// Findings related to the cluster itself, primarily the control plane
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct ClusterFindings {
   /// The health of the cluster as reported by the Amazon EKS API
   pub(crate) cluster_health: Vec<eks::ClusterHealthIssue>,
@@ -22,7 +26,7 @@ async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings> {
 }
 
 /// Networking/subnet findings, primarily focused on IP exhaustion/number of available IPs
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct SubnetFindings {
   /// The Amazon EKS service requires at least 5 available IPs in order to upgrade a cluster in-place
   pub(crate) control_plane_ips: Option<eks::InsufficientSubnetIps>,
@@ -61,7 +65,7 @@ async fn get_subnet_findings(
 /// Either native EKS addons or addons deployed through the AWS Marketplace integration.
 /// It does NOT include custom addons or services deployed by users using kubectl/Helm/etc.,
 /// it is only evaluating those that can be accessed via the AWS EKS API
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AddonFindings {
   /// Determines whether or not the current addon version is supported by Amazon EKS in the
   /// intended upgrade target Kubernetes version
@@ -87,25 +91,43 @@ async fn get_addon_findings(
   })
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct KubernetesFindings {
+  pub(crate) min_replicas: Option<String>,
+  pub(crate) min_ready_seconds: Option<String>,
+}
+
+async fn get_kubernetes_findings(k8s_client: &K8sClient) -> Result<KubernetesFindings> {
+  let resources = k8s::get_resources(k8s_client).await?;
+
+  let min_replicas: Vec<k8s::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();
+  let min_ready_seconds: Vec<k8s::MinReadySeconds> = resources.iter().filter_map(|s| s.min_ready_seconds()).collect();
+
+  Ok(KubernetesFindings {
+    min_replicas: min_replicas.to_markdown_table("\t"),
+    min_ready_seconds: min_ready_seconds.to_markdown_table("\t"),
+  })
+}
+
 /// Findings related to the data plane infrastructure components
 ///
 /// This does not include findings for resources that are running on the cluster, within the data plane
 /// (pods, deployments, etc.)
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct DataPlaneFindings {
   /// The skew/diff between the cluster control plane (API Server) and the nodes in the data plane (kubelet)
   /// It is recommended that these versions are aligned prior to upgrading, and changes are required when
   /// the skew policy could be violated post upgrade (i.e. if current skew is +2, the policy would be violated
   /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
-  pub(crate) version_skew: Vec<k8s::NodeFinding>,
+  pub(crate) version_skew: Option<String>,
   /// The health of the EKS managed node groups as reported by the Amazon EKS managed node group API
-  pub(crate) eks_managed_nodegroup_health: Vec<eks::NodegroupHealthIssue>,
+  pub(crate) eks_managed_nodegroup_health: Option<String>,
   /// Will show if the current launch template provided to the Amazon EKS managed node group is NOT the latest
   /// version since this may potentially introduce additional changes that were not planned for just the upgrade
   /// (i.e. - any changes that may have been introduced in the launch template versions that have not been deployed)
-  pub(crate) eks_managed_nodegroup_update: Vec<eks::ManagedNodeGroupUpdate>,
+  pub(crate) eks_managed_nodegroup_update: Option<String>,
   /// Similar to the `eks_managed_nodegroup_update` except for self-managed node groups (autoscaling groups)
-  pub(crate) self_managed_nodegroup_update: Vec<eks::AutoscalingGroupUpdate>,
+  pub(crate) self_managed_nodegroup_update: Option<String>,
 
   /// The names of the EKS managed node groups
   pub(crate) eks_managed_nodegroups: Vec<String>,
@@ -137,6 +159,7 @@ async fn get_data_plane_findings(
     let update = eks::eks_managed_nodegroup_update(ec2_client, eks_mng).await?;
     eks_managed_nodegroup_update.push(update);
   }
+
   let mut self_managed_nodegroup_update = Vec::new();
   for self_mng in &self_mngs {
     let update = eks::self_managed_nodegroup_update(ec2_client, self_mng).await?;
@@ -144,10 +167,18 @@ async fn get_data_plane_findings(
   }
 
   Ok(DataPlaneFindings {
-    version_skew,
-    eks_managed_nodegroup_health,
-    eks_managed_nodegroup_update: eks_managed_nodegroup_update.into_iter().flatten().collect(),
-    self_managed_nodegroup_update: self_managed_nodegroup_update.into_iter().flatten().collect(),
+    version_skew: version_skew.to_markdown_table("\t"),
+    eks_managed_nodegroup_health: eks_managed_nodegroup_health.to_markdown_table("\t"),
+    eks_managed_nodegroup_update: eks_managed_nodegroup_update
+      .into_iter()
+      .flatten()
+      .collect::<Vec<ManagedNodeGroupUpdate>>()
+      .to_markdown_table("\t"),
+    self_managed_nodegroup_update: self_managed_nodegroup_update
+      .into_iter()
+      .flatten()
+      .collect::<Vec<eks::AutoscalingGroupUpdate>>()
+      .to_markdown_table("\t"),
     // Pass through to avoid additional API calls
     eks_managed_nodegroups: eks_mngs
       .iter()
@@ -165,12 +196,13 @@ async fn get_data_plane_findings(
 }
 
 /// Container of all findings collected
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct Results {
   pub(crate) cluster: ClusterFindings,
   pub(crate) subnets: SubnetFindings,
   pub(crate) data_plane: DataPlaneFindings,
   pub(crate) addons: AddonFindings,
+  pub(crate) kubernetes: KubernetesFindings,
 }
 
 /// Analyze the cluster provided to collect all reported findings
@@ -188,12 +220,13 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
   let subnet_findings = get_subnet_findings(&ec2_client, &k8s_client, cluster).await?;
   let addon_findings = get_addon_findings(&eks_client, cluster_name, cluster_version).await?;
   let dataplane_findings = get_data_plane_findings(&asg_client, &ec2_client, &eks_client, &k8s_client, cluster).await?;
-  let _k8s_findings = k8s::get_resources(&k8s_client).await?;
+  let kubernetes_findings = get_kubernetes_findings(&k8s_client).await?;
 
   Ok(Results {
     cluster: cluster_findings,
     subnets: subnet_findings,
     addons: addon_findings,
     data_plane: dataplane_findings,
+    kubernetes: kubernetes_findings,
   })
 }
