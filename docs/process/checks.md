@@ -29,7 +29,7 @@ There is a sufficient quantity of IPs available for the **pods** to support the 
 
 This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves.
 
-<!-- #### AWS003
+#### AWS003
 !!! info "🚧 _Not yet implemented_"
 
 EC2 instance service limits
@@ -42,7 +42,7 @@ EBS GP2 volume service limits
 #### AWS005
 !!! info "🚧 _Not yet implemented_"
 
-EBS GP3 volume service limits -->
+EBS GP3 volume service limits
 
 ---
 
