@@ -6,7 +6,7 @@ use crate::version;
 ///
 /// This allows for filtering of findings shown to user
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) enum Remediation {
+pub enum Remediation {
   /// A finding that requires remediation prior to upgrading to be able to perform the upgrade
   /// and avoid downtime or disruption
   Required,
@@ -25,7 +25,7 @@ impl Remediation {
   }
 }
 
-pub(crate) trait Findings {
+pub trait Findings {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String>;
 }
 
@@ -53,7 +53,7 @@ pub(crate) trait Deprecation {
 /// in reporting available IPs as subnet findings, the data shape is generic by the finding
 /// is unique to different scenarios)
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) enum Code {
+pub enum Code {
   /// AWS finding codes not specific to EKS
   ///
   /// Insufficient available subnet IPs for nodes
