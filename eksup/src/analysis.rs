@@ -150,7 +150,7 @@ async fn get_data_plane_findings(
 
   let eks_mngs = eks::get_eks_managed_nodegroups(eks_client, cluster_name).await?;
   let self_mngs = eks::get_self_managed_nodegroups(asg_client, cluster_name).await?;
-  let fargate_profiles = eks::_get_fargate_profiles(eks_client, cluster_name).await?;
+  let fargate_profiles = eks::get_fargate_profiles(eks_client, cluster_name).await?;
 
   let version_skew = k8s::version_skew(k8s_client, cluster_version).await?;
   let eks_managed_nodegroup_health = eks::eks_managed_nodegroup_health(&eks_mngs).await?;

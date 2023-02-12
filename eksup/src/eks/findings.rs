@@ -1,58 +1,31 @@
-use std::{collections::HashSet, env};
+use std::collections::HashSet;
 
-use anyhow::{bail, Result};
-use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_autoscaling::{
-  model::{AutoScalingGroup, Filter as AsgFilter},
-  Client as AsgClient,
-};
+use anyhow::Result;
+use aws_sdk_autoscaling::model::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{
-  model::{Addon, Cluster, FargateProfile, Nodegroup},
+  model::{Addon, Cluster, Nodegroup},
   Client as EksClient,
 };
-use aws_types::region::Region;
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+  eks::resources,
   finding::{self, Findings},
   k8s, version,
 };
-
-/// Get the configuration to authn/authz with AWS that will be used across AWS clients
-pub(crate) async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig> {
-  let aws_region = match region {
-    Some(region) => Region::new(region.to_owned()),
-    None => env::var("AWS_REGION").ok().map(Region::new).unwrap(),
-  };
-
-  let region_provider = RegionProviderChain::first_try(aws_region).or_default_provider();
-
-  Ok(aws_config::from_env().region(region_provider).load().await)
-}
-
-/// Describe the cluster to get its full details
-pub(crate) async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
-  let request = client.describe_cluster().name(name);
-  let response = request.send().await?;
-
-  match response.cluster {
-    Some(cluster) => Ok(cluster),
-    None => bail!("Cluster {name} not found"),
-  }
-}
 
 /// Cluster health issue data
 ///
 /// Nearly identical to the SDK's `ClusterIssue` but allows us to serialize/deserialize
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct ClusterHealthIssue {
-  pub(crate) code: String,
-  pub(crate) message: String,
-  pub(crate) resource_ids: Vec<String>,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+pub struct ClusterHealthIssue {
+  pub code: String,
+  pub message: String,
+  pub resource_ids: Vec<String>,
+  pub remediation: finding::Remediation,
+  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<ClusterHealthIssue> {
@@ -92,7 +65,7 @@ impl Findings for Vec<ClusterHealthIssue> {
 }
 
 /// Check for any reported health issues on the cluster control plane
-pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue>> {
+pub async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue>> {
   let health = cluster.health();
 
   match health {
@@ -121,48 +94,13 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealt
   }
 }
 
-/// Container for the subnet IDs and their total available IPs
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct SubnetIPs {
-  ids: Vec<String>,
-  available_ips: i32,
-}
-
-/// Describe the subnets provided by ID
-///
-/// This will show the number of available IPs for evaluating
-/// IP contention/exhaustion across the various subnets in use
-/// by the control plane ENIs, the nodes, and the pods (when custom
-/// networking is enabled)
-async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<SubnetIPs> {
-  let subnets = client
-    .describe_subnets()
-    .set_subnet_ids(Some(subnet_ids))
-    .send()
-    .await?
-    .subnets
-    .unwrap();
-
-  let available_ips = subnets
-    .iter()
-    .map(|subnet| subnet.available_ip_address_count.unwrap())
-    .sum();
-
-  let ids = subnets
-    .iter()
-    .map(|subnet| subnet.subnet_id().unwrap().to_string())
-    .collect::<Vec<String>>();
-
-  Ok(SubnetIPs { ids, available_ips })
-}
-
 /// Subnet details that can affect upgrade behavior
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct InsufficientSubnetIps {
-  pub(crate) ids: Vec<String>,
-  pub(crate) available_ips: i32,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) code: finding::Code,
+pub struct InsufficientSubnetIps {
+  pub ids: Vec<String>,
+  pub available_ips: i32,
+  pub remediation: finding::Remediation,
+  pub code: finding::Code,
 }
 
 impl Findings for Option<InsufficientSubnetIps> {
@@ -198,13 +136,10 @@ impl Findings for Option<InsufficientSubnetIps> {
   }
 }
 
-pub(crate) async fn control_plane_ips(
-  ec2_client: &Ec2Client,
-  cluster: &Cluster,
-) -> Result<Option<InsufficientSubnetIps>> {
+pub async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster) -> Result<Option<InsufficientSubnetIps>> {
   let subnet_ids = cluster.resources_vpc_config().unwrap().subnet_ids().unwrap().to_owned();
 
-  let subnet_ips = get_subnet_ips(ec2_client, subnet_ids).await?;
+  let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
   if subnet_ips.available_ips >= 5 {
     return Ok(None);
   }
@@ -224,7 +159,7 @@ pub(crate) async fn control_plane_ips(
 /// This checks for the `ENIConfig` custom resource that is used to configure
 /// the AWS VPC CNI for custom networking. The subnet listed for each ENIConfig
 /// is queried for its relevant data used to report on the available IPs
-pub(crate) async fn pod_ips(
+pub async fn pod_ips(
   ec2_client: &Ec2Client,
   k8s_client: &K8sClient,
   required_ips: i32,
@@ -240,7 +175,7 @@ pub(crate) async fn pod_ips(
     .map(|eniconfig| eniconfig.spec.subnet.as_ref().unwrap().to_owned())
     .collect();
 
-  let subnet_ips = get_subnet_ips(ec2_client, subnet_ids).await?;
+  let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
 
   if subnet_ips.available_ips >= recommended_ips {
     return Ok(None);
@@ -261,45 +196,15 @@ pub(crate) async fn pod_ips(
   Ok(Some(finding))
 }
 
-pub(crate) async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Addon>> {
-  let addon_names = client
-    .list_addons()
-    .cluster_name(cluster_name)
-    // TODO - paginate this
-    .max_results(100)
-    .send()
-    .await?
-    .addons
-    .unwrap_or_default();
-
-  let mut addons = Vec::new();
-
-  for addon_name in &addon_names {
-    let response = client
-      .describe_addon()
-      .cluster_name(cluster_name)
-      .addon_name(addon_name)
-      .send()
-      .await?
-      .addon;
-
-    if let Some(addon) = response {
-      addons.push(addon);
-    }
-  }
-
-  Ok(addons)
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct AddonVersion {
+pub struct AddonVersion {
   /// Latest supported version of the addon
-  pub(crate) latest: String,
+  pub latest: String,
   /// Default version of the addon used by the service
-  pub(crate) default: String,
+  pub default: String,
   /// Supported versions for the given Kubernetes version
   /// This maintains the ordering of latest version to oldest
-  pub(crate) supported_versions: HashSet<String>,
+  pub supported_versions: HashSet<String>,
 }
 
 /// Get the addon version details for the given addon and Kubernetes version
@@ -356,16 +261,16 @@ async fn get_addon_versions(client: &EksClient, name: &str, kubernetes_version: 
 /// needs to take to upgrade the cluster, or should consider taking in terms
 /// of a recommendation to update to the latest supported version.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct AddonVersionCompatibility {
-  pub(crate) name: String,
+pub struct AddonVersionCompatibility {
+  pub name: String,
   /// The current version of the add-on
-  pub(crate) version: String,
+  pub version: String,
   /// The default and latest add-on versions for the current Kubernetes version
-  pub(crate) current_kubernetes_version: AddonVersion,
+  pub current_kubernetes_version: AddonVersion,
   /// The default and latest add-on versions for the target Kubernetes version
-  pub(crate) target_kubernetes_version: AddonVersion,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) code: finding::Code,
+  pub target_kubernetes_version: AddonVersion,
+  pub remediation: finding::Remediation,
+  pub code: finding::Code,
 }
 
 impl Findings for Vec<AddonVersionCompatibility> {
@@ -401,7 +306,7 @@ impl Findings for Vec<AddonVersionCompatibility> {
 }
 
 /// Check for any version compatibility issues for the EKS addons enabled
-pub(crate) async fn addon_version_compatibility(
+pub async fn addon_version_compatibility(
   client: &EksClient,
   cluster_version: &str,
   addons: &[Addon],
@@ -450,13 +355,13 @@ pub(crate) async fn addon_version_compatibility(
 ///
 /// Nearly identical to the SDK's `AddonIssue` but allows us to serialize/deserialize
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct AddonHealthIssue {
-  pub(crate) name: String,
-  pub(crate) code: String,
-  pub(crate) message: String,
-  pub(crate) resource_ids: Vec<String>,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+pub struct AddonHealthIssue {
+  pub name: String,
+  pub code: String,
+  pub message: String,
+  pub resource_ids: Vec<String>,
+  pub remediation: finding::Remediation,
+  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<AddonHealthIssue> {
@@ -496,7 +401,7 @@ impl Findings for Vec<AddonHealthIssue> {
   }
 }
 
-pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>> {
+pub async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>> {
   let health_issues = addons
     .iter()
     .flat_map(|addon| {
@@ -526,47 +431,17 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssu
   Ok(health_issues)
 }
 
-pub(crate) async fn get_eks_managed_nodegroups(client: &EksClient, cluster_name: &str) -> Result<Vec<Nodegroup>> {
-  let nodegroup_names = client
-    .list_nodegroups()
-    .cluster_name(cluster_name)
-    // TODO - paginate this
-    .max_results(100)
-    .send()
-    .await?
-    .nodegroups
-    .unwrap_or_default();
-
-  let mut nodegroups = Vec::new();
-
-  for nodegroup_name in nodegroup_names {
-    let response = client
-      .describe_nodegroup()
-      .cluster_name(cluster_name)
-      .nodegroup_name(nodegroup_name)
-      .send()
-      .await?
-      .nodegroup;
-
-    if let Some(nodegroup) = response {
-      nodegroups.push(nodegroup);
-    }
-  }
-
-  Ok(nodegroups)
-}
-
 /// Nodegroup health issue data
 ///
 /// Nearly similar to the SDK's `NodegroupHealth` but flattened
 /// and without `Option()`s to make it a bit more ergonomic here
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct NodegroupHealthIssue {
-  pub(crate) name: String,
-  pub(crate) code: String,
-  pub(crate) message: String,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+pub struct NodegroupHealthIssue {
+  pub name: String,
+  pub code: String,
+  pub message: String,
+  pub remediation: finding::Remediation,
+  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<NodegroupHealthIssue> {
@@ -597,7 +472,7 @@ impl Findings for Vec<NodegroupHealthIssue> {
 }
 
 /// Check for any reported health issues on EKS managed node groups
-pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Result<Vec<NodegroupHealthIssue>> {
+pub async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Result<Vec<NodegroupHealthIssue>> {
   let health_issues = nodegroups
     .iter()
     .flat_map(|nodegroup| {
@@ -623,127 +498,23 @@ pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Re
   Ok(health_issues)
 }
 
-pub(crate) async fn get_self_managed_nodegroups(
-  client: &AsgClient,
-  cluster_name: &str,
-) -> Result<Vec<AutoScalingGroup>> {
-  let keys = vec![
-    format!("k8s.io/cluster/{cluster_name}"),
-    format!("kubernetes.io/cluster/{cluster_name}"),
-  ];
-
-  let filter = AsgFilter::builder()
-    .set_name(Some("tag-key".to_string()))
-    .set_values(Some(keys))
-    .build();
-
-  let response = client.describe_auto_scaling_groups().filters(filter).send().await?;
-  let groups = response.auto_scaling_groups().map(|groups| groups.to_vec());
-
-  // Filter out EKS managed node groups by the EKS MNG applied tag
-  match groups {
-    Some(groups) => {
-      let filtered = groups
-        .into_iter()
-        .filter(|group| {
-          group
-            .tags()
-            .unwrap_or_default()
-            .iter()
-            .all(|tag| tag.key().unwrap_or_default() != "eks:nodegroup-name")
-        })
-        .collect();
-
-      Ok(filtered)
-    }
-    None => Ok(vec![]),
-  }
-}
-
-pub(crate) async fn _get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Result<Vec<FargateProfile>> {
-  let profile_names = client
-    .list_fargate_profiles()
-    .cluster_name(cluster_name)
-    // TODO - paginate this
-    .max_results(100)
-    .send()
-    .await?
-    .fargate_profile_names
-    .unwrap_or_default();
-
-  let mut profiles = Vec::new();
-
-  for profile_name in &profile_names {
-    let response = client
-      .describe_fargate_profile()
-      .cluster_name(cluster_name)
-      .fargate_profile_name(profile_name)
-      .send()
-      .await?
-      .fargate_profile;
-
-    if let Some(profile) = response {
-      profiles.push(profile);
-    }
-  }
-
-  Ok(profiles)
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct LaunchTemplate {
-  /// Name of the launch template
-  pub(crate) name: String,
-  /// The ID of the launch template
-  pub(crate) id: String,
-  /// The version of the launch template currently used/specified in the autoscaling group
-  pub(crate) current_version: String,
-  /// The latest version of the launch template
-  pub(crate) latest_version: String,
-}
-
-async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchTemplate> {
-  let output = client
-    .describe_launch_templates()
-    .set_launch_template_ids(Some(vec![id.to_string()]))
-    .send()
-    .await?;
-
-  let template = output
-    .launch_templates
-    .unwrap()
-    .into_iter()
-    .map(|lt| LaunchTemplate {
-      name: lt.launch_template_name.unwrap(),
-      id: lt.launch_template_id.unwrap(),
-      current_version: lt.default_version_number.unwrap().to_string(),
-      latest_version: lt.latest_version_number.unwrap().to_string(),
-    })
-    .next();
-
-  match template {
-    Some(t) => Ok(t),
-    None => bail!("Unable to find launch template with id: {id}"),
-  }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct ManagedNodeGroupUpdate {
+pub struct ManagedNodeGroupUpdate {
   /// EKS managed node group name
-  pub(crate) name: String,
+  pub name: String,
   /// Name of the autoscaling group associated to the EKS managed node group
-  pub(crate) autoscaling_group_name: String,
+  pub autoscaling_group_name: String,
   /// Launch template controlled by users that influences the autoscaling group
   ///
   /// This distinction is important because we only consider the launch templates
   /// provided by users and not provided by EKS managed node group(s)
-  pub(crate) launch_template: LaunchTemplate,
+  pub launch_template: resources::LaunchTemplate,
   // We do not consider launch configurations because you cannot determine if any
   // updates are pending like with launch templates and because they are being deprecated
   // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
   // launch_configuration_name: Option<String>,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+  pub remediation: finding::Remediation,
+  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<ManagedNodeGroupUpdate> {
@@ -778,7 +549,7 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
   }
 }
 
-pub(crate) async fn eks_managed_nodegroup_update(
+pub async fn eks_managed_nodegroup_update(
   client: &Ec2Client,
   nodegroup: &Nodegroup,
 ) -> Result<Vec<ManagedNodeGroupUpdate>> {
@@ -793,7 +564,7 @@ pub(crate) async fn eks_managed_nodegroup_update(
   match launch_template_spec {
     Some(launch_template_spec) => {
       let launch_template_id = launch_template_spec.id().unwrap().to_owned();
-      let launch_template = get_launch_template(client, &launch_template_id).await?;
+      let launch_template = resources::get_launch_template(client, &launch_template_id).await?;
 
       let updates = nodegroup
         .resources()
@@ -818,17 +589,17 @@ pub(crate) async fn eks_managed_nodegroup_update(
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct AutoscalingGroupUpdate {
+pub struct AutoscalingGroupUpdate {
   /// Autoscaling group name
-  pub(crate) name: String,
+  pub name: String,
   /// Launch template used by the autoscaling group
-  pub(crate) launch_template: LaunchTemplate,
+  pub launch_template: resources::LaunchTemplate,
   // We do not consider launch configurations because you cannot determine if any
   // updates are pending like with launch templates and because they are being deprecated
   // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
   // launch_configuration_name: Option<String>,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+  pub remediation: finding::Remediation,
+  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<AutoscalingGroupUpdate> {
@@ -873,13 +644,13 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
 /// deployed when the launch template is updated to version 6 for the Kubernetes version upgrade. Ideally,
 /// users should be on the latest version of the launch template prior to upgrading to avoid any surprises
 /// or unexpected changes.
-pub(crate) async fn self_managed_nodegroup_update(
+pub async fn self_managed_nodegroup_update(
   client: &Ec2Client,
   asg: &AutoScalingGroup,
 ) -> Result<Option<AutoscalingGroupUpdate>> {
   let name = asg.auto_scaling_group_name().unwrap().to_owned();
   let launch_template_id = asg.launch_template().unwrap().launch_template_id().unwrap().to_owned();
-  let launch_template = get_launch_template(client, &launch_template_id).await?;
+  let launch_template = resources::get_launch_template(client, &launch_template_id).await?;
 
   // Only interested in those that are not using the latest version
   if launch_template.current_version != launch_template.latest_version {
