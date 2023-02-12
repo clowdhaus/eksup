@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
   finding,
-  k8s::findings::{K8sFindings, MinReadySeconds, MinReplicas},
+  k8s::checks::{K8sFindings, MinReadySeconds, MinReplicas},
 };
 
 /// Custom resource definition for ENIConfig as specified in the AWS VPC CNI

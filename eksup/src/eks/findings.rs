@@ -1,667 +1,178 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
-use aws_sdk_autoscaling::model::AutoScalingGroup;
+use aws_sdk_autoscaling::Client as AsgClient;
 use aws_sdk_ec2::Client as Ec2Client;
-use aws_sdk_eks::{
-  model::{Addon, Cluster, Nodegroup},
-  Client as EksClient,
-};
+use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  eks::resources,
-  finding::{self, Findings},
-  k8s, version,
+  eks::{checks, resources},
+  finding::Findings,
+  k8s,
 };
 
-/// Cluster health issue data
-///
-/// Nearly identical to the SDK's `ClusterIssue` but allows us to serialize/deserialize
+/// Findings related to the cluster itself, primarily the control plane
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ClusterHealthIssue {
-  pub code: String,
-  pub message: String,
-  pub resource_ids: Vec<String>,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
+pub struct ClusterFindings {
+  /// The health of the cluster as reported by the Amazon EKS API
+  pub cluster_health: Vec<checks::ClusterHealthIssue>,
 }
 
-impl Findings for Vec<ClusterHealthIssue> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
-    if self.is_empty() {
-      return Some(format!(
-        "{leading_whitespace}✅ - There are no reported health issues on the cluster control plane"
-      ));
-    }
+/// Collects the cluster findings from the Amazon EKS API
+pub async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings> {
+  let cluster_health = checks::cluster_health(cluster).await?;
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   _   | Code  | Message | Resource IDs |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---: | :------ | :----------- |\n"
-    ));
-
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | {} |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.code,
-        finding.message,
-        finding
-          .resource_ids
-          .iter()
-          .map(|f| format!("`{f}`"))
-          .collect::<Vec<String>>()
-          .join(", "),
-      ))
-    }
-
-    Some(table)
-  }
+  Ok(ClusterFindings { cluster_health })
 }
 
-/// Check for any reported health issues on the cluster control plane
-pub async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue>> {
-  let health = cluster.health();
-
-  match health {
-    Some(health) => {
-      let issues = health
-        .issues()
-        .unwrap()
-        .to_owned()
-        .iter()
-        .map(|issue| {
-          let code = &issue.code().unwrap().to_owned();
-
-          ClusterHealthIssue {
-            code: code.as_str().to_string(),
-            message: issue.message().unwrap().to_string(),
-            resource_ids: issue.resource_ids().unwrap().to_owned(),
-            remediation: finding::Remediation::Required,
-            fcode: finding::Code::EKS002,
-          }
-        })
-        .collect();
-
-      Ok(issues)
-    }
-    None => Ok(vec![]),
-  }
-}
-
-/// Subnet details that can affect upgrade behavior
+/// Networking/subnet findings, primarily focused on IP exhaustion/number of available IPs
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InsufficientSubnetIps {
-  pub ids: Vec<String>,
-  pub available_ips: i32,
-  pub remediation: finding::Remediation,
-  pub code: finding::Code,
+pub struct SubnetFindings {
+  /// The Amazon EKS service requires at least 5 available IPs in order to upgrade a cluster in-place
+  pub control_plane_ips: Option<checks::InsufficientSubnetIps>,
+  /// This is the number of IPs available to pods when custom networking is enabled on the AWS VPC CNI,
+  /// pulling the available number of IPs for the subnets listed in the ENIConfig resource(s)
+  pub pod_ips: Option<checks::InsufficientSubnetIps>,
 }
 
-impl Findings for Option<InsufficientSubnetIps> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
-    match self {
-      Some(finding) => {
-        let mut table = String::new();
-        table.push_str(&format!(
-          "{leading_whitespace}|   -   | Subnet IDs  | Available IPs |\n"
-        ));
-        table.push_str(&format!(
-          "{leading_whitespace}| :---: | :---------- | :-----------: |\n"
-        ));
-        table.push_str(&format!(
-          "{}| {} | {} | `{}` |\n",
-          leading_whitespace,
-          finding.remediation.symbol(),
-          finding
-            .ids
-            .iter()
-            .map(|f| format!("`{f}`"))
-            .collect::<Vec<String>>()
-            .join(", "),
-          finding.available_ips,
-        ));
-
-        Some(table)
-      }
-      None => Some(format!(
-        "{leading_whitespace}✅ - There is sufficient IP space in the subnets provided"
-      )),
-    }
-  }
-}
-
-pub async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster) -> Result<Option<InsufficientSubnetIps>> {
-  let subnet_ids = cluster.resources_vpc_config().unwrap().subnet_ids().unwrap().to_owned();
-
-  let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
-  if subnet_ips.available_ips >= 5 {
-    return Ok(None);
-  }
-
-  let finding = InsufficientSubnetIps {
-    ids: subnet_ips.ids,
-    available_ips: subnet_ips.available_ips,
-    remediation: finding::Remediation::Required,
-    code: finding::Code::EKS001,
-  };
-
-  Ok(Some(finding))
-}
-
-/// Check if the subnets used by the pods will support an upgrade
+/// Collects findings related to networking and subnets
 ///
-/// This checks for the `ENIConfig` custom resource that is used to configure
-/// the AWS VPC CNI for custom networking. The subnet listed for each ENIConfig
-/// is queried for its relevant data used to report on the available IPs
-pub async fn pod_ips(
+/// TBD - currently this checks if there are at least 5 available IPs for the control plane cross account ENIs
+/// and provides feedback on IPs available for pods when utilizing custom networking. However, it does not cover
+/// the IPs for the nodes or nodes and pods when custom networking is not involved. Should these IPs be reported
+/// as a whole (treat the data plane as a whole, reporting how many IPs are available), reported per compute
+/// construct (each MNG, ASG, Fargate profile takes n-number of subnets, should these groupings be reported
+/// individually since it will affect that construct but not necessarily the entire data plane), or a combination
+/// of those two?
+pub async fn get_subnet_findings(
   ec2_client: &Ec2Client,
   k8s_client: &K8sClient,
-  required_ips: i32,
-  recommended_ips: i32,
-) -> Result<Option<InsufficientSubnetIps>> {
-  let eniconfigs = k8s::get_eniconfigs(k8s_client).await?;
-  if eniconfigs.is_empty() {
-    return Ok(None);
-  }
+  cluster: &Cluster,
+) -> Result<SubnetFindings> {
+  let control_plane_ips = checks::control_plane_ips(ec2_client, cluster).await?;
+  // TODO - The required and recommended number of IPs need to be configurable to allow users who have better
+  // TODO - context on their environment as to what should be required and recommended
+  let pod_ips = checks::pod_ips(ec2_client, k8s_client, 16, 256).await?;
 
-  let subnet_ids = eniconfigs
-    .iter()
-    .map(|eniconfig| eniconfig.spec.subnet.as_ref().unwrap().to_owned())
-    .collect();
-
-  let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
-
-  if subnet_ips.available_ips >= recommended_ips {
-    return Ok(None);
-  }
-
-  let remediation = if subnet_ips.available_ips >= required_ips {
-    finding::Remediation::Required
-  } else {
-    finding::Remediation::Recommended
-  };
-  let finding = InsufficientSubnetIps {
-    ids: subnet_ips.ids,
-    available_ips: subnet_ips.available_ips,
-    remediation,
-    code: finding::Code::AWS002,
-  };
-
-  Ok(Some(finding))
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AddonVersion {
-  /// Latest supported version of the addon
-  pub latest: String,
-  /// Default version of the addon used by the service
-  pub default: String,
-  /// Supported versions for the given Kubernetes version
-  /// This maintains the ordering of latest version to oldest
-  pub supported_versions: HashSet<String>,
-}
-
-/// Get the addon version details for the given addon and Kubernetes version
-///
-/// Returns associated version details for a given addon that, primarily used
-/// for version compatibility checks and/or upgrade recommendations
-async fn get_addon_versions(client: &EksClient, name: &str, kubernetes_version: &str) -> Result<AddonVersion> {
-  // Get all of the addon versions supported for the given addon and Kubernetes version
-  let describe = client
-    .describe_addon_versions()
-    .addon_name(name)
-    .kubernetes_version(kubernetes_version)
-    .send()
-    .await?;
-
-  // Since we are providing an addon name, we are only concerned with the first and only item
-  let addon = describe.addons().unwrap().get(0).unwrap();
-  let addon_version = addon.addon_versions().unwrap();
-  let latest_version = addon_version.first().unwrap().addon_version().unwrap();
-
-  // The default version as specified by the EKS API for a given addon and Kubernetes version
-  let default_version = addon
-    .addon_versions()
-    .unwrap()
-    .iter()
-    .filter(|v| v.compatibilities().unwrap().iter().any(|c| c.default_version))
-    .map(|v| v.addon_version().unwrap())
-    .next()
-    .unwrap();
-
-  // Get the list of ALL supported version for this addon and Kubernetes version
-  // The results maintain the oder of latest version to oldest
-  let supported_versions: HashSet<String> = addon
-    .addon_versions()
-    .unwrap()
-    .iter()
-    .map(|v| v.addon_version().unwrap().to_owned())
-    .collect();
-
-  Ok(AddonVersion {
-    latest: latest_version.to_owned(),
-    default: default_version.to_owned(),
-    supported_versions,
+  Ok(SubnetFindings {
+    control_plane_ips,
+    pod_ips,
   })
 }
 
-/// Details of the addon as viewed from an upgrade perspective
+/// Findings related to the EKS addons
 ///
-/// Contains the associated version information to compare the current version
-/// of the addon relative to the current "desired" version, as well as
-/// relative to the target Kubernetes version "desired" version. It
-/// also contains any potential health issues as reported by the EKS API.
-/// The intended goal is to be able to plot a path of what steps a user either
-/// needs to take to upgrade the cluster, or should consider taking in terms
-/// of a recommendation to update to the latest supported version.
+/// Either native EKS addons or addons deployed through the AWS Marketplace integration.
+/// It does NOT include custom addons or services deployed by users using kubectl/Helm/etc.,
+/// it is only evaluating those that can be accessed via the AWS EKS API
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AddonVersionCompatibility {
-  pub name: String,
-  /// The current version of the add-on
-  pub version: String,
-  /// The default and latest add-on versions for the current Kubernetes version
-  pub current_kubernetes_version: AddonVersion,
-  /// The default and latest add-on versions for the target Kubernetes version
-  pub target_kubernetes_version: AddonVersion,
-  pub remediation: finding::Remediation,
-  pub code: finding::Code,
+pub struct AddonFindings {
+  /// Determines whether or not the current addon version is supported by Amazon EKS in the
+  /// intended upgrade target Kubernetes version
+  pub version_compatibility: Vec<checks::AddonVersionCompatibility>,
+  /// Reports any health issues as reported by the Amazon EKS addon API
+  pub health: Vec<checks::AddonHealthIssue>,
 }
 
-impl Findings for Vec<AddonVersionCompatibility> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
-    if self.is_empty() {
-      return Some(format!(
-        "{leading_whitespace}✅ - There are no reported addon version compatibility issues."
-      ));
-    }
-
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   -   | Name  | Version | Next Default | Next Latest |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---- | :-----: | :----------: | :---------: |\n"
-    ));
-
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` | `{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.version,
-        finding.target_kubernetes_version.default,
-        finding.target_kubernetes_version.latest,
-      ))
-    }
-
-    Some(table)
-  }
-}
-
-/// Check for any version compatibility issues for the EKS addons enabled
-pub async fn addon_version_compatibility(
-  client: &EksClient,
+/// Collects the addon findings from the Amazon EKS addon API
+pub async fn get_addon_findings(
+  eks_client: &EksClient,
+  cluster_name: &str,
   cluster_version: &str,
-  addons: &[Addon],
-) -> Result<Vec<AddonVersionCompatibility>> {
-  let mut addon_versions = Vec::new();
-  let target_k8s_version = format!("1.{}", version::parse_minor(cluster_version)? + 1);
+) -> Result<AddonFindings> {
+  let addons = resources::get_addons(eks_client, cluster_name).await?;
 
-  for addon in addons {
-    let name = addon.addon_name().unwrap().to_owned();
-    let version = addon.addon_version().unwrap().to_owned();
+  let version_compatibility = checks::addon_version_compatibility(eks_client, cluster_version, &addons).await?;
+  let health = checks::addon_health(&addons).await?;
 
-    let current_kubernetes_version = get_addon_versions(client, &name, cluster_version).await?;
-    let target_kubernetes_version = get_addon_versions(client, &name, &target_k8s_version).await?;
-
-    // TODO - why is this saying the if/else is the same?
-    #[allow(clippy::if_same_then_else)]
-    let remediation = if !target_kubernetes_version.supported_versions.contains(&version) {
-      // The target Kubernetes version of addons does not support the current addon version, must update
-      Some(finding::Remediation::Required)
-    } else if !current_kubernetes_version.supported_versions.contains(&version) {
-      // The current Kubernetes version of addons does not support the current addon version, must update
-      Some(finding::Remediation::Required)
-    } else if current_kubernetes_version.latest != version {
-      // The current Kubernetes version of addons supports the current addon version, but it is not the latest
-      Some(finding::Remediation::Recommended)
-    } else {
-      None
-    };
-
-    if let Some(remediation) = remediation {
-      addon_versions.push(AddonVersionCompatibility {
-        name,
-        version,
-        current_kubernetes_version,
-        target_kubernetes_version,
-        remediation,
-        code: finding::Code::EKS005,
-      })
-    }
-  }
-
-  Ok(addon_versions)
+  Ok(AddonFindings {
+    version_compatibility,
+    health,
+  })
 }
 
-/// Addon health issue data
+/// Findings related to the data plane infrastructure components
 ///
-/// Nearly identical to the SDK's `AddonIssue` but allows us to serialize/deserialize
+/// This does not include findings for resources that are running on the cluster, within the data plane
+/// (pods, deployments, etc.)
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AddonHealthIssue {
-  pub name: String,
-  pub code: String,
-  pub message: String,
-  pub resource_ids: Vec<String>,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
+pub struct DataPlaneFindings {
+  /// The skew/diff between the cluster control plane (API Server) and the nodes in the data plane (kubelet)
+  /// It is recommended that these versions are aligned prior to upgrading, and changes are required when
+  /// the skew policy could be violated post upgrade (i.e. if current skew is +2, the policy would be violated
+  /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
+  pub version_skew: Option<String>,
+  /// The health of the EKS managed node groups as reported by the Amazon EKS managed node group API
+  pub eks_managed_nodegroup_health: Option<String>,
+  /// Will show if the current launch template provided to the Amazon EKS managed node group is NOT the latest
+  /// version since this may potentially introduce additional changes that were not planned for just the upgrade
+  /// (i.e. - any changes that may have been introduced in the launch template versions that have not been deployed)
+  pub eks_managed_nodegroup_update: Option<String>,
+  /// Similar to the `eks_managed_nodegroup_update` except for self-managed node groups (autoscaling groups)
+  pub self_managed_nodegroup_update: Option<String>,
+
+  /// The names of the EKS managed node groups
+  pub eks_managed_nodegroups: Vec<String>,
+  /// The names of the self-managed node groups (autoscaling groups)
+  pub self_managed_nodegroups: Vec<String>,
+  /// The names of the Fargate profiles
+  pub fargate_profiles: Vec<String>,
 }
 
-impl Findings for Vec<AddonHealthIssue> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
-    if self.is_empty() {
-      return Some(format!(
-        "{leading_whitespace}✅ - There are no reported addon health issues."
-      ));
-    }
+/// Collects the data plane findings
+pub async fn get_data_plane_findings(
+  asg_client: &AsgClient,
+  ec2_client: &Ec2Client,
+  eks_client: &EksClient,
+  k8s_client: &kube::Client,
+  cluster: &Cluster,
+) -> Result<DataPlaneFindings> {
+  let cluster_name = cluster.name().unwrap();
+  let cluster_version = cluster.version().unwrap();
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   -   | Name  | Code  | Message | Resource IDs |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---- | :---: | :------ | :----------- |\n"
-    ));
+  let eks_mngs = resources::get_eks_managed_nodegroups(eks_client, cluster_name).await?;
+  let self_mngs = resources::get_self_managed_nodegroups(asg_client, cluster_name).await?;
+  let fargate_profiles = resources::get_fargate_profiles(eks_client, cluster_name).await?;
 
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` | {} |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.code,
-        finding.message,
-        finding
-          .resource_ids
-          .iter()
-          .map(|f| format!("`{f}`"))
-          .collect::<Vec<String>>()
-          .join(", "),
-      ))
-    }
-
-    Some(table)
+  let version_skew = k8s::version_skew(k8s_client, cluster_version).await?;
+  let eks_managed_nodegroup_health = checks::eks_managed_nodegroup_health(&eks_mngs).await?;
+  let mut eks_managed_nodegroup_update = Vec::new();
+  for eks_mng in &eks_mngs {
+    let update = checks::eks_managed_nodegroup_update(ec2_client, eks_mng).await?;
+    eks_managed_nodegroup_update.push(update);
   }
-}
 
-pub async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>> {
-  let health_issues = addons
-    .iter()
-    .flat_map(|addon| {
-      let name = addon.addon_name().unwrap();
-      let health = addon.health().unwrap();
-
-      health
-        .issues()
-        .unwrap()
-        .iter()
-        .map(|issue| {
-          let code = issue.code().unwrap();
-
-          AddonHealthIssue {
-            name: name.to_owned(),
-            code: code.as_str().to_string(),
-            message: issue.message().unwrap().to_owned(),
-            resource_ids: issue.resource_ids().unwrap().to_owned(),
-            remediation: finding::Remediation::Required,
-            fcode: finding::Code::EKS004,
-          }
-        })
-        .collect::<Vec<AddonHealthIssue>>()
-    })
-    .collect();
-
-  Ok(health_issues)
-}
-
-/// Nodegroup health issue data
-///
-/// Nearly similar to the SDK's `NodegroupHealth` but flattened
-/// and without `Option()`s to make it a bit more ergonomic here
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NodegroupHealthIssue {
-  pub name: String,
-  pub code: String,
-  pub message: String,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
-}
-
-impl Findings for Vec<NodegroupHealthIssue> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
-    if self.is_empty() {
-      return Some(format!(
-        "{leading_whitespace}✅ - There are no reported nodegroup health issues."
-      ));
-    }
-
-    let mut table = String::new();
-    table.push_str(&format!("{leading_whitespace}|   -   | Name  | Code  | Message |\n"));
-    table.push_str(&format!("{leading_whitespace}| :---: | :---- | :---: | :------ |\n"));
-
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.code,
-        finding.message,
-      ))
-    }
-
-    Some(table)
+  let mut self_managed_nodegroup_update = Vec::new();
+  for self_mng in &self_mngs {
+    let update = checks::self_managed_nodegroup_update(ec2_client, self_mng).await?;
+    self_managed_nodegroup_update.push(update);
   }
-}
 
-/// Check for any reported health issues on EKS managed node groups
-pub async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Result<Vec<NodegroupHealthIssue>> {
-  let health_issues = nodegroups
-    .iter()
-    .flat_map(|nodegroup| {
-      let name = nodegroup.nodegroup_name().unwrap();
-      let health = nodegroup.health().unwrap();
-      let issues = health.issues().unwrap();
-
-      issues.iter().map(|issue| {
-        let code = issue.code().unwrap();
-        let message = issue.message().unwrap();
-
-        NodegroupHealthIssue {
-          name: name.to_owned(),
-          code: code.as_str().to_owned(),
-          message: message.to_owned(),
-          remediation: finding::Remediation::Required,
-          fcode: finding::Code::EKS003,
-        }
-      })
-    })
-    .collect();
-
-  Ok(health_issues)
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ManagedNodeGroupUpdate {
-  /// EKS managed node group name
-  pub name: String,
-  /// Name of the autoscaling group associated to the EKS managed node group
-  pub autoscaling_group_name: String,
-  /// Launch template controlled by users that influences the autoscaling group
-  ///
-  /// This distinction is important because we only consider the launch templates
-  /// provided by users and not provided by EKS managed node group(s)
-  pub launch_template: resources::LaunchTemplate,
-  // We do not consider launch configurations because you cannot determine if any
-  // updates are pending like with launch templates and because they are being deprecated
-  // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
-  // launch_configuration_name: Option<String>,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
-}
-
-impl Findings for Vec<ManagedNodeGroupUpdate> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
-    if self.is_empty() {
-      return Some(format!(
-        "{leading_whitespace}✅ - There are no pending updates for the EKS managed nodegroup(s)"
-      ));
-    }
-
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   -   | MNG Name  | Launch Template ID | Current | Latest |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :-------- | :----------------- | :-----: | :----: |\n"
-    ));
-
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` | `{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.launch_template.id,
-        finding.launch_template.current_version,
-        finding.launch_template.latest_version,
-      ))
-    }
-
-    Some(table)
-  }
-}
-
-pub async fn eks_managed_nodegroup_update(
-  client: &Ec2Client,
-  nodegroup: &Nodegroup,
-) -> Result<Vec<ManagedNodeGroupUpdate>> {
-  let launch_template_spec = nodegroup.launch_template();
-
-  // On EKS managed node groups, there are between 1 and 2 launch templates that influence the node group.
-  // If the user does not specify a launch template, EKS will provide its own template.
-  // If the user does specify a launch template, EKS will merge the values from that template with its own template.
-  // Therefore, the launch template shown on the autoscaling group is managed by EKS and reflective of showing
-  // whether there are pending changes or not (pending changes due to launch template changes). Instead, we will only
-  // check the launch template field of the EKS managed node group which is the user provided template, if there is one.
-  match launch_template_spec {
-    Some(launch_template_spec) => {
-      let launch_template_id = launch_template_spec.id().unwrap().to_owned();
-      let launch_template = resources::get_launch_template(client, &launch_template_id).await?;
-
-      let updates = nodegroup
-        .resources()
-        .unwrap()
-        .auto_scaling_groups()
-        .unwrap()
-        .iter()
-        .map(|asg| ManagedNodeGroupUpdate {
-          name: nodegroup.nodegroup_name().unwrap().to_owned(),
-          autoscaling_group_name: asg.name().unwrap().to_owned(),
-          launch_template: launch_template.to_owned(),
-          remediation: finding::Remediation::Recommended,
-          fcode: finding::Code::EKS006,
-        })
-        // Only interested in those that are not using the latest version
-        .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
-        .collect();
-      Ok(updates)
-    }
-    None => Ok(vec![]),
-  }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AutoscalingGroupUpdate {
-  /// Autoscaling group name
-  pub name: String,
-  /// Launch template used by the autoscaling group
-  pub launch_template: resources::LaunchTemplate,
-  // We do not consider launch configurations because you cannot determine if any
-  // updates are pending like with launch templates and because they are being deprecated
-  // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
-  // launch_configuration_name: Option<String>,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
-}
-
-impl Findings for Vec<AutoscalingGroupUpdate> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
-    if self.is_empty() {
-      return Some(format!(
-        "{leading_whitespace}✅ - There are no pending updates for the self-managed nodegroup(s)"
-      ));
-    }
-
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   -   | ASG Name | Launch Template ID | Current | Latest |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :------- | :----------------- | :-----: | :----: |\n"
-    ));
-
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` | `{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.launch_template.id,
-        finding.launch_template.current_version,
-        finding.launch_template.latest_version,
-      ))
-    }
-
-    Some(table)
-  }
-}
-
-/// Returns the autoscaling groups that are not using the latest launch template version
-///
-/// If there are pending changes, users do not necessarily need to make any changes prior to upgrading.
-/// They should, however, be aware of the version currently in use and any changes that may be
-/// deployed when updating the launch template for the new Kubernetes version. For example, if the
-/// current launch template version is 3 and the latest version is 5, the user should be aware that
-/// there may, or may not, be additional changes that were introduced in version 4 and 5 that might be
-/// deployed when the launch template is updated to version 6 for the Kubernetes version upgrade. Ideally,
-/// users should be on the latest version of the launch template prior to upgrading to avoid any surprises
-/// or unexpected changes.
-pub async fn self_managed_nodegroup_update(
-  client: &Ec2Client,
-  asg: &AutoScalingGroup,
-) -> Result<Option<AutoscalingGroupUpdate>> {
-  let name = asg.auto_scaling_group_name().unwrap().to_owned();
-  let launch_template_id = asg.launch_template().unwrap().launch_template_id().unwrap().to_owned();
-  let launch_template = resources::get_launch_template(client, &launch_template_id).await?;
-
-  // Only interested in those that are not using the latest version
-  if launch_template.current_version != launch_template.latest_version {
-    let update = AutoscalingGroupUpdate {
-      name,
-      launch_template,
-      remediation: finding::Remediation::Recommended,
-      fcode: finding::Code::EKS007,
-    };
-    Ok(Some(update))
-  } else {
-    Ok(None)
-  }
+  Ok(DataPlaneFindings {
+    version_skew: version_skew.to_markdown_table("\t"),
+    eks_managed_nodegroup_health: eks_managed_nodegroup_health.to_markdown_table("\t"),
+    eks_managed_nodegroup_update: eks_managed_nodegroup_update
+      .into_iter()
+      .flatten()
+      .collect::<Vec<checks::ManagedNodeGroupUpdate>>()
+      .to_markdown_table("\t"),
+    self_managed_nodegroup_update: self_managed_nodegroup_update
+      .into_iter()
+      .flatten()
+      .collect::<Vec<checks::AutoscalingGroupUpdate>>()
+      .to_markdown_table("\t"),
+    // Pass through to avoid additional API calls
+    eks_managed_nodegroups: eks_mngs
+      .iter()
+      .map(|mng| mng.nodegroup_name().unwrap().to_owned())
+      .collect(),
+    self_managed_nodegroups: self_mngs
+      .iter()
+      .map(|asg| asg.auto_scaling_group_name().unwrap().to_owned())
+      .collect(),
+    fargate_profiles: fargate_profiles
+      .iter()
+      .map(|fp| fp.fargate_profile_name().unwrap().to_owned())
+      .collect(),
+  })
 }

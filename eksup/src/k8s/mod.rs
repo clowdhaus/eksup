@@ -1,5 +1,7 @@
+mod checks;
 mod findings;
 mod resources;
 
-pub use findings::{version_skew, K8sFindings, MinReadySeconds, MinReplicas};
-pub use resources::{get_eniconfigs, get_resources};
+pub use checks::version_skew;
+pub use findings::{get_kubernetes_findings, KubernetesFindings};
+pub use resources::get_eniconfigs;

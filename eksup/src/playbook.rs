@@ -6,7 +6,7 @@ use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 
-use crate::{analysis, cli::Playbook, finding::Findings, version};
+use crate::{analysis, cli::Playbook, eks, finding::Findings, k8s, version};
 
 /// Embeds the contents of the `templates/` directory into the binary
 ///
@@ -50,11 +50,11 @@ pub struct TemplateData {
   cluster_health: Option<String>,
   addon_health: Option<String>,
   addon_version_compatibility: Option<String>,
-  data_plane_findings: analysis::DataPlaneFindings,
+  data_plane_findings: eks::DataPlaneFindings,
   eks_managed_nodegroup_template: String,
   self_managed_nodegroup_template: String,
   fargate_profile_template: String,
-  kubernetes_findings: analysis::KubernetesFindings,
+  kubernetes_findings: k8s::KubernetesFindings,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
