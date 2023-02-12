@@ -1,16 +1,23 @@
-use std::str;
+mod analysis;
+mod eks;
+mod finding;
+mod k8s;
+mod output;
+mod playbook;
+mod version;
 
+use std::{process, str};
+
+use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
-
-use crate::output;
 
 #[derive(Parser, Debug)]
 #[command(author, about, version)]
 #[command(propagate_version = true)]
 pub struct Cli {
   #[command(subcommand)]
-  pub(crate) commands: Commands,
+  pub commands: Commands,
 }
 
 #[derive(Clone, Debug, Subcommand)]
@@ -75,4 +82,45 @@ pub struct Playbook {
   /// Exclude recommendations from the output
   #[arg(long)]
   pub ignore_recommended: bool,
+}
+
+/// Someting TODO
+pub async fn analyze(args: &Analysis) -> Result<()> {
+  let aws_config = eks::get_config(&args.region.clone()).await?;
+  let eks_client = aws_sdk_eks::Client::new(&aws_config);
+  let cluster = eks::get_cluster(&eks_client, &args.cluster).await?;
+
+  // All checks and validations on input should happen above/before running the analysis
+  let results = analysis::analyze(&aws_config, &cluster).await?;
+  output::output(&results, &args.format, &args.output).await?;
+
+  Ok(())
+}
+
+/// Someting TODO
+pub async fn create(args: &Create) -> Result<()> {
+  match &args.command {
+    CreateCommands::Playbook(playbook) => {
+      // Query Kubernetes first so that we can get AWS details that require them
+      let aws_config = eks::get_config(&playbook.region.clone()).await?;
+      let eks_client = aws_sdk_eks::Client::new(&aws_config);
+      let cluster = eks::get_cluster(&eks_client, &playbook.cluster).await?;
+      let cluster_version = cluster.version().unwrap();
+
+      if version::LATEST.eq(cluster_version) {
+        println!("Cluster is already at the latest supported version: {cluster_version}");
+        println!("Nothing to upgrade at this time");
+        return Ok(());
+      }
+
+      let results = analysis::analyze(&aws_config, &cluster).await?;
+
+      if let Err(err) = playbook::create(playbook, &cluster, results) {
+        eprintln!("{err}");
+        process::exit(2);
+      }
+    }
+  }
+
+  Ok(())
 }

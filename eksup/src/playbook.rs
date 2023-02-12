@@ -6,7 +6,7 @@ use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 
-use crate::{analysis, cli::Playbook, eks, finding::Findings, k8s, version};
+use crate::{analysis, eks, finding::Findings, k8s, version, Playbook};
 
 /// Embeds the contents of the `templates/` directory into the binary
 ///

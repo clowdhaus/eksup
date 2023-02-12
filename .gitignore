@@ -14,3 +14,10 @@ target
 # Ignore generated playbooks unless they are examples
 *upgrade.md
 !examples/*upgrade.md
+
+# Code coverage
+*.profdata
+*.profraw
+*.profdata
+tarpaulin*.json
+tarpaulin-report.html
