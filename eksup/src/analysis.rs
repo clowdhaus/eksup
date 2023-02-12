@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{eks, k8s};
 
 /// Container of all findings collected
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Results {
   pub(crate) cluster: eks::ClusterFindings,
   pub(crate) subnets: eks::SubnetFindings,

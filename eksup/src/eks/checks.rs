@@ -19,7 +19,7 @@ use crate::{
 /// Cluster health issue data
 ///
 /// Nearly identical to the SDK's `ClusterIssue` but allows us to serialize/deserialize
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ClusterHealthIssue {
   pub code: String,
   pub message: String,
@@ -95,7 +95,7 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealt
 }
 
 /// Subnet details that can affect upgrade behavior
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct InsufficientSubnetIps {
   pub ids: Vec<String>,
   pub available_ips: i32,
@@ -199,7 +199,7 @@ pub(crate) async fn pod_ips(
   Ok(Some(finding))
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AddonVersion {
   /// Latest supported version of the addon
   pub latest: String,
@@ -263,7 +263,7 @@ async fn get_addon_versions(client: &EksClient, name: &str, kubernetes_version: 
 /// The intended goal is to be able to plot a path of what steps a user either
 /// needs to take to upgrade the cluster, or should consider taking in terms
 /// of a recommendation to update to the latest supported version.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AddonVersionCompatibility {
   pub name: String,
   /// The current version of the add-on
@@ -357,7 +357,7 @@ pub(crate) async fn addon_version_compatibility(
 /// Addon health issue data
 ///
 /// Nearly identical to the SDK's `AddonIssue` but allows us to serialize/deserialize
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AddonHealthIssue {
   pub name: String,
   pub code: String,
@@ -438,7 +438,7 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssu
 ///
 /// Nearly similar to the SDK's `NodegroupHealth` but flattened
 /// and without `Option()`s to make it a bit more ergonomic here
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct NodegroupHealthIssue {
   pub(crate) name: String,
   pub(crate) code: String,
@@ -501,7 +501,7 @@ pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Re
   Ok(health_issues)
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct ManagedNodeGroupUpdate {
   /// EKS managed node group name
   pub(crate) name: String,
@@ -591,7 +591,7 @@ pub(crate) async fn eks_managed_nodegroup_update(
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AutoscalingGroupUpdate {
   /// Autoscaling group name
   pub(crate) name: String,

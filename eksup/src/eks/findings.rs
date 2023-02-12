@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// Findings related to the cluster itself, primarily the control plane
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ClusterFindings {
   /// The health of the cluster as reported by the Amazon EKS API
   pub cluster_health: Vec<checks::ClusterHealthIssue>,
@@ -26,7 +26,7 @@ pub async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings> 
 }
 
 /// Networking/subnet findings, primarily focused on IP exhaustion/number of available IPs
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SubnetFindings {
   /// The Amazon EKS service requires at least 5 available IPs in order to upgrade a cluster in-place
   pub control_plane_ips: Option<checks::InsufficientSubnetIps>,
@@ -65,7 +65,7 @@ pub async fn get_subnet_findings(
 /// Either native EKS addons or addons deployed through the AWS Marketplace integration.
 /// It does NOT include custom addons or services deployed by users using kubectl/Helm/etc.,
 /// it is only evaluating those that can be accessed via the AWS EKS API
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AddonFindings {
   /// Determines whether or not the current addon version is supported by Amazon EKS in the
   /// intended upgrade target Kubernetes version
@@ -95,7 +95,7 @@ pub async fn get_addon_findings(
 ///
 /// This does not include findings for resources that are running on the cluster, within the data plane
 /// (pods, deployments, etc.)
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DataPlaneFindings {
   /// The skew/diff between the cluster control plane (API Server) and the nodes in the data plane (kubelet)
   /// It is recommended that these versions are aligned prior to upgrading, and changes are required when

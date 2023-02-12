@@ -14,7 +14,7 @@ use crate::{
 /// Node details as viewed from the Kubernetes API
 ///
 /// Contains information related to the Kubernetes component versions
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NodeFinding {
   pub name: String,
   pub kubelet_version: String,
@@ -84,7 +84,7 @@ impl Findings for Vec<NodeFinding> {
 
 /// Returns all of the nodes in the cluster
 pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<NodeFinding>> {
-  let api: Api<core::v1::Node> = Api::all(client.clone());
+  let api: Api<core::v1::Node> = Api::all(client.to_owned());
   let node_list = api.list(&Default::default()).await?;
 
   let mut findings = vec![];
@@ -124,7 +124,7 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
   Ok(findings)
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MinReplicas {
   pub resource: Resource,
   /// Number of replicas
@@ -164,7 +164,7 @@ impl Findings for Vec<MinReplicas> {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MinReadySeconds {
   pub resource: Resource,
   /// Min ready seconds
@@ -204,7 +204,7 @@ impl Findings for Vec<MinReadySeconds> {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct PodDisruptionBudgetFinding {
   pub(crate) resource: Resource,
   /// Has pod associated pod disruption budget
@@ -213,7 +213,7 @@ pub(crate) struct PodDisruptionBudgetFinding {
   pub(crate) fcode: finding::Code,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct PodTopologyDistributionFinding {
   pub(crate) resource: Resource,
   ///
@@ -224,7 +224,7 @@ pub(crate) struct PodTopologyDistributionFinding {
   pub(crate) fcode: finding::Code,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct ProbeFinding {
   pub(crate) resource: Resource,
   ///
@@ -236,7 +236,7 @@ pub(crate) struct ProbeFinding {
   pub(crate) fcode: finding::Code,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct TerminationGracePeriodFinding {
   pub(crate) resource: Resource,
   /// Min ready seconds
@@ -245,7 +245,7 @@ pub(crate) struct TerminationGracePeriodFinding {
   pub(crate) fcode: finding::Code,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct DockerSocketFinding {
   pub(crate) resource: Resource,
   ///

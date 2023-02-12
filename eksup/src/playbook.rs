@@ -21,7 +21,7 @@ struct Templates;
 ///
 /// Used to populate the playbook templates with the data associated
 /// to a specific Kubernetes release version
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Release {
   release_url: String,
   deprecation_url: Option<String>,
@@ -36,7 +36,7 @@ type Version = String;
 /// data collected from CLI arguments provided by users and is used to
 /// populate the playbook templates when rendered. This also serves as
 /// the central authority for the data/inputs used to populate the playbook
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TemplateData {
   ///
   region: String,
@@ -65,7 +65,7 @@ fn get_release_data() -> Result<HashMap<Version, Release>> {
   Ok(data)
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct EksManagedNodeGroupTemplateData {
   region: String,
   cluster_name: String,
@@ -74,7 +74,7 @@ struct EksManagedNodeGroupTemplateData {
   eks_managed_nodegroup_update: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SelfManagedNodeGroupTemplateData {
   region: String,
   cluster_name: String,
@@ -82,7 +82,7 @@ struct SelfManagedNodeGroupTemplateData {
   self_managed_nodegroup_update: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct FargateProfileTemplateData {
   region: String,
   cluster_name: String,

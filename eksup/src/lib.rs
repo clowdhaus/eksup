@@ -20,7 +20,7 @@ pub struct Cli {
   pub commands: Commands,
 }
 
-#[derive(Clone, Debug, Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum Commands {
   #[command(arg_required_else_help = true)]
   Analyze(Analysis),
@@ -29,7 +29,7 @@ pub enum Commands {
 }
 
 /// Analyze an Amazon EKS cluster for potential upgrade issues
-#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+#[derive(Args, Debug, Serialize, Deserialize)]
 pub struct Analysis {
   /// The name of the cluster to analyze
   #[arg(short, long, alias = "cluster-name", value_enum)]
@@ -52,20 +52,20 @@ pub struct Analysis {
 }
 
 /// Create artifacts using the analysis data
-#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+#[derive(Args, Debug, Serialize, Deserialize)]
 pub struct Create {
   #[command(subcommand)]
   pub command: CreateCommands,
 }
 
-#[derive(Clone, Debug, Subcommand, Serialize, Deserialize)]
+#[derive(Debug, Subcommand, Serialize, Deserialize)]
 pub enum CreateCommands {
   #[command(arg_required_else_help = true)]
   Playbook(Playbook),
 }
 
 /// Create a playbook for upgrading an Amazon EKS cluster
-#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+#[derive(Args, Debug, Serialize, Deserialize)]
 pub struct Playbook {
   /// The name of the cluster to analyze
   #[arg(short, long, alias = "cluster-name", value_enum)]
@@ -86,7 +86,7 @@ pub struct Playbook {
 
 /// Someting TODO
 pub async fn analyze(args: &Analysis) -> Result<()> {
-  let aws_config = eks::get_config(&args.region.clone()).await?;
+  let aws_config = eks::get_config(&args.region.to_owned()).await?;
   let eks_client = aws_sdk_eks::Client::new(&aws_config);
   let cluster = eks::get_cluster(&eks_client, &args.cluster).await?;
 
@@ -102,7 +102,7 @@ pub async fn create(args: &Create) -> Result<()> {
   match &args.command {
     CreateCommands::Playbook(playbook) => {
       // Query Kubernetes first so that we can get AWS details that require them
-      let aws_config = eks::get_config(&playbook.region.clone()).await?;
+      let aws_config = eks::get_config(&playbook.region.to_owned()).await?;
       let eks_client = aws_sdk_eks::Client::new(&aws_config);
       let cluster = eks::get_cluster(&eks_client, &playbook.cluster).await?;
       let cluster_version = cluster.version().unwrap();

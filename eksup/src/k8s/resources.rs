@@ -37,14 +37,14 @@ pub struct EniConfigSpec {
 /// This is used to extract the subnet ID(s) to retrieve the number of
 /// available IPs in the subnet(s) when custom networking is enabled
 pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
-  let api = Api::<ENIConfig>::all(client.clone());
+  let api = Api::<ENIConfig>::all(client.to_owned());
   let eniconfigs: Vec<ENIConfig> = api.list(&Default::default()).await?.items;
 
   Ok(eniconfigs)
 }
 
 async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
-  let api: Api<apps::v1::Deployment> = Api::all(client.clone());
+  let api: Api<apps::v1::Deployment> = Api::all(client.to_owned());
   let deployment_list = api.list(&Default::default()).await?;
 
   let deployments = deployment_list
@@ -76,7 +76,7 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
 }
 
 async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
-  let api: Api<apps::v1::ReplicaSet> = Api::all(client.clone());
+  let api: Api<apps::v1::ReplicaSet> = Api::all(client.to_owned());
   let replicaset_list = api.list(&Default::default()).await?;
 
   let replicasets = replicaset_list
@@ -108,7 +108,7 @@ async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
 }
 
 async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
-  let api: Api<apps::v1::StatefulSet> = Api::all(client.clone());
+  let api: Api<apps::v1::StatefulSet> = Api::all(client.to_owned());
   let statefulset_list = api.list(&Default::default()).await?;
 
   let statefulsets = statefulset_list
@@ -140,7 +140,7 @@ async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
 }
 
 async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
-  let api: Api<apps::v1::DaemonSet> = Api::all(client.clone());
+  let api: Api<apps::v1::DaemonSet> = Api::all(client.to_owned());
   let daemonset_list = api.list(&Default::default()).await?;
 
   let daemonsets = daemonset_list
@@ -172,7 +172,7 @@ async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
 }
 
 async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
-  let api: Api<batch::v1::Job> = Api::all(client.clone());
+  let api: Api<batch::v1::Job> = Api::all(client.to_owned());
   let job_list = api.list(&Default::default()).await?;
 
   let jobs = job_list
@@ -204,7 +204,7 @@ async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
 }
 
 async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
-  let api: Api<batch::v1::CronJob> = Api::all(client.clone());
+  let api: Api<batch::v1::CronJob> = Api::all(client.to_owned());
   let cronjob_list = api.list(&Default::default()).await?;
 
   let cronjobs = cronjob_list
@@ -241,7 +241,7 @@ async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
 // // https://github.com/kube-rs/kube/issues/428
 // // https://github.com/kubernetes/apimachinery/blob/373a5f752d44989b9829888460844849878e1b6e/pkg/apis/meta/v1/helpers.go#L34
 // pub(crate) async fn get_pod_disruption_budgets(client: &Client) -> Result<Vec<PodDisruptionBudget>> {
-//   let api: Api<policy::v1beta1::PodDisruptionBudget> = Api::all(client.clone());
+//   let api: Api<policy::v1beta1::PodDisruptionBudget> = Api::all(client.to_owned());
 //   let pdb_list = api.list(&Default::default()).await?;
 
 //   Ok(pdb_list.items)
@@ -250,7 +250,7 @@ async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
 // async fn get_podsecuritypolicies(
 //   client: &Client,
 // ) -> Result<Vec<policy::v1beta1::PodSecurityPolicy>> {
-//   let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.clone());
+//   let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.to_owned());
 //   let nodes = api.list(&Default::default()).await?;
 
 //   Ok(nodes.items)
@@ -298,8 +298,8 @@ pub struct StdResource {
 impl K8sFindings for StdResource {
   fn get_resource(&self) -> Resource {
     Resource {
-      name: self.metadata.name.clone(),
-      namespace: self.metadata.namespace.clone(),
+      name: self.metadata.name.to_owned(),
+      namespace: self.metadata.namespace.to_owned(),
       kind: self.metadata.kind.to_string(),
     }
   }

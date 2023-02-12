@@ -5,7 +5,7 @@ use crate::version;
 /// Determines whether remediation is required or recommended
 ///
 /// This allows for filtering of findings shown to user
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Remediation {
   /// A finding that requires remediation prior to upgrading to be able to perform the upgrade
   /// and avoid downtime or disruption
@@ -52,7 +52,7 @@ pub(crate) trait Deprecation {
 /// to uniquely represent a finding even if the finding data is generic (i.e. - as is the case
 /// in reporting available IPs as subnet findings, the data shape is generic by the finding
 /// is unique to different scenarios)
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Code {
   /// AWS finding codes not specific to EKS
   ///
