@@ -2,18 +2,15 @@ use anyhow::Result;
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-  finding::Findings,
-  k8s::{
-    checks::{self, K8sFindings},
-    resources,
-  },
+use crate::k8s::{
+  checks::{self, K8sFindings},
+  resources,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KubernetesFindings {
-  pub min_replicas: Option<String>,
-  pub min_ready_seconds: Option<String>,
+  pub min_replicas: Vec<checks::MinReplicas>,
+  pub min_ready_seconds: Vec<checks::MinReadySeconds>,
 }
 
 pub async fn get_kubernetes_findings(k8s_client: &K8sClient) -> Result<KubernetesFindings> {
@@ -24,7 +21,7 @@ pub async fn get_kubernetes_findings(k8s_client: &K8sClient) -> Result<Kubernete
     resources.iter().filter_map(|s| s.min_ready_seconds()).collect();
 
   Ok(KubernetesFindings {
-    min_replicas: min_replicas.to_markdown_table("\t"),
-    min_ready_seconds: min_ready_seconds.to_markdown_table("\t"),
+    min_replicas,
+    min_ready_seconds,
   })
 }

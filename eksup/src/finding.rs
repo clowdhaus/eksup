@@ -1,3 +1,4 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::version;
@@ -25,8 +26,18 @@ impl Remediation {
   }
 }
 
+impl std::fmt::Display for Remediation {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    match *self {
+      Remediation::Required => write!(f, "Required"),
+      Remediation::Recommended => write!(f, "Recommended"),
+    }
+  }
+}
+
 pub trait Findings {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String>;
+  fn to_stdout_table(&self) -> Result<String>;
 }
 
 /// TODO - something is required to identify what Kubernetes resource findings are applicable
@@ -116,4 +127,30 @@ pub enum Code {
 
   /// `pod.spec.TerminationGracePeriodSeconds` is set to zero
   K8S007,
+}
+
+impl std::fmt::Display for Code {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    match *self {
+      Code::AWS001 => write!(f, "AWS001"),
+      Code::AWS002 => write!(f, "AWS002"),
+      Code::AWS003 => write!(f, "AWS003"),
+      Code::AWS004 => write!(f, "AWS004"),
+      Code::AWS005 => write!(f, "AWS005"),
+      Code::EKS001 => write!(f, "EKS001"),
+      Code::EKS002 => write!(f, "EKS002"),
+      Code::EKS003 => write!(f, "EKS003"),
+      Code::EKS004 => write!(f, "EKS004"),
+      Code::EKS005 => write!(f, "EKS005"),
+      Code::EKS006 => write!(f, "EKS006"),
+      Code::EKS007 => write!(f, "EKS007"),
+      Code::K8S001 => write!(f, "K8S001"),
+      Code::K8S002 => write!(f, "K8S002"),
+      Code::K8S003 => write!(f, "K8S003"),
+      Code::K8S004 => write!(f, "K8S004"),
+      Code::K8S005 => write!(f, "K8S005"),
+      Code::K8S006 => write!(f, "K8S006"),
+      Code::K8S007 => write!(f, "K8S007"),
+    }
+  }
 }

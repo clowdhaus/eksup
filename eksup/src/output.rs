@@ -6,6 +6,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis;
 
+/// Converts vec into comma separated string for tabled output
+pub fn tabled_vec_to_string(v: &[String]) -> String {
+  v.join(", ")
+}
+
 #[derive(Clone, Copy, Debug, ValueEnum, Serialize, Deserialize)]
 pub enum Format {
   /// JSON format used for logging or writing to a *.json file
@@ -23,7 +28,7 @@ impl Default for Format {
 pub(crate) async fn output(results: &analysis::Results, format: &Format, filename: &Option<String>) -> Result<()> {
   let output = match format {
     Format::Json => serde_json::to_string(&results)?,
-    Format::Text => format!("{results:#?}"),
+    Format::Text => results.to_stdout_table()?,
   };
 
   match filename {

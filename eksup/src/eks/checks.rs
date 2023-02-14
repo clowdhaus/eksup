@@ -9,23 +9,28 @@ use aws_sdk_eks::{
 };
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
+use tabled::{format::Format, object::Rows, Modify, Style, Table, Tabled};
 
 use crate::{
   eks::resources,
   finding::{self, Findings},
-  k8s, version,
+  k8s,
+  output::tabled_vec_to_string,
+  version,
 };
 
 /// Cluster health issue data
 ///
 /// Nearly identical to the SDK's `ClusterIssue` but allows us to serialize/deserialize
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
 pub struct ClusterHealthIssue {
+  #[tabled(rename = "CHECK")]
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
   pub code: String,
   pub message: String,
+  #[tabled(display_with = "tabled_vec_to_string")]
   pub resource_ids: Vec<String>,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<ClusterHealthIssue> {
@@ -62,6 +67,20 @@ impl Findings for Vec<ClusterHealthIssue> {
 
     Some(table)
   }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    let style = Style::blank();
+    table
+      .with(style)
+      .with(Modify::new(Rows::first()).with(Format::new(|s| s.to_uppercase())));
+
+    Ok(table.to_string())
+  }
 }
 
 /// Check for any reported health issues on the cluster control plane
@@ -95,12 +114,15 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealt
 }
 
 /// Subnet details that can affect upgrade behavior
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct InsufficientSubnetIps {
+  #[tabled(rename = "CHECK")]
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
+  #[tabled(display_with = "tabled_vec_to_string")]
   pub ids: Vec<String>,
   pub available_ips: i32,
-  pub remediation: finding::Remediation,
-  pub code: finding::Code,
 }
 
 impl Findings for Option<InsufficientSubnetIps> {
@@ -134,6 +156,18 @@ impl Findings for Option<InsufficientSubnetIps> {
       )),
     }
   }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    match self {
+      None => Ok("".to_owned()),
+      Some(finding) => {
+        let mut table = Table::new(vec![finding]);
+        table.with(Style::blank());
+
+        Ok(table.to_string())
+      }
+    }
+  }
 }
 
 pub(crate) async fn control_plane_ips(
@@ -151,7 +185,7 @@ pub(crate) async fn control_plane_ips(
     ids: subnet_ips.ids,
     available_ips: subnet_ips.available_ips,
     remediation: finding::Remediation::Required,
-    code: finding::Code::EKS001,
+    fcode: finding::Code::EKS001,
   };
 
   Ok(Some(finding))
@@ -193,13 +227,14 @@ pub(crate) async fn pod_ips(
     ids: subnet_ips.ids,
     available_ips: subnet_ips.available_ips,
     remediation,
-    code: finding::Code::AWS002,
+    fcode: finding::Code::AWS002,
   };
 
   Ok(Some(finding))
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct AddonVersion {
   /// Latest supported version of the addon
   pub latest: String,
@@ -207,6 +242,7 @@ pub struct AddonVersion {
   pub default: String,
   /// Supported versions for the given Kubernetes version
   /// This maintains the ordering of latest version to oldest
+  #[tabled(skip)]
   pub supported_versions: HashSet<String>,
 }
 
@@ -263,17 +299,21 @@ async fn get_addon_versions(client: &EksClient, name: &str, kubernetes_version: 
 /// The intended goal is to be able to plot a path of what steps a user either
 /// needs to take to upgrade the cluster, or should consider taking in terms
 /// of a recommendation to update to the latest supported version.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct AddonVersionCompatibility {
+  #[tabled(rename = "CHECK")]
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
   pub name: String,
   /// The current version of the add-on
   pub version: String,
   /// The default and latest add-on versions for the current Kubernetes version
+  #[tabled(inline)]
   pub current_kubernetes_version: AddonVersion,
   /// The default and latest add-on versions for the target Kubernetes version
+  #[tabled(inline)]
   pub target_kubernetes_version: AddonVersion,
-  pub remediation: finding::Remediation,
-  pub code: finding::Code,
 }
 
 impl Findings for Vec<AddonVersionCompatibility> {
@@ -305,6 +345,17 @@ impl Findings for Vec<AddonVersionCompatibility> {
     }
 
     Some(table)
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{}\n", table.to_string()))
   }
 }
 
@@ -346,7 +397,7 @@ pub(crate) async fn addon_version_compatibility(
         current_kubernetes_version,
         target_kubernetes_version,
         remediation,
-        code: finding::Code::EKS005,
+        fcode: finding::Code::EKS005,
       })
     }
   }
@@ -357,14 +408,17 @@ pub(crate) async fn addon_version_compatibility(
 /// Addon health issue data
 ///
 /// Nearly identical to the SDK's `AddonIssue` but allows us to serialize/deserialize
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct AddonHealthIssue {
+  #[tabled(rename = "CHECK")]
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
   pub name: String,
   pub code: String,
   pub message: String,
+  #[tabled(display_with = "tabled_vec_to_string")]
   pub resource_ids: Vec<String>,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<AddonHealthIssue> {
@@ -402,6 +456,17 @@ impl Findings for Vec<AddonHealthIssue> {
 
     Some(table)
   }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::blank());
+
+    Ok(table.to_string())
+  }
 }
 
 pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>> {
@@ -438,13 +503,15 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssu
 ///
 /// Nearly similar to the SDK's `NodegroupHealth` but flattened
 /// and without `Option()`s to make it a bit more ergonomic here
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub(crate) struct NodegroupHealthIssue {
+  #[tabled(rename = "CHECK")]
+  pub(crate) fcode: finding::Code,
+  pub(crate) remediation: finding::Remediation,
   pub(crate) name: String,
   pub(crate) code: String,
   pub(crate) message: String,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
 }
 
 impl Findings for Vec<NodegroupHealthIssue> {
@@ -471,6 +538,17 @@ impl Findings for Vec<NodegroupHealthIssue> {
     }
 
     Some(table)
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::blank());
+
+    Ok(table.to_string())
   }
 }
 
@@ -501,8 +579,12 @@ pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Re
   Ok(health_issues)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub(crate) struct ManagedNodeGroupUpdate {
+  #[tabled(rename = "CHECK")]
+  pub(crate) fcode: finding::Code,
+  pub(crate) remediation: finding::Remediation,
   /// EKS managed node group name
   pub(crate) name: String,
   /// Name of the autoscaling group associated to the EKS managed node group
@@ -511,13 +593,12 @@ pub(crate) struct ManagedNodeGroupUpdate {
   ///
   /// This distinction is important because we only consider the launch templates
   /// provided by users and not provided by EKS managed node group(s)
+  #[tabled(inline)]
   pub(crate) launch_template: resources::LaunchTemplate,
   // We do not consider launch configurations because you cannot determine if any
   // updates are pending like with launch templates and because they are being deprecated
   // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
   // launch_configuration_name: Option<String>,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
 }
 
 impl Findings for Vec<ManagedNodeGroupUpdate> {
@@ -549,6 +630,17 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
     }
 
     Some(table)
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::blank());
+
+    Ok(table.to_string())
   }
 }
 
@@ -591,18 +683,21 @@ pub(crate) async fn eks_managed_nodegroup_update(
   }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub(crate) struct AutoscalingGroupUpdate {
+  #[tabled(rename = "CHECK")]
+  pub(crate) fcode: finding::Code,
+  pub(crate) remediation: finding::Remediation,
   /// Autoscaling group name
   pub(crate) name: String,
   /// Launch template used by the autoscaling group
+  #[tabled(inline)]
   pub(crate) launch_template: resources::LaunchTemplate,
   // We do not consider launch configurations because you cannot determine if any
   // updates are pending like with launch templates and because they are being deprecated
   // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
   // launch_configuration_name: Option<String>,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
 }
 
 impl Findings for Vec<AutoscalingGroupUpdate> {
@@ -634,6 +729,17 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
     }
 
     Some(table)
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::blank());
+
+    Ok(table.to_string())
   }
 }
 

@@ -13,6 +13,7 @@ use aws_sdk_eks::{
 };
 use aws_types::region::Region;
 use serde::{Deserialize, Serialize};
+use tabled::Tabled;
 
 /// Get the configuration to authn/authz with AWS that will be used across AWS clients
 pub async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig> {
@@ -196,7 +197,8 @@ pub async fn get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Res
   Ok(profiles)
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct LaunchTemplate {
   /// Name of the launch template
   pub name: String,

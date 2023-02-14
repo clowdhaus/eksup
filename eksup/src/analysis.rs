@@ -2,7 +2,7 @@ use anyhow::Result;
 use aws_sdk_eks::model::Cluster;
 use serde::{Deserialize, Serialize};
 
-use crate::{eks, k8s};
+use crate::{eks, finding::Findings, k8s};
 
 /// Container of all findings collected
 #[derive(Debug, Serialize, Deserialize)]
@@ -12,6 +12,23 @@ pub(crate) struct Results {
   pub(crate) data_plane: eks::DataPlaneFindings,
   pub(crate) addons: eks::AddonFindings,
   pub(crate) kubernetes: k8s::KubernetesFindings,
+}
+
+impl Results {
+  /// Returns true if there are no findings
+  pub(crate) fn to_stdout_table(&self) -> Result<String> {
+    let mut output = String::new();
+
+    output.push_str(&self.cluster.cluster_health.to_stdout_table()?);
+    output.push_str(&self.subnets.control_plane_ips.to_stdout_table()?);
+    // output.push_str(&self.data_plane..to_stdout_table()?);
+    output.push_str(&self.addons.health.to_stdout_table()?);
+    output.push_str(&self.addons.version_compatibility.to_stdout_table()?);
+    output.push_str(&self.kubernetes.min_replicas.to_stdout_table()?);
+    output.push_str(&self.kubernetes.min_ready_seconds.to_stdout_table()?);
+
+    Ok(output)
+  }
 }
 
 /// Analyze the cluster provided to collect all reported findings

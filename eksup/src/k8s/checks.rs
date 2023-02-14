@@ -4,6 +4,7 @@ use anyhow::Result;
 use k8s_openapi::api::core;
 use kube::{api::Api, Client};
 use serde::{Deserialize, Serialize};
+use tabled::{format::Format, object::Rows, Modify, Style, Table, Tabled};
 
 use crate::{
   finding::{self, Findings},
@@ -14,14 +15,16 @@ use crate::{
 /// Node details as viewed from the Kubernetes API
 ///
 /// Contains information related to the Kubernetes component versions
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct NodeFinding {
+  #[tabled(rename = "CHECK")]
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
   pub name: String,
   pub kubelet_version: String,
   pub kubernetes_version: String,
   pub control_plane_version: String,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<NodeFinding> {
@@ -80,6 +83,20 @@ impl Findings for Vec<NodeFinding> {
 
     Some(format!("{summary}\n{table}\n"))
   }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    let style = Style::blank();
+    table
+      .with(style)
+      .with(Modify::new(Rows::first()).with(Format::new(|s| s.to_uppercase())));
+
+    Ok(table.to_string())
+  }
 }
 
 /// Returns all of the nodes in the cluster
@@ -124,13 +141,16 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
   Ok(findings)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct MinReplicas {
+  #[tabled(rename = "CHECK")]
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
+  #[tabled(inline)]
   pub resource: Resource,
   /// Number of replicas
   pub replicas: i32,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<MinReplicas> {
@@ -162,15 +182,29 @@ impl Findings for Vec<MinReplicas> {
 
     Some(format!("{table}\n"))
   }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{}\n", table.to_string()))
+  }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct MinReadySeconds {
+  #[tabled(rename = "CHECK")]
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
+  #[tabled(inline)]
   pub resource: Resource,
   /// Min ready seconds
   pub seconds: i32,
-  pub remediation: finding::Remediation,
-  pub fcode: finding::Code,
 }
 
 impl Findings for Vec<MinReadySeconds> {
@@ -201,6 +235,17 @@ impl Findings for Vec<MinReadySeconds> {
     }
 
     Some(format!("{table}\n"))
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{}\n", table.to_string()))
   }
 }
 
