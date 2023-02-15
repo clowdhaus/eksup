@@ -304,6 +304,7 @@ pub struct AddonVersionCompatibility {
   pub remediation: finding::Remediation,
   pub name: String,
   /// The current version of the add-on
+  #[tabled(rename = "CURRENT")]
   pub version: String,
   /// The default and latest add-on versions for the current Kubernetes version
   #[tabled(skip)]
@@ -583,8 +584,10 @@ pub struct ManagedNodeGroupUpdate {
   pub fcode: finding::Code,
   pub remediation: finding::Remediation,
   /// EKS managed node group name
+  #[tabled(rename = "MANAGED NODEGROUP")]
   pub name: String,
   /// Name of the autoscaling group associated to the EKS managed node group
+  #[tabled(skip)]
   pub autoscaling_group_name: String,
   /// Launch template controlled by users that influences the autoscaling group
   ///
@@ -687,6 +690,7 @@ pub struct AutoscalingGroupUpdate {
   pub fcode: finding::Code,
   pub remediation: finding::Remediation,
   /// Autoscaling group name
+  #[tabled(rename = "AUTOSCALING GROUP")]
   pub name: String,
   /// Launch template used by the autoscaling group
   #[tabled(inline)]

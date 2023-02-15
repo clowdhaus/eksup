@@ -5,7 +5,6 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use super::checks::AutoscalingGroupUpdate;
 use crate::{
   eks::{checks, resources},
   k8s,
@@ -109,7 +108,7 @@ pub struct DataPlaneFindings {
   /// (i.e. - any changes that may have been introduced in the launch template versions that have not been deployed)
   pub eks_managed_nodegroup_update: Vec<checks::ManagedNodeGroupUpdate>,
   /// Similar to the `eks_managed_nodegroup_update` except for self-managed node groups (autoscaling groups)
-  pub self_managed_nodegroup_update: Vec<AutoscalingGroupUpdate>,
+  pub self_managed_nodegroup_update: Vec<checks::AutoscalingGroupUpdate>,
 
   /// The names of the EKS managed node groups
   pub eks_managed_nodegroups: Vec<String>,

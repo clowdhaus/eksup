@@ -201,12 +201,16 @@ pub async fn get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Res
 #[tabled(rename_all = "UpperCase")]
 pub struct LaunchTemplate {
   /// Name of the launch template
+  #[tabled(skip)]
   pub name: String,
   /// The ID of the launch template
+  #[tabled(rename = "LAUNCH TEMP ID")]
   pub id: String,
   /// The version of the launch template currently used/specified in the autoscaling group
+  #[tabled(rename = "CURRENT")]
   pub current_version: String,
   /// The latest version of the launch template
+  #[tabled(rename = "LATEST")]
   pub latest_version: String,
 }
 
