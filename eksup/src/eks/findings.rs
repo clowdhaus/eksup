@@ -5,9 +5,9 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
+use super::checks::AutoscalingGroupUpdate;
 use crate::{
   eks::{checks, resources},
-  finding::Findings,
   k8s,
 };
 
@@ -101,15 +101,15 @@ pub struct DataPlaneFindings {
   /// It is recommended that these versions are aligned prior to upgrading, and changes are required when
   /// the skew policy could be violated post upgrade (i.e. if current skew is +2, the policy would be violated
   /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
-  pub version_skew: Option<String>,
+  pub version_skew: Vec<k8s::NodeFinding>,
   /// The health of the EKS managed node groups as reported by the Amazon EKS managed node group API
-  pub eks_managed_nodegroup_health: Option<String>,
+  pub eks_managed_nodegroup_health: Vec<checks::NodegroupHealthIssue>,
   /// Will show if the current launch template provided to the Amazon EKS managed node group is NOT the latest
   /// version since this may potentially introduce additional changes that were not planned for just the upgrade
   /// (i.e. - any changes that may have been introduced in the launch template versions that have not been deployed)
-  pub eks_managed_nodegroup_update: Option<String>,
+  pub eks_managed_nodegroup_update: Vec<checks::ManagedNodeGroupUpdate>,
   /// Similar to the `eks_managed_nodegroup_update` except for self-managed node groups (autoscaling groups)
-  pub self_managed_nodegroup_update: Option<String>,
+  pub self_managed_nodegroup_update: Vec<AutoscalingGroupUpdate>,
 
   /// The names of the EKS managed node groups
   pub eks_managed_nodegroups: Vec<String>,
@@ -149,18 +149,16 @@ pub async fn get_data_plane_findings(
   }
 
   Ok(DataPlaneFindings {
-    version_skew: version_skew.to_markdown_table("\t"),
-    eks_managed_nodegroup_health: eks_managed_nodegroup_health.to_markdown_table("\t"),
+    version_skew,
+    eks_managed_nodegroup_health,
     eks_managed_nodegroup_update: eks_managed_nodegroup_update
       .into_iter()
       .flatten()
-      .collect::<Vec<checks::ManagedNodeGroupUpdate>>()
-      .to_markdown_table("\t"),
+      .collect::<Vec<checks::ManagedNodeGroupUpdate>>(),
     self_managed_nodegroup_update: self_managed_nodegroup_update
       .into_iter()
       .flatten()
-      .collect::<Vec<checks::AutoscalingGroupUpdate>>()
-      .to_markdown_table("\t"),
+      .collect::<Vec<checks::AutoscalingGroupUpdate>>(),
     // Pass through to avoid additional API calls
     eks_managed_nodegroups: eks_mngs
       .iter()

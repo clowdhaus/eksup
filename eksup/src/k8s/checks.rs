@@ -4,7 +4,7 @@ use anyhow::Result;
 use k8s_openapi::api::core;
 use kube::{api::Api, Client};
 use serde::{Deserialize, Serialize};
-use tabled::{format::Format, object::Rows, Modify, Style, Table, Tabled};
+use tabled::{Style, Table, Tabled};
 
 use crate::{
   finding::{self, Findings},
@@ -22,9 +22,14 @@ pub struct NodeFinding {
   pub fcode: finding::Code,
   pub remediation: finding::Remediation,
   pub name: String,
+  #[tabled(skip)]
   pub kubelet_version: String,
+  #[tabled(rename = "NODE")]
   pub kubernetes_version: String,
+  #[tabled(rename = "CONTROL PLANE")]
   pub control_plane_version: String,
+  #[tabled(rename = "SKEW")]
+  pub version_skew: String,
 }
 
 impl Findings for Vec<NodeFinding> {
@@ -90,12 +95,9 @@ impl Findings for Vec<NodeFinding> {
     }
 
     let mut table = Table::new(self);
-    let style = Style::blank();
-    table
-      .with(style)
-      .with(Modify::new(Rows::first()).with(Format::new(|s| s.to_uppercase())));
+    table.with(Style::sharp());
 
-    Ok(table.to_string())
+    Ok(format!("{table}\n"))
   }
 }
 
@@ -129,8 +131,9 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
     let node = NodeFinding {
       name: node.metadata.name.as_ref().unwrap().to_owned(),
       kubelet_version: kubelet_version.to_owned(),
-      kubernetes_version: version::normalize(&kubelet_version).unwrap(),
-      control_plane_version: cluster_version.to_owned(),
+      kubernetes_version: format!("v{}", version::normalize(&kubelet_version).unwrap()),
+      control_plane_version: format!("v{}", cluster_version.to_owned()),
+      version_skew: format!("+{}", version_skew),
       remediation,
       fcode: finding::Code::K8S001,
     };
@@ -191,7 +194,7 @@ impl Findings for Vec<MinReplicas> {
     let mut table = Table::new(self);
     table.with(Style::sharp());
 
-    Ok(format!("{}\n", table.to_string()))
+    Ok(format!("{table}\n"))
   }
 }
 
@@ -245,7 +248,7 @@ impl Findings for Vec<MinReadySeconds> {
     let mut table = Table::new(self);
     table.with(Style::sharp());
 
-    Ok(format!("{}\n", table.to_string()))
+    Ok(format!("{table}\n"))
   }
 }
 

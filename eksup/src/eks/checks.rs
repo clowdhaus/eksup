@@ -9,7 +9,7 @@ use aws_sdk_eks::{
 };
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
-use tabled::{format::Format, object::Rows, Modify, Style, Table, Tabled};
+use tabled::{Style, Table, Tabled};
 
 use crate::{
   eks::resources,
@@ -74,12 +74,9 @@ impl Findings for Vec<ClusterHealthIssue> {
     }
 
     let mut table = Table::new(self);
-    let style = Style::blank();
-    table
-      .with(style)
-      .with(Modify::new(Rows::first()).with(Format::new(|s| s.to_uppercase())));
+    table.with(Style::sharp());
 
-    Ok(table.to_string())
+    Ok(format!("{table}\n"))
   }
 }
 
@@ -162,9 +159,9 @@ impl Findings for Option<InsufficientSubnetIps> {
       None => Ok("".to_owned()),
       Some(finding) => {
         let mut table = Table::new(vec![finding]);
-        table.with(Style::blank());
+        table.with(Style::sharp());
 
-        Ok(table.to_string())
+        Ok(format!("{table}\n"))
       }
     }
   }
@@ -309,7 +306,7 @@ pub struct AddonVersionCompatibility {
   /// The current version of the add-on
   pub version: String,
   /// The default and latest add-on versions for the current Kubernetes version
-  #[tabled(inline)]
+  #[tabled(skip)]
   pub current_kubernetes_version: AddonVersion,
   /// The default and latest add-on versions for the target Kubernetes version
   #[tabled(inline)]
@@ -355,7 +352,7 @@ impl Findings for Vec<AddonVersionCompatibility> {
     let mut table = Table::new(self);
     table.with(Style::sharp());
 
-    Ok(format!("{}\n", table.to_string()))
+    Ok(format!("{table}\n"))
   }
 }
 
@@ -463,9 +460,9 @@ impl Findings for Vec<AddonHealthIssue> {
     }
 
     let mut table = Table::new(self);
-    table.with(Style::blank());
+    table.with(Style::sharp());
 
-    Ok(table.to_string())
+    Ok(format!("{table}\n"))
   }
 }
 
@@ -505,13 +502,13 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssu
 /// and without `Option()`s to make it a bit more ergonomic here
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
-pub(crate) struct NodegroupHealthIssue {
+pub struct NodegroupHealthIssue {
   #[tabled(rename = "CHECK")]
-  pub(crate) fcode: finding::Code,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) name: String,
-  pub(crate) code: String,
-  pub(crate) message: String,
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
+  pub name: String,
+  pub code: String,
+  pub message: String,
 }
 
 impl Findings for Vec<NodegroupHealthIssue> {
@@ -546,9 +543,9 @@ impl Findings for Vec<NodegroupHealthIssue> {
     }
 
     let mut table = Table::new(self);
-    table.with(Style::blank());
+    table.with(Style::sharp());
 
-    Ok(table.to_string())
+    Ok(format!("{table}\n"))
   }
 }
 
@@ -581,20 +578,20 @@ pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Re
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
-pub(crate) struct ManagedNodeGroupUpdate {
+pub struct ManagedNodeGroupUpdate {
   #[tabled(rename = "CHECK")]
-  pub(crate) fcode: finding::Code,
-  pub(crate) remediation: finding::Remediation,
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
   /// EKS managed node group name
-  pub(crate) name: String,
+  pub name: String,
   /// Name of the autoscaling group associated to the EKS managed node group
-  pub(crate) autoscaling_group_name: String,
+  pub autoscaling_group_name: String,
   /// Launch template controlled by users that influences the autoscaling group
   ///
   /// This distinction is important because we only consider the launch templates
   /// provided by users and not provided by EKS managed node group(s)
   #[tabled(inline)]
-  pub(crate) launch_template: resources::LaunchTemplate,
+  pub launch_template: resources::LaunchTemplate,
   // We do not consider launch configurations because you cannot determine if any
   // updates are pending like with launch templates and because they are being deprecated
   // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
@@ -638,9 +635,9 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
     }
 
     let mut table = Table::new(self);
-    table.with(Style::blank());
+    table.with(Style::sharp());
 
-    Ok(table.to_string())
+    Ok(format!("{table}\n"))
   }
 }
 
@@ -685,15 +682,15 @@ pub(crate) async fn eks_managed_nodegroup_update(
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
-pub(crate) struct AutoscalingGroupUpdate {
+pub struct AutoscalingGroupUpdate {
   #[tabled(rename = "CHECK")]
-  pub(crate) fcode: finding::Code,
-  pub(crate) remediation: finding::Remediation,
+  pub fcode: finding::Code,
+  pub remediation: finding::Remediation,
   /// Autoscaling group name
-  pub(crate) name: String,
+  pub name: String,
   /// Launch template used by the autoscaling group
   #[tabled(inline)]
-  pub(crate) launch_template: resources::LaunchTemplate,
+  pub launch_template: resources::LaunchTemplate,
   // We do not consider launch configurations because you cannot determine if any
   // updates are pending like with launch templates and because they are being deprecated
   // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
@@ -737,9 +734,9 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
     }
 
     let mut table = Table::new(self);
-    table.with(Style::blank());
+    table.with(Style::sharp());
 
-    Ok(table.to_string())
+    Ok(format!("{table}\n"))
   }
 }
 

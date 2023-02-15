@@ -125,8 +125,8 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     region: region.to_owned(),
     cluster_name: cluster_name.to_owned(),
     target_version: target_version.to_owned(),
-    eks_managed_nodegroup_health: data_plane_findings.eks_managed_nodegroup_health.to_owned(),
-    eks_managed_nodegroup_update: data_plane_findings.eks_managed_nodegroup_update.to_owned(),
+    eks_managed_nodegroup_health: data_plane_findings.eks_managed_nodegroup_health.to_markdown_table("\t"),
+    eks_managed_nodegroup_update: data_plane_findings.eks_managed_nodegroup_update.to_markdown_table("\t"),
   };
   let eks_managed_nodegroup_template = char_replace(handlebars.render("eks-managed-nodegroup.md", &eks_mng_tmpl_data)?);
 
@@ -134,7 +134,9 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     region: region.to_owned(),
     cluster_name: cluster_name.to_owned(),
     target_version: target_version.to_owned(),
-    self_managed_nodegroup_update: data_plane_findings.self_managed_nodegroup_update.to_owned(),
+    self_managed_nodegroup_update: data_plane_findings
+      .self_managed_nodegroup_update
+      .to_markdown_table("\t"),
   };
   let self_managed_nodegroup_template =
     char_replace(handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?);
