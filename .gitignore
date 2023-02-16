@@ -21,3 +21,6 @@ target
 *.profdata
 tarpaulin*.json
 tarpaulin-report.html
+
+# Mkdocs site
+site
