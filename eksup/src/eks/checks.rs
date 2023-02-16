@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
 use aws_sdk_autoscaling::model::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
@@ -9,7 +7,7 @@ use aws_sdk_eks::{
 };
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
-use tabled::{Style, Table, Tabled};
+use tabled::{locator::ByColumnName, Disable, Margin, Style, Table, Tabled};
 
 use crate::{
   eks::resources,
@@ -24,9 +22,8 @@ use crate::{
 /// Nearly identical to the SDK's `ClusterIssue` but allows us to serialize/deserialize
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 pub struct ClusterHealthIssue {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   pub code: String,
   pub message: String,
   #[tabled(display_with = "tabled_vec_to_string")]
@@ -34,38 +31,19 @@ pub struct ClusterHealthIssue {
 }
 
 impl Findings for Vec<ClusterHealthIssue> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
-      return Some(format!(
+      return Ok(format!(
         "{leading_whitespace}✅ - There are no reported health issues on the cluster control plane"
       ));
     }
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   _   | Code  | Message | Resource IDs |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---: | :------ | :----------- |\n"
-    ));
+    let mut table = Table::new(self);
+    table
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
 
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | {} |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.code,
-        finding.message,
-        finding
-          .resource_ids
-          .iter()
-          .map(|f| format!("`{f}`"))
-          .collect::<Vec<String>>()
-          .join(", "),
-      ))
-    }
-
-    Some(table)
+    Ok(format!("{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {
@@ -94,12 +72,18 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealt
         .map(|issue| {
           let code = &issue.code().unwrap().to_owned();
 
+          let remediation = finding::Remediation::Required;
+          let finding = finding::Finding {
+            code: finding::Code::EKS002,
+            symbol: remediation.symbol(),
+            remediation,
+          };
+
           ClusterHealthIssue {
+            finding,
             code: code.as_str().to_string(),
             message: issue.message().unwrap().to_string(),
             resource_ids: issue.resource_ids().unwrap().to_owned(),
-            remediation: finding::Remediation::Required,
-            fcode: finding::Code::EKS002,
           }
         })
         .collect();
@@ -114,41 +98,26 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealt
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct InsufficientSubnetIps {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   #[tabled(display_with = "tabled_vec_to_string")]
   pub ids: Vec<String>,
   pub available_ips: i32,
 }
 
 impl Findings for Option<InsufficientSubnetIps> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     match self {
       Some(finding) => {
-        let mut table = String::new();
-        table.push_str(&format!(
-          "{leading_whitespace}|   -   | Subnet IDs  | Available IPs |\n"
-        ));
-        table.push_str(&format!(
-          "{leading_whitespace}| :---: | :---------- | :-----------: |\n"
-        ));
-        table.push_str(&format!(
-          "{}| {} | {} | `{}` |\n",
-          leading_whitespace,
-          finding.remediation.symbol(),
-          finding
-            .ids
-            .iter()
-            .map(|f| format!("`{f}`"))
-            .collect::<Vec<String>>()
-            .join(", "),
-          finding.available_ips,
-        ));
+        let mut table = Table::new(vec![finding]);
+        table
+          .with(Disable::column(ByColumnName::new("CHECK")))
+          .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+          .with(Style::markdown());
 
-        Some(table)
+        Ok(format!("{table}\n"))
       }
-      None => Some(format!(
+      None => Ok(format!(
         "{leading_whitespace}✅ - There is sufficient IP space in the subnets provided"
       )),
     }
@@ -178,11 +147,17 @@ pub(crate) async fn control_plane_ips(
     return Ok(None);
   }
 
+  let remediation = finding::Remediation::Required;
+  let finding = finding::Finding {
+    code: finding::Code::EKS001,
+    symbol: remediation.symbol(),
+    remediation,
+  };
+
   let finding = InsufficientSubnetIps {
+    finding,
     ids: subnet_ips.ids,
     available_ips: subnet_ips.available_ips,
-    remediation: finding::Remediation::Required,
-    fcode: finding::Code::EKS001,
   };
 
   Ok(Some(finding))
@@ -220,71 +195,20 @@ pub(crate) async fn pod_ips(
   } else {
     finding::Remediation::Recommended
   };
-  let finding = InsufficientSubnetIps {
-    ids: subnet_ips.ids,
-    available_ips: subnet_ips.available_ips,
+
+  let finding = finding::Finding {
+    code: finding::Code::AWS002,
+    symbol: remediation.symbol(),
     remediation,
-    fcode: finding::Code::AWS002,
   };
 
-  Ok(Some(finding))
-}
+  let subnetips = InsufficientSubnetIps {
+    finding,
+    ids: subnet_ips.ids,
+    available_ips: subnet_ips.available_ips,
+  };
 
-#[derive(Debug, Serialize, Deserialize, Tabled)]
-#[tabled(rename_all = "UpperCase")]
-pub struct AddonVersion {
-  /// Latest supported version of the addon
-  pub latest: String,
-  /// Default version of the addon used by the service
-  pub default: String,
-  /// Supported versions for the given Kubernetes version
-  /// This maintains the ordering of latest version to oldest
-  #[tabled(skip)]
-  pub supported_versions: HashSet<String>,
-}
-
-/// Get the addon version details for the given addon and Kubernetes version
-///
-/// Returns associated version details for a given addon that, primarily used
-/// for version compatibility checks and/or upgrade recommendations
-async fn get_addon_versions(client: &EksClient, name: &str, kubernetes_version: &str) -> Result<AddonVersion> {
-  // Get all of the addon versions supported for the given addon and Kubernetes version
-  let describe = client
-    .describe_addon_versions()
-    .addon_name(name)
-    .kubernetes_version(kubernetes_version)
-    .send()
-    .await?;
-
-  // Since we are providing an addon name, we are only concerned with the first and only item
-  let addon = describe.addons().unwrap().get(0).unwrap();
-  let addon_version = addon.addon_versions().unwrap();
-  let latest_version = addon_version.first().unwrap().addon_version().unwrap();
-
-  // The default version as specified by the EKS API for a given addon and Kubernetes version
-  let default_version = addon
-    .addon_versions()
-    .unwrap()
-    .iter()
-    .filter(|v| v.compatibilities().unwrap().iter().any(|c| c.default_version))
-    .map(|v| v.addon_version().unwrap())
-    .next()
-    .unwrap();
-
-  // Get the list of ALL supported version for this addon and Kubernetes version
-  // The results maintain the oder of latest version to oldest
-  let supported_versions: HashSet<String> = addon
-    .addon_versions()
-    .unwrap()
-    .iter()
-    .map(|v| v.addon_version().unwrap().to_owned())
-    .collect();
-
-  Ok(AddonVersion {
-    latest: latest_version.to_owned(),
-    default: default_version.to_owned(),
-    supported_versions,
-  })
+  Ok(Some(subnetips))
 }
 
 /// Details of the addon as viewed from an upgrade perspective
@@ -299,50 +223,35 @@ async fn get_addon_versions(client: &EksClient, name: &str, kubernetes_version: 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct AddonVersionCompatibility {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   pub name: String,
   /// The current version of the add-on
   #[tabled(rename = "CURRENT")]
   pub version: String,
   /// The default and latest add-on versions for the current Kubernetes version
   #[tabled(skip)]
-  pub current_kubernetes_version: AddonVersion,
+  pub current_kubernetes_version: resources::AddonVersion,
   /// The default and latest add-on versions for the target Kubernetes version
   #[tabled(inline)]
-  pub target_kubernetes_version: AddonVersion,
+  pub target_kubernetes_version: resources::AddonVersion,
 }
 
 impl Findings for Vec<AddonVersionCompatibility> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
-      return Some(format!(
+      return Ok(format!(
         "{leading_whitespace}✅ - There are no reported addon version compatibility issues."
       ));
     }
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   -   | Name  | Version | Next Default | Next Latest |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---- | :-----: | :----------: | :---------: |\n"
-    ));
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
 
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` | `{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.version,
-        finding.target_kubernetes_version.default,
-        finding.target_kubernetes_version.latest,
-      ))
-    }
-
-    Some(table)
+    Ok(format!("{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {
@@ -370,8 +279,8 @@ pub(crate) async fn addon_version_compatibility(
     let name = addon.addon_name().unwrap().to_owned();
     let version = addon.addon_version().unwrap().to_owned();
 
-    let current_kubernetes_version = get_addon_versions(client, &name, cluster_version).await?;
-    let target_kubernetes_version = get_addon_versions(client, &name, &target_k8s_version).await?;
+    let current_kubernetes_version = resources::get_addon_versions(client, &name, cluster_version).await?;
+    let target_kubernetes_version = resources::get_addon_versions(client, &name, &target_k8s_version).await?;
 
     // TODO - why is this saying the if/else is the same?
     #[allow(clippy::if_same_then_else)]
@@ -389,13 +298,18 @@ pub(crate) async fn addon_version_compatibility(
     };
 
     if let Some(remediation) = remediation {
+      let finding = finding::Finding {
+        code: finding::Code::EKS005,
+        symbol: remediation.symbol(),
+        remediation,
+      };
+
       addon_versions.push(AddonVersionCompatibility {
+        finding,
         name,
         version,
         current_kubernetes_version,
         target_kubernetes_version,
-        remediation,
-        fcode: finding::Code::EKS005,
       })
     }
   }
@@ -409,9 +323,8 @@ pub(crate) async fn addon_version_compatibility(
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct AddonHealthIssue {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   pub name: String,
   pub code: String,
   pub message: String,
@@ -420,39 +333,20 @@ pub struct AddonHealthIssue {
 }
 
 impl Findings for Vec<AddonHealthIssue> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
-      return Some(format!(
+      return Ok(format!(
         "{leading_whitespace}✅ - There are no reported addon health issues."
       ));
     }
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   -   | Name  | Code  | Message | Resource IDs |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :---- | :---: | :------ | :----------- |\n"
-    ));
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
 
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` | {} |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.code,
-        finding.message,
-        finding
-          .resource_ids
-          .iter()
-          .map(|f| format!("`{f}`"))
-          .collect::<Vec<String>>()
-          .join(", "),
-      ))
-    }
-
-    Some(table)
+    Ok(format!("{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {
@@ -481,13 +375,19 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssu
         .map(|issue| {
           let code = issue.code().unwrap();
 
+          let remediation = finding::Remediation::Required;
+          let finding = finding::Finding {
+            code: finding::Code::EKS004,
+            symbol: remediation.symbol(),
+            remediation,
+          };
+
           AddonHealthIssue {
+            finding,
             name: name.to_owned(),
             code: code.as_str().to_string(),
             message: issue.message().unwrap().to_owned(),
             resource_ids: issue.resource_ids().unwrap().to_owned(),
-            remediation: finding::Remediation::Required,
-            fcode: finding::Code::EKS004,
           }
         })
         .collect::<Vec<AddonHealthIssue>>()
@@ -504,38 +404,28 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssu
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct NodegroupHealthIssue {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   pub name: String,
   pub code: String,
   pub message: String,
 }
 
 impl Findings for Vec<NodegroupHealthIssue> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
-      return Some(format!(
+      return Ok(format!(
         "{leading_whitespace}✅ - There are no reported nodegroup health issues."
       ));
     }
 
-    let mut table = String::new();
-    table.push_str(&format!("{leading_whitespace}|   -   | Name  | Code  | Message |\n"));
-    table.push_str(&format!("{leading_whitespace}| :---: | :---- | :---: | :------ |\n"));
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
 
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.code,
-        finding.message,
-      ))
-    }
-
-    Some(table)
+    Ok(format!("{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {
@@ -563,12 +453,18 @@ pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Re
         let code = issue.code().unwrap();
         let message = issue.message().unwrap();
 
+        let remediation = finding::Remediation::Required;
+        let finding = finding::Finding {
+          code: finding::Code::EKS003,
+          symbol: remediation.symbol(),
+          remediation,
+        };
+
         NodegroupHealthIssue {
+          finding,
           name: name.to_owned(),
           code: code.as_str().to_owned(),
           message: message.to_owned(),
-          remediation: finding::Remediation::Required,
-          fcode: finding::Code::EKS003,
         }
       })
     })
@@ -580,9 +476,8 @@ pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Re
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct ManagedNodeGroupUpdate {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   /// EKS managed node group name
   #[tabled(rename = "MANAGED NODEGROUP")]
   pub name: String,
@@ -602,34 +497,20 @@ pub struct ManagedNodeGroupUpdate {
 }
 
 impl Findings for Vec<ManagedNodeGroupUpdate> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
-      return Some(format!(
+      return Ok(format!(
         "{leading_whitespace}✅ - There are no pending updates for the EKS managed nodegroup(s)"
       ));
     }
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   -   | MNG Name  | Launch Template ID | Current | Latest |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :-------- | :----------------- | :-----: | :----: |\n"
-    ));
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
 
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` | `{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.launch_template.id,
-        finding.launch_template.current_version,
-        finding.launch_template.latest_version,
-      ))
-    }
-
-    Some(table)
+    Ok(format!("{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {
@@ -667,12 +548,20 @@ pub(crate) async fn eks_managed_nodegroup_update(
         .auto_scaling_groups()
         .unwrap()
         .iter()
-        .map(|asg| ManagedNodeGroupUpdate {
-          name: nodegroup.nodegroup_name().unwrap().to_owned(),
-          autoscaling_group_name: asg.name().unwrap().to_owned(),
-          launch_template: launch_template.to_owned(),
-          remediation: finding::Remediation::Recommended,
-          fcode: finding::Code::EKS006,
+        .map(|asg| {
+          let remediation = finding::Remediation::Recommended;
+          let finding = finding::Finding {
+            code: finding::Code::EKS006,
+            symbol: remediation.symbol(),
+            remediation,
+          };
+
+          ManagedNodeGroupUpdate {
+            finding,
+            name: nodegroup.nodegroup_name().unwrap().to_owned(),
+            autoscaling_group_name: asg.name().unwrap().to_owned(),
+            launch_template: launch_template.to_owned(),
+          }
         })
         // Only interested in those that are not using the latest version
         .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
@@ -686,9 +575,8 @@ pub(crate) async fn eks_managed_nodegroup_update(
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct AutoscalingGroupUpdate {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   /// Autoscaling group name
   #[tabled(rename = "AUTOSCALING GROUP")]
   pub name: String,
@@ -702,34 +590,20 @@ pub struct AutoscalingGroupUpdate {
 }
 
 impl Findings for Vec<AutoscalingGroupUpdate> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
-      return Some(format!(
+      return Ok(format!(
         "{leading_whitespace}✅ - There are no pending updates for the self-managed nodegroup(s)"
       ));
     }
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   -   | ASG Name | Launch Template ID | Current | Latest |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :------- | :----------------- | :-----: | :----: |\n"
-    ));
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
 
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `{}` | `{}` | `{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.launch_template.id,
-        finding.launch_template.current_version,
-        finding.launch_template.latest_version,
-      ))
-    }
-
-    Some(table)
+    Ok(format!("{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {
@@ -764,11 +638,17 @@ pub(crate) async fn self_managed_nodegroup_update(
 
   // Only interested in those that are not using the latest version
   if launch_template.current_version != launch_template.latest_version {
+    let remediation = finding::Remediation::Recommended;
+    let finding = finding::Finding {
+      code: finding::Code::EKS007,
+      symbol: remediation.symbol(),
+      remediation,
+    };
+
     let update = AutoscalingGroupUpdate {
+      finding,
       name,
       launch_template,
-      remediation: finding::Remediation::Recommended,
-      fcode: finding::Code::EKS007,
     };
     Ok(Some(update))
   } else {

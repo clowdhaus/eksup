@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use anyhow::Result;
 use k8s_openapi::api::core;
 use kube::{api::Api, Client};
 use serde::{Deserialize, Serialize};
-use tabled::{Style, Table, Tabled};
+use tabled::{locator::ByColumnName, Disable, Margin, Style, Table, Tabled};
 
 use crate::{
   finding::{self, Findings},
@@ -15,12 +15,11 @@ use crate::{
 /// Node details as viewed from the Kubernetes API
 ///
 /// Contains information related to the Kubernetes component versions
-#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
-pub struct NodeFinding {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+pub struct VersionSkew {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   pub name: String,
   #[tabled(skip)]
   pub kubelet_version: String,
@@ -32,61 +31,59 @@ pub struct NodeFinding {
   pub version_skew: String,
 }
 
-impl Findings for Vec<NodeFinding> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct VersionSkewSummary {
+  #[tabled(inline)]
+  pub version_skew: VersionSkew,
+  pub quantity: i32,
+}
+
+impl Findings for Vec<VersionSkew> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
-      return Some(format!(
+      return Ok(format!(
         "{leading_whitespace}✅ - No reported findings regarding version skew between the control plane and nodes"
       ));
     }
-    let mut counts: BTreeMap<(String, String, String), isize> = BTreeMap::new();
+
+    let mut summary: HashMap<(String, String, String, String, String), VersionSkewSummary> = HashMap::new();
     for node in self {
-      *counts
-        .entry((
-          node.remediation.symbol().to_owned(),
-          node.kubernetes_version.to_owned(),
-          node.control_plane_version.to_owned(),
-        ))
-        .or_insert(0) += 1
+      let key = (
+        node.finding.code.to_string(),
+        node.finding.symbol.to_owned(),
+        node.finding.remediation.to_string(),
+        node.kubernetes_version.to_owned(),
+        node.control_plane_version.to_owned(),
+      );
+
+      if let Some(summary) = summary.get_mut(&key) {
+        summary.quantity += 1;
+      } else {
+        summary.insert(
+          key,
+          VersionSkewSummary {
+            version_skew: node.clone(),
+            quantity: 1,
+          },
+        );
+      }
     }
 
-    let mut summary = String::new();
-    summary.push_str(&format!(
-      "{leading_whitespace}|  -  | Nodes | Kubelet Version | Control Plane Version |\n"
-    ));
-    summary.push_str(&format!(
-      "{leading_whitespace}| :---: | :---: | :-------------- | :-------------------- |\n"
-    ));
+    let mut summary_tbl = Table::new(summary);
+    summary_tbl
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Disable::column(ByColumnName::new("String")))
+      .with(Disable::column(ByColumnName::new("NAME")))
+      .with(Style::markdown());
 
-    for (k, v) in counts.iter() {
-      summary.push_str(&format!(
-        "{leading_whitespace}| {sym} | {v} | `v{kube}` | `v{cp}` |\n",
-        sym = k.0,
-        kube = k.1,
-        cp = k.2
-      ));
-    }
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|   -   | Node Name | Kubelet Version | Control Plane Version |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :-------- | :-------------- | :-------------------- |\n"
-    ));
-
-    for finding in self {
-      table.push_str(&format!(
-        "{}| {} | `{}` | `v{}` | `v{}` |\n",
-        leading_whitespace,
-        finding.remediation.symbol(),
-        finding.name,
-        finding.kubernetes_version,
-        finding.control_plane_version,
-      ))
-    }
-
-    Some(format!("{summary}\n{table}\n"))
+    Ok(format!("{summary_tbl}\n\n{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {
@@ -102,7 +99,7 @@ impl Findings for Vec<NodeFinding> {
 }
 
 /// Returns all of the nodes in the cluster
-pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<NodeFinding>> {
+pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<VersionSkew>> {
   let api: Api<core::v1::Node> = Api::all(client.to_owned());
   let node_list = api.list(&Default::default()).await?;
 
@@ -128,14 +125,19 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
       _ => finding::Remediation::Required,
     };
 
-    let node = NodeFinding {
+    let finding = finding::Finding {
+      code: finding::Code::K8S001,
+      symbol: remediation.symbol(),
+      remediation,
+    };
+
+    let node = VersionSkew {
+      finding,
       name: node.metadata.name.as_ref().unwrap().to_owned(),
       kubelet_version: kubelet_version.to_owned(),
       kubernetes_version: format!("v{}", version::normalize(&kubelet_version).unwrap()),
       control_plane_version: format!("v{}", cluster_version.to_owned()),
       version_skew: format!("+{}", version_skew),
-      remediation,
-      fcode: finding::Code::K8S001,
     };
 
     findings.push(node)
@@ -147,9 +149,8 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct MinReplicas {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   #[tabled(inline)]
   pub resource: Resource,
   /// Number of replicas
@@ -157,33 +158,20 @@ pub struct MinReplicas {
 }
 
 impl Findings for Vec<MinReplicas> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
-      return Some(format!(
+      return Ok(format!(
         "{leading_whitespace}✅ - All relevant Kubernetes workloads have at least 3 replicas specified"
       ));
     }
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|  -  | Name | Namespace | Kind | Minimum Replicas |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :--- | :------ | :--- | :--------------- |\n"
-    ));
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
 
-    for finding in self {
-      table.push_str(&format!(
-        "{leading_whitespace}| {} | {} | {} | {} | {} |\n",
-        finding.remediation.symbol(),
-        finding.resource.name,
-        finding.resource.namespace,
-        finding.resource.kind,
-        finding.replicas,
-      ))
-    }
-
-    Some(format!("{table}\n"))
+    Ok(format!("{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {
@@ -201,9 +189,8 @@ impl Findings for Vec<MinReplicas> {
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct MinReadySeconds {
-  #[tabled(rename = "CHECK")]
-  pub fcode: finding::Code,
-  pub remediation: finding::Remediation,
+  #[tabled(inline)]
+  pub finding: finding::Finding,
   #[tabled(inline)]
   pub resource: Resource,
   /// Min ready seconds
@@ -211,33 +198,20 @@ pub struct MinReadySeconds {
 }
 
 impl Findings for Vec<MinReadySeconds> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
-      return Some(format!(
+      return Ok(format!(
         "{leading_whitespace}✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0"
       ));
     }
 
-    let mut table = String::new();
-    table.push_str(&format!(
-      "{leading_whitespace}|  -  | Name | Namespace | Kind | minReadySeconds |\n"
-    ));
-    table.push_str(&format!(
-      "{leading_whitespace}| :---: | :--- | :------ | :--- | :--------------- |\n"
-    ));
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
 
-    for finding in self {
-      table.push_str(&format!(
-        "{leading_whitespace}| {} | {} | {} | {} | {} |\n",
-        finding.remediation.symbol(),
-        finding.resource.name,
-        finding.resource.namespace,
-        finding.resource.kind,
-        finding.seconds,
-      ))
-    }
-
-    Some(format!("{table}\n"))
+    Ok(format!("{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {

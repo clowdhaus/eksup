@@ -312,11 +312,16 @@ impl K8sFindings for StdResource {
     match replicas {
       Some(replicas) => {
         if replicas < 3 {
+          let remediation = finding::Remediation::Required;
+          let finding = finding::Finding {
+            code: finding::Code::K8S002,
+            symbol: remediation.symbol(),
+            remediation,
+          };
           Some(MinReplicas {
+            finding,
             resource: self.get_resource(),
             replicas,
-            remediation: finding::Remediation::Required,
-            fcode: finding::Code::K8S002,
           })
         } else {
           None
@@ -332,11 +337,17 @@ impl K8sFindings for StdResource {
     match seconds {
       Some(seconds) => {
         if seconds < 1 {
+          let remediation = finding::Remediation::Required;
+          let finding = finding::Finding {
+            code: finding::Code::K8S003,
+            symbol: remediation.symbol(),
+            remediation,
+          };
+
           Some(MinReadySeconds {
+            finding,
             resource: self.get_resource(),
             seconds,
-            remediation: finding::Remediation::Required,
-            fcode: finding::Code::K8S003,
           })
         } else {
           None

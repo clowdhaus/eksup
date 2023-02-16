@@ -100,7 +100,7 @@ pub struct DataPlaneFindings {
   /// It is recommended that these versions are aligned prior to upgrading, and changes are required when
   /// the skew policy could be violated post upgrade (i.e. if current skew is +2, the policy would be violated
   /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
-  pub version_skew: Vec<k8s::NodeFinding>,
+  pub version_skew: Vec<k8s::VersionSkew>,
   /// The health of the EKS managed node groups as reported by the Amazon EKS managed node group API
   pub eks_managed_nodegroup_health: Vec<checks::NodegroupHealthIssue>,
   /// Will show if the current launch template provided to the Amazon EKS managed node group is NOT the latest

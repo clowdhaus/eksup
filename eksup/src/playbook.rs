@@ -6,7 +6,7 @@ use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 
-use crate::{analysis, eks, finding::Findings, k8s, version, Playbook};
+use crate::{analysis, eks, finding::Findings, version, Playbook};
 
 /// Embeds the contents of the `templates/` directory into the binary
 ///
@@ -38,23 +38,25 @@ type Version = String;
 /// the central authority for the data/inputs used to populate the playbook
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TemplateData {
-  ///
   region: String,
   cluster_name: String,
   current_version: String,
   target_version: String,
   k8s_release_url: String,
   k8s_deprecation_url: String,
-  control_plane_ips: Option<String>,
-  pod_ips: Option<String>,
-  cluster_health: Option<String>,
-  addon_health: Option<String>,
-  addon_version_compatibility: Option<String>,
+  control_plane_ips: String,
+  pod_ips: String,
+  cluster_health: String,
+  addon_health: String,
+  addon_version_compatibility: String,
   data_plane_findings: eks::DataPlaneFindings,
+  version_skew: String,
   eks_managed_nodegroup_template: String,
   self_managed_nodegroup_template: String,
   fargate_profile_template: String,
-  kubernetes_findings: k8s::KubernetesFindings,
+  // kubernetes_findings: k8s::KubernetesFindings,
+  min_replicas: String,
+  min_ready_seconds: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
@@ -70,8 +72,8 @@ struct EksManagedNodeGroupTemplateData {
   region: String,
   cluster_name: String,
   target_version: String,
-  eks_managed_nodegroup_health: Option<String>,
-  eks_managed_nodegroup_update: Option<String>,
+  eks_managed_nodegroup_health: String,
+  eks_managed_nodegroup_update: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -79,7 +81,7 @@ struct SelfManagedNodeGroupTemplateData {
   region: String,
   cluster_name: String,
   target_version: String,
-  self_managed_nodegroup_update: Option<String>,
+  self_managed_nodegroup_update: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -125,8 +127,12 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     region: region.to_owned(),
     cluster_name: cluster_name.to_owned(),
     target_version: target_version.to_owned(),
-    eks_managed_nodegroup_health: data_plane_findings.eks_managed_nodegroup_health.to_markdown_table("\t"),
-    eks_managed_nodegroup_update: data_plane_findings.eks_managed_nodegroup_update.to_markdown_table("\t"),
+    eks_managed_nodegroup_health: data_plane_findings
+      .eks_managed_nodegroup_health
+      .to_markdown_table("\t")?,
+    eks_managed_nodegroup_update: data_plane_findings
+      .eks_managed_nodegroup_update
+      .to_markdown_table("\t")?,
   };
   let eks_managed_nodegroup_template = char_replace(handlebars.render("eks-managed-nodegroup.md", &eks_mng_tmpl_data)?);
 
@@ -136,7 +142,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     target_version: target_version.to_owned(),
     self_managed_nodegroup_update: data_plane_findings
       .self_managed_nodegroup_update
-      .to_markdown_table("\t"),
+      .to_markdown_table("\t")?,
   };
   let self_managed_nodegroup_template =
     char_replace(handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?);
@@ -158,16 +164,19 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
       Some(url) => url.to_string(),
       None => "".to_string(),
     },
-    control_plane_ips: subnet_findings.control_plane_ips.to_markdown_table("\t"),
-    pod_ips: subnet_findings.pod_ips.to_markdown_table("\t"),
-    cluster_health: cluster_findings.cluster_health.to_markdown_table("\t"),
-    addon_health: addon_findings.health.to_markdown_table("\t"),
-    addon_version_compatibility: addon_findings.version_compatibility.to_markdown_table("\t"),
+    control_plane_ips: subnet_findings.control_plane_ips.to_markdown_table("\t")?,
+    pod_ips: subnet_findings.pod_ips.to_markdown_table("\t")?,
+    cluster_health: cluster_findings.cluster_health.to_markdown_table("\t")?,
+    addon_health: addon_findings.health.to_markdown_table("\t")?,
+    addon_version_compatibility: addon_findings.version_compatibility.to_markdown_table("\t")?,
+    version_skew: data_plane_findings.version_skew.to_markdown_table("\t")?,
     data_plane_findings,
     eks_managed_nodegroup_template,
     self_managed_nodegroup_template,
     fargate_profile_template,
-    kubernetes_findings,
+    // kubernetes_findings,
+    min_replicas: kubernetes_findings.min_replicas.to_markdown_table("\t")?,
+    min_ready_seconds: kubernetes_findings.min_ready_seconds.to_markdown_table("\t")?,
   };
 
   let filename = match &args.filename {
