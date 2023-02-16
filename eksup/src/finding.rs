@@ -1,11 +1,24 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use tabled::Tabled;
 
 use crate::version;
+
+#[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct Finding {
+  #[tabled(rename = "CHECK")]
+  pub code: Code,
+  #[tabled(rename = " ")]
+  pub symbol: String,
+  #[tabled(skip)]
+  pub remediation: Remediation,
+}
 
 /// Determines whether remediation is required or recommended
 ///
 /// This allows for filtering of findings shown to user
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Remediation {
   /// A finding that requires remediation prior to upgrading to be able to perform the upgrade
   /// and avoid downtime or disruption
@@ -17,16 +30,26 @@ pub enum Remediation {
 }
 
 impl Remediation {
-  pub(crate) fn symbol(&self) -> &'static str {
+  pub(crate) fn symbol(&self) -> String {
     match &self {
-      Remediation::Required => "❌",
-      Remediation::Recommended => "⚠️",
+      Remediation::Required => "❌".to_string(),
+      Remediation::Recommended => "⚠️".to_string(),
+    }
+  }
+}
+
+impl std::fmt::Display for Remediation {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    match *self {
+      Remediation::Required => write!(f, "Required"),
+      Remediation::Recommended => write!(f, "Recommended"),
     }
   }
 }
 
 pub trait Findings {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Option<String>;
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String>;
+  fn to_stdout_table(&self) -> Result<String>;
 }
 
 /// TODO - something is required to identify what Kubernetes resource findings are applicable
@@ -52,7 +75,7 @@ pub(crate) trait Deprecation {
 /// to uniquely represent a finding even if the finding data is generic (i.e. - as is the case
 /// in reporting available IPs as subnet findings, the data shape is generic by the finding
 /// is unique to different scenarios)
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Code {
   /// AWS finding codes not specific to EKS
   ///
@@ -116,4 +139,30 @@ pub enum Code {
 
   /// `pod.spec.TerminationGracePeriodSeconds` is set to zero
   K8S007,
+}
+
+impl std::fmt::Display for Code {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    match *self {
+      Code::AWS001 => write!(f, "AWS001"),
+      Code::AWS002 => write!(f, "AWS002"),
+      Code::AWS003 => write!(f, "AWS003"),
+      Code::AWS004 => write!(f, "AWS004"),
+      Code::AWS005 => write!(f, "AWS005"),
+      Code::EKS001 => write!(f, "EKS001"),
+      Code::EKS002 => write!(f, "EKS002"),
+      Code::EKS003 => write!(f, "EKS003"),
+      Code::EKS004 => write!(f, "EKS004"),
+      Code::EKS005 => write!(f, "EKS005"),
+      Code::EKS006 => write!(f, "EKS006"),
+      Code::EKS007 => write!(f, "EKS007"),
+      Code::K8S001 => write!(f, "K8S001"),
+      Code::K8S002 => write!(f, "K8S002"),
+      Code::K8S003 => write!(f, "K8S003"),
+      Code::K8S004 => write!(f, "K8S004"),
+      Code::K8S005 => write!(f, "K8S005"),
+      Code::K8S006 => write!(f, "K8S006"),
+      Code::K8S007 => write!(f, "K8S007"),
+    }
+  }
 }

@@ -5,6 +5,7 @@ use k8s_openapi::api::{apps, batch, core::v1::PodTemplateSpec};
 use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tabled::Tabled;
 
 use crate::{
   finding,
@@ -256,7 +257,8 @@ async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
 //   Ok(nodes.items)
 // }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct Resource {
   /// Name of the resources
   pub name: String,
@@ -266,7 +268,7 @@ pub struct Resource {
   pub kind: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StdMetadata {
   pub name: String,
   pub namespace: String,
@@ -277,7 +279,7 @@ pub struct StdMetadata {
 
 /// This is a generalized spec used across all resource types that
 /// we are inspecting for finding violations
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StdSpec {
   /// Minimum number of seconds for which a newly created pod should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)
   pub min_ready_seconds: Option<i32>,
@@ -289,7 +291,7 @@ pub struct StdSpec {
   pub template: Option<PodTemplateSpec>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StdResource {
   pub metadata: StdMetadata,
   pub spec: StdSpec,
@@ -310,11 +312,16 @@ impl K8sFindings for StdResource {
     match replicas {
       Some(replicas) => {
         if replicas < 3 {
+          let remediation = finding::Remediation::Required;
+          let finding = finding::Finding {
+            code: finding::Code::K8S002,
+            symbol: remediation.symbol(),
+            remediation,
+          };
           Some(MinReplicas {
+            finding,
             resource: self.get_resource(),
             replicas,
-            remediation: finding::Remediation::Required,
-            fcode: finding::Code::K8S002,
           })
         } else {
           None
@@ -330,11 +337,17 @@ impl K8sFindings for StdResource {
     match seconds {
       Some(seconds) => {
         if seconds < 1 {
+          let remediation = finding::Remediation::Required;
+          let finding = finding::Finding {
+            code: finding::Code::K8S003,
+            symbol: remediation.symbol(),
+            remediation,
+          };
+
           Some(MinReadySeconds {
+            finding,
             resource: self.get_resource(),
             seconds,
-            remediation: finding::Remediation::Required,
-            fcode: finding::Code::K8S003,
           })
         } else {
           None

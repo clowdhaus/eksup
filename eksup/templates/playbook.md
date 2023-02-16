@@ -14,6 +14,9 @@
 - [Upgrade the Control Plane](#upgrade-the-control-plane)
     - [Control Plane Pre-Upgrade](#control-plane-pre-upgrade)
     - [Control Plane Upgrade](#control-plane-upgrade)
+- [Upgrade EKS Addons](#upgrade-eks-addons)
+    - [Addon Pre-Upgrade](#addon-pre-upgrade)
+    - [Addon Upgrade](#addon-upgrade)
 - [Upgrade the Data Plane](#upgrade-the-data-plane)
 {{#if data_plane_findings.eks_managed_nodegroups }}
     - [Data Plane Pre-Upgrade](#data-plane-pre-upgrade)
@@ -25,9 +28,6 @@
 {{#if data_plane_findings.fargate_profiles }}
         - [Fargate Profile](#fargate-profile)
 {{/if}}
-- [Upgrade EKS Addons](#upgrade-eks-addons)
-    - [Addon Pre-Upgrade](#addon-pre-upgrade)
-    - [Addon Upgrade](#addon-upgrade)
 - [Post-Upgrade](#post-upgrade)
 - [References](#references)
 
@@ -80,7 +80,7 @@
     </details>
 
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
-{{ data_plane_findings.version_skew }}
+{{ version_skew }}
 
 3. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
 
@@ -165,6 +165,36 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
         --query 'cluster.status'
     ```
 
+## Upgrade EKS Addons
+
+### Addon Pre-Upgrade
+
+1. Ensure the EKS addons in use are free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster.
+
+    <details>
+    <summary>📌 CLI Example</summary>
+
+    ```sh
+    aws eks describe-addon --region {{ region }} --cluster-name {{ cluster_name }} \
+        --addon-name <ADDON_NAME> --query 'addon.health'
+    ```
+
+    </details>
+
+    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/process/checks/#eks004)
+{{ addon_health }}
+
+### Addon Upgrade
+
+1. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
+
+    ```sh
+    aws eks update-addon --region {{ region }} --cluster-name {{ cluster_name }} \
+        --addon-name <ADDON_NAME> --addon-version <ADDON_VERSION>
+    ```
+
+    You may need to add `--resolve-conflicts OVERWRITE` to the command if the addon has been modified since it was deployed to ensure the addon is upgraded.
+
 ## Upgrade the Data Plane
 
 ### Data Plane Pre-Upgrade
@@ -174,10 +204,10 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
     🚧 TODO - fill in analysis results
 
     #### Check [[K8S002]](https://clowdhaus.github.io/eksup/process/checks/#k8s002)
-{{ kubernetes_findings.min_replicas }}
+{{ min_replicas }}
 
     #### Check [[K8S003]](https://clowdhaus.github.io/eksup/process/checks/#k8s003)
-{{ kubernetes_findings.min_ready_seconds }}
+{{ min_ready_seconds }}
 
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
 
@@ -215,36 +245,6 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 {{#if data_plane_findings.fargate_profiles }}
 {{ fargate_profile_template }}
 {{/if}}
-
-## Upgrade EKS Addons
-
-### Addon Pre-Upgrade
-
-1. Ensure the EKS addons in use are free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster.
-
-    <details>
-    <summary>📌 CLI Example</summary>
-
-    ```sh
-    aws eks describe-addon --region {{ region }} --cluster-name {{ cluster_name }} \
-        --addon-name <ADDON_NAME> --query 'addon.health'
-    ```
-
-    </details>
-
-    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/process/checks/#eks004)
-{{ addon_health }}
-
-### Addon Upgrade
-
-1. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
-
-    ```sh
-    aws eks update-addon --region {{ region }} --cluster-name {{ cluster_name }} \
-        --addon-name <ADDON_NAME> --addon-version <ADDON_VERSION>
-    ```
-
-    You may need to add `--resolve-conflicts OVERWRITE` to the command if the addon has been modified since it was deployed to ensure the addon is upgraded.
 
 ## Post Upgrade
 

@@ -1,4 +1,4 @@
-use std::env;
+use std::{collections::HashSet, env};
 
 use anyhow::{bail, Result};
 use aws_config::meta::region::RegionProviderChain;
@@ -13,6 +13,7 @@ use aws_sdk_eks::{
 };
 use aws_types::region::Region;
 use serde::{Deserialize, Serialize};
+use tabled::Tabled;
 
 /// Get the configuration to authn/authz with AWS that will be used across AWS clients
 pub async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig> {
@@ -100,6 +101,67 @@ pub async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Ad
   }
 
   Ok(addons)
+}
+
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct AddonVersion {
+  /// Latest supported version of the addon
+  pub latest: String,
+  /// Default version of the addon used by the service
+  pub default: String,
+  /// Supported versions for the given Kubernetes version
+  /// This maintains the ordering of latest version to oldest
+  #[tabled(skip)]
+  pub supported_versions: HashSet<String>,
+}
+
+/// Get the addon version details for the given addon and Kubernetes version
+///
+/// Returns associated version details for a given addon that, primarily used
+/// for version compatibility checks and/or upgrade recommendations
+pub(crate) async fn get_addon_versions(
+  client: &EksClient,
+  name: &str,
+  kubernetes_version: &str,
+) -> Result<AddonVersion> {
+  // Get all of the addon versions supported for the given addon and Kubernetes version
+  let describe = client
+    .describe_addon_versions()
+    .addon_name(name)
+    .kubernetes_version(kubernetes_version)
+    .send()
+    .await?;
+
+  // Since we are providing an addon name, we are only concerned with the first and only item
+  let addon = describe.addons().unwrap().get(0).unwrap();
+  let addon_version = addon.addon_versions().unwrap();
+  let latest_version = addon_version.first().unwrap().addon_version().unwrap();
+
+  // The default version as specified by the EKS API for a given addon and Kubernetes version
+  let default_version = addon
+    .addon_versions()
+    .unwrap()
+    .iter()
+    .filter(|v| v.compatibilities().unwrap().iter().any(|c| c.default_version))
+    .map(|v| v.addon_version().unwrap())
+    .next()
+    .unwrap();
+
+  // Get the list of ALL supported version for this addon and Kubernetes version
+  // The results maintain the oder of latest version to oldest
+  let supported_versions: HashSet<String> = addon
+    .addon_versions()
+    .unwrap()
+    .iter()
+    .map(|v| v.addon_version().unwrap().to_owned())
+    .collect();
+
+  Ok(AddonVersion {
+    latest: latest_version.to_owned(),
+    default: default_version.to_owned(),
+    supported_versions,
+  })
 }
 
 pub async fn get_eks_managed_nodegroups(client: &EksClient, cluster_name: &str) -> Result<Vec<Nodegroup>> {
@@ -196,15 +258,20 @@ pub async fn get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Res
   Ok(profiles)
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
 pub struct LaunchTemplate {
   /// Name of the launch template
+  #[tabled(skip)]
   pub name: String,
   /// The ID of the launch template
+  #[tabled(rename = "LAUNCH TEMP ID")]
   pub id: String,
   /// The version of the launch template currently used/specified in the autoscaling group
+  #[tabled(rename = "CURRENT")]
   pub current_version: String,
   /// The latest version of the launch template
+  #[tabled(rename = "LATEST")]
   pub latest_version: String,
 }
 

@@ -14,14 +14,14 @@
 - [Upgrade the Control Plane](#upgrade-the-control-plane)
     - [Control Plane Pre-Upgrade](#control-plane-pre-upgrade)
     - [Control Plane Upgrade](#control-plane-upgrade)
+- [Upgrade EKS Addons](#upgrade-eks-addons)
+    - [Addon Pre-Upgrade](#addon-pre-upgrade)
+    - [Addon Upgrade](#addon-upgrade)
 - [Upgrade the Data Plane](#upgrade-the-data-plane)
     - [Data Plane Pre-Upgrade](#data-plane-pre-upgrade)
         - [EKS Managed Nodegroup](#eks-managed-nodegroup)
         - [Self-Managed Nodegroup](#self-managed-nodegroup)
         - [Fargate Profile](#fargate-profile)
-- [Upgrade EKS Addons](#upgrade-eks-addons)
-    - [Addon Pre-Upgrade](#addon-pre-upgrade)
-    - [Addon Upgrade](#addon-upgrade)
 - [Post-Upgrade](#post-upgrade)
 - [References](#references)
 
@@ -71,18 +71,17 @@
     </details>
 
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
-	|  -  | Nodes | Kubelet Version | Control Plane Version |
-	| :---: | :---: | :-------------- | :-------------------- |
-	| ⚠️ | 2 | `v1.22` | `v1.23` |
-	| ❌ | 2 | `v1.21` | `v1.23` |
+	| CHECK  |    | NODE  | CONTROL PLANE | SKEW | QUANTITY |
+	|--------|----|-------|---------------|------|----------|
+	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
+	| K8S001 | ⚠️  | v1.22 | v1.23         | +1   | 2        |
 
-	|   -   | Node Name | Kubelet Version | Control Plane Version |
-	| :---: | :-------- | :-------------- | :-------------------- |
-	| ❌ | `ip-10-0-21-97.ec2.internal` | `v1.21` | `v1.23` |
-	| ❌ | `ip-10-0-31-138.ec2.internal` | `v1.21` | `v1.23` |
-	| ⚠️ | `ip-10-0-46-208.ec2.internal` | `v1.22` | `v1.23` |
-	| ⚠️ | `ip-10-0-6-50.ec2.internal` | `v1.22` | `v1.23` |
-
+	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
+	|----|-----------------------------|-------|---------------|------|
+	| ❌ | ip-10-0-0-205.ec2.internal  | v1.21 | v1.23         | +2   |
+	| ⚠️  | ip-10-0-18-21.ec2.internal  | v1.22 | v1.23         | +1   |
+	| ⚠️  | ip-10-0-22-218.ec2.internal | v1.22 | v1.23         | +1   |
+	| ❌ | ip-10-0-26-202.ec2.internal | v1.21 | v1.23         | +2   |
 
 
 3. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
@@ -141,11 +140,11 @@
     </details>
 
     #### Check [[EKS005]](https://clowdhaus.github.io/eksup/process/checks/#eks005)
-	|   -   | Name  | Version | Next Default | Next Latest |
-	| :---: | :---- | :-----: | :----------: | :---------: |
-	| ⚠️ | `coredns` | `v1.8.4-eksbuild.2` | `v1.8.7-eksbuild.3` | `v1.8.7-eksbuild.3` |
-	| ❌ | `kube-proxy` | `v1.21.14-eksbuild.3` | `v1.24.7-eksbuild.2` | `v1.24.9-eksbuild.1` |
-	| ❌ | `vpc-cni` | `v1.11.3-eksbuild.3` | `v1.11.4-eksbuild.1` | `v1.12.1-eksbuild.2` |
+	|    | NAME       | CURRENT             | LATEST             | DEFAULT            |
+	|----|------------|---------------------|--------------------|--------------------|
+	| ⚠️  | coredns    | v1.8.4-eksbuild.2   | v1.8.7-eksbuild.3  | v1.8.7-eksbuild.3  |
+	| ❌ | kube-proxy | v1.21.14-eksbuild.3 | v1.24.9-eksbuild.1 | v1.24.7-eksbuild.2 |
+	| ❌ | vpc-cni    | v1.11.3-eksbuild.3  | v1.12.2-eksbuild.1 | v1.11.4-eksbuild.1 |
 
 
 5. Check Kubernetes API versions currently in use and ensure any versions that are removed in the next Kubernetes release are updated prior to upgrading the cluster. There are several open source tools that can help you identify deprecated API versions in your Kubernetes manifests. The following open source projects support scanning both your cluster as well as manifest files to identify deprecated and/or removed API versions:
@@ -173,6 +172,36 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
         --query 'cluster.status'
     ```
 
+## Upgrade EKS Addons
+
+### Addon Pre-Upgrade
+
+1. Ensure the EKS addons in use are free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster.
+
+    <details>
+    <summary>📌 CLI Example</summary>
+
+    ```sh
+    aws eks describe-addon --region us-east-1 --cluster-name test-mixed \
+        --addon-name <ADDON_NAME> --query 'addon.health'
+    ```
+
+    </details>
+
+    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/process/checks/#eks004)
+	✅ - There are no reported addon health issues.
+
+### Addon Upgrade
+
+1. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
+
+    ```sh
+    aws eks update-addon --region us-east-1 --cluster-name test-mixed \
+        --addon-name <ADDON_NAME> --addon-version <ADDON_VERSION>
+    ```
+
+    You may need to add `--resolve-conflicts OVERWRITE` to the command if the addon has been modified since it was deployed to ensure the addon is upgraded.
+
 ## Upgrade the Data Plane
 
 ### Data Plane Pre-Upgrade
@@ -182,12 +211,11 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
     🚧 TODO - fill in analysis results
 
     #### Check [[K8S002]](https://clowdhaus.github.io/eksup/process/checks/#k8s002)
-	|  -  | Name | Namespace | Kind | Minimum Replicas |
-	| :---: | :--- | :------ | :--- | :--------------- |
-	| ❌ | bad-dpl | deployment | Deployment | 1 |
-	| ❌ | coredns | kube-system | Deployment | 2 |
-	| ❌ | bad-ss | statefulset | StatefulSet | 1 |
-
+	|    | NAME    | NAMESPACE   | KIND        | REPLICAS |
+	|----|---------|-------------|-------------|----------|
+	| ❌ | bad-dpl | deployment  | Deployment  | 1        |
+	| ❌ | coredns | kube-system | Deployment  | 2        |
+	| ❌ | bad-ss  | statefulset | StatefulSet | 1        |
 
 
     #### Check [[K8S003]](https://clowdhaus.github.io/eksup/process/checks/#k8s003)
@@ -257,9 +285,9 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
     </details>
 
     Check [[EKS006]](https://clowdhaus.github.io/eksup/process/checks/#eks006)
-	|   -   | MNG Name  | Launch Template ID | Current | Latest |
-	| :---: | :-------- | :----------------- | :-----: | :----: |
-	| ⚠️ | `standard-2023012520034032750000002d` | `lt-06aa285a3b55fa0b6` | `1` | `2` |
+	|   | MANAGED NODEGROUP                   | LAUNCH TEMP ID       | CURRENT | LATEST |
+	|---|-------------------------------------|----------------------|---------|--------|
+	| ⚠️ | standard-2023021612275084860000002d | lt-05bf772fc86aeec1b | 1       | 2      |
 
 
 ##### Upgrade
@@ -333,9 +361,9 @@ A starting point for the instance refresh configuration is to use a value of 70%
     </details>
 
     Check [[EKS007]](https://clowdhaus.github.io/eksup/process/checks/#eks007)
-	|   -   | ASG Name | Launch Template ID | Current | Latest |
-	| :---: | :------- | :----------------- | :-----: | :----: |
-	| ⚠️ | `different-20230125200340605200000031` | `lt-00c9c5fd3111c1e01` | `1` | `2` |
+	|   | AUTOSCALING GROUP                    | LAUNCH TEMP ID       | CURRENT | LATEST |
+	|---|--------------------------------------|----------------------|---------|--------|
+	| ⚠️ | different-20230216122750926300000031 | lt-0d5a725fa6187e683 | 1       | 2      |
 
 
 ##### Upgrade
@@ -401,36 +429,6 @@ The Kubernetes version used by Fargate nodes is referenced from the control plan
     kubectl drain <FARGATE-NODE> --delete-emptydir-data
     ```
 
-
-## Upgrade EKS Addons
-
-### Addon Pre-Upgrade
-
-1. Ensure the EKS addons in use are free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster.
-
-    <details>
-    <summary>📌 CLI Example</summary>
-
-    ```sh
-    aws eks describe-addon --region us-east-1 --cluster-name test-mixed \
-        --addon-name <ADDON_NAME> --query 'addon.health'
-    ```
-
-    </details>
-
-    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/process/checks/#eks004)
-	✅ - There are no reported addon health issues.
-
-### Addon Upgrade
-
-1. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
-
-    ```sh
-    aws eks update-addon --region us-east-1 --cluster-name test-mixed \
-        --addon-name <ADDON_NAME> --addon-version <ADDON_VERSION>
-    ```
-
-    You may need to add `--resolve-conflicts OVERWRITE` to the command if the addon has been modified since it was deployed to ensure the addon is upgraded.
 
 ## Post Upgrade
 
