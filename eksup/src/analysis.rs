@@ -34,6 +34,7 @@ impl Results {
     output.push_str(&self.data_plane.version_skew.to_stdout_table()?);
     output.push_str(&self.kubernetes.min_replicas.to_stdout_table()?);
     output.push_str(&self.kubernetes.min_ready_seconds.to_stdout_table()?);
+    output.push_str(&self.kubernetes.readiness_probe.to_stdout_table()?);
 
     Ok(output)
   }

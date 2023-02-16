@@ -7,10 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 
-use crate::{
-  finding,
-  k8s::checks::{K8sFindings, MinReadySeconds, MinReplicas},
-};
+use crate::{finding, k8s::checks};
 
 /// Custom resource definition for ENIConfig as specified in the AWS VPC CNI
 ///
@@ -31,6 +28,31 @@ use crate::{
 pub struct EniConfigSpec {
   pub subnet: Option<String>,
   pub security_groups: Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Kind {
+  DaemonSet,
+  Deployment,
+  ReplicaSet,
+  ReplicationController,
+  StatefulSet,
+  CronJob,
+  Job,
+}
+
+impl std::fmt::Display for Kind {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    match *self {
+      Kind::DaemonSet => write!(f, "DaemonSet"),
+      Kind::Deployment => write!(f, "Deployment"),
+      Kind::ReplicaSet => write!(f, "ReplicaSet"),
+      Kind::ReplicationController => write!(f, "ReplicationController"),
+      Kind::StatefulSet => write!(f, "StatefulSet"),
+      Kind::CronJob => write!(f, "CronJob"),
+      Kind::Job => write!(f, "Job"),
+    }
+  }
 }
 
 /// Returns all of the ENIConfigs in the cluster, if any are present
@@ -58,7 +80,7 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
       let metadata = StdMetadata {
         name: objmeta.name.unwrap(),
         namespace: objmeta.namespace.unwrap(),
-        kind: "Deployment".to_string(),
+        kind: Kind::Deployment,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
@@ -90,7 +112,7 @@ async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
       let metadata = StdMetadata {
         name: objmeta.name.unwrap(),
         namespace: objmeta.namespace.unwrap(),
-        kind: "ReplicaSet".to_string(),
+        kind: Kind::ReplicaSet,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
@@ -122,7 +144,7 @@ async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
       let metadata = StdMetadata {
         name: objmeta.name.unwrap(),
         namespace: objmeta.namespace.unwrap(),
-        kind: "StatefulSet".to_string(),
+        kind: Kind::StatefulSet,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
@@ -154,7 +176,7 @@ async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
       let metadata = StdMetadata {
         name: objmeta.name.unwrap(),
         namespace: objmeta.namespace.unwrap(),
-        kind: "DaemonSet".to_string(),
+        kind: Kind::DaemonSet,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
@@ -186,7 +208,7 @@ async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
       let metadata = StdMetadata {
         name: objmeta.name.unwrap(),
         namespace: objmeta.namespace.unwrap(),
-        kind: "Job".to_string(),
+        kind: Kind::Job,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
@@ -218,7 +240,7 @@ async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
       let metadata = StdMetadata {
         name: objmeta.name.unwrap(),
         namespace: objmeta.namespace.unwrap(),
-        kind: "CronJob".to_string(),
+        kind: Kind::CronJob,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
@@ -265,14 +287,14 @@ pub struct Resource {
   /// Namespace where the resource is provisioned
   pub namespace: String,
   /// Kind of the resource
-  pub kind: String,
+  pub kind: Kind,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StdMetadata {
   pub name: String,
   pub namespace: String,
-  pub kind: String,
+  pub kind: Kind,
   pub labels: BTreeMap<String, String>,
   pub annotations: BTreeMap<String, String>,
 }
@@ -297,16 +319,16 @@ pub struct StdResource {
   pub spec: StdSpec,
 }
 
-impl K8sFindings for StdResource {
+impl checks::K8sFindings for StdResource {
   fn get_resource(&self) -> Resource {
     Resource {
       name: self.metadata.name.to_owned(),
       namespace: self.metadata.namespace.to_owned(),
-      kind: self.metadata.kind.to_string(),
+      kind: self.metadata.kind.to_owned(),
     }
   }
 
-  fn min_replicas(&self) -> Option<MinReplicas> {
+  fn min_replicas(&self) -> Option<checks::MinReplicas> {
     let replicas = self.spec.replicas;
 
     match replicas {
@@ -318,7 +340,7 @@ impl K8sFindings for StdResource {
             symbol: remediation.symbol(),
             remediation,
           };
-          Some(MinReplicas {
+          Some(checks::MinReplicas {
             finding,
             resource: self.get_resource(),
             replicas,
@@ -331,7 +353,7 @@ impl K8sFindings for StdResource {
     }
   }
 
-  fn min_ready_seconds(&self) -> Option<MinReadySeconds> {
+  fn min_ready_seconds(&self) -> Option<checks::MinReadySeconds> {
     let seconds = self.spec.min_ready_seconds;
 
     match seconds {
@@ -344,7 +366,7 @@ impl K8sFindings for StdResource {
             remediation,
           };
 
-          Some(MinReadySeconds {
+          Some(checks::MinReadySeconds {
             finding,
             resource: self.get_resource(),
             seconds,
@@ -352,6 +374,41 @@ impl K8sFindings for StdResource {
         } else {
           None
         }
+      }
+      None => None,
+    }
+  }
+
+  fn readiness_probe(&self) -> Option<checks::Probe> {
+    let pod_template = self.spec.template.to_owned();
+
+    let resource = self.get_resource();
+    match resource.kind {
+      Kind::DaemonSet | Kind::Job | Kind::CronJob => return None,
+      _ => (),
+    }
+
+    match pod_template {
+      Some(pod_template) => {
+        let containers = pod_template.spec.unwrap_or_default().containers;
+
+        for container in containers {
+          if container.readiness_probe.is_none() {
+            let remediation = finding::Remediation::Required;
+            let finding = finding::Finding {
+              code: finding::Code::K8S006,
+              symbol: remediation.symbol(),
+              remediation,
+            };
+
+            // As soon as we find one container without a readiness probe, we return the finding
+            return Some(checks::Probe {
+              finding,
+              resource: self.get_resource(),
+            });
+          }
+        }
+        None
       }
       None => None,
     }

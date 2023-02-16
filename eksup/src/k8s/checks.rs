@@ -246,16 +246,43 @@ pub(crate) struct PodTopologyDistributionFinding {
   pub(crate) fcode: finding::Code,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct ProbeFinding {
-  pub(crate) resource: Resource,
-  ///
-  pub(crate) readiness: Option<String>,
-  pub(crate) liveness: Option<String>,
-  pub(crate) startup: Option<String>,
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct Probe {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
 
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+  #[tabled(inline)]
+  pub(crate) resource: Resource,
+}
+
+impl Findings for Vec<Probe> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
+    if self.is_empty() {
+      return Ok(format!(
+        "{leading_whitespace}✅ - All relevant Kubernetes workloads have a readiness probe configured"
+      ));
+    }
+
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
+
+    Ok(format!("{table}\n"))
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{table}\n"))
+  }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -286,8 +313,8 @@ pub trait K8sFindings {
   // fn pod_disruption_budget(&self) -> Result<Option<PodDisruptionBudgetFinding>>;
   // /// K8S005 - check if resources have podAntiAffinity or topologySpreadConstraints
   // fn pod_topology_distribution(&self) -> Result<Option<PodTopologyDistributionFinding>>;
-  // /// K8S006 - check if resources have readinessProbe
-  // fn readiness_probe(&self) -> Result<Option<ProbeFinding>>;
+  /// K8S006 - check if resources have readinessProbe
+  fn readiness_probe(&self) -> Option<Probe>;
   // /// K8S008 - check if resources use the Docker socket
   // fn docker_socket(&self) -> Result<Option<DockerSocketFinding>>;
 }
