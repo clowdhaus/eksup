@@ -211,15 +211,9 @@ Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` is 
 
 #### K8S006
 
-!!! info "🚧 _Not yet implemented_"
-
 **❌ Remediation required**
 
 A `readinessProbe` must be set to ensure traffic is not sent to pods before they are ready following their re-deployment from a node replacement.
-
-**⚠️ Remediation recommended**
-
-If a `livenessProbe`  is provided, it should not be the same as `readinessProbe`, and a `startupProbe` should also accompany it.
 
 #### K8S007
 

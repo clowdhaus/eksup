@@ -73,8 +73,8 @@
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
 	| CHECK  |    | NODE  | CONTROL PLANE | SKEW | QUANTITY |
 	|--------|----|-------|---------------|------|----------|
-	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
 	| K8S001 | ⚠️  | v1.22 | v1.23         | +1   | 2        |
+	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
 
 	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
 	|----|-----------------------------|-------|---------------|------|
@@ -142,7 +142,7 @@
     #### Check [[EKS005]](https://clowdhaus.github.io/eksup/process/checks/#eks005)
 	|    | NAME       | CURRENT             | LATEST             | DEFAULT            |
 	|----|------------|---------------------|--------------------|--------------------|
-	| ⚠️  | coredns    | v1.8.4-eksbuild.2   | v1.8.7-eksbuild.3  | v1.8.7-eksbuild.3  |
+	| ⚠️  | coredns    | v1.8.4-eksbuild.2   | v1.9.3-eksbuild.2  | v1.8.7-eksbuild.3  |
 	| ❌ | kube-proxy | v1.21.14-eksbuild.3 | v1.24.9-eksbuild.1 | v1.24.7-eksbuild.2 |
 	| ❌ | vpc-cni    | v1.11.3-eksbuild.3  | v1.12.2-eksbuild.1 | v1.11.4-eksbuild.1 |
 
@@ -220,6 +220,13 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     #### Check [[K8S003]](https://clowdhaus.github.io/eksup/process/checks/#k8s003)
 	✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0
+
+    #### Check [[K8S006]](https://clowdhaus.github.io/eksup/process/checks/#k8s006)
+	|    | NAME    | NAMESPACE   | KIND        |
+	|----|---------|-------------|-------------|
+	| ❌ | bad-dpl | deployment  | Deployment  |
+	| ❌ | bad-ss  | statefulset | StatefulSet |
+
 
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
 

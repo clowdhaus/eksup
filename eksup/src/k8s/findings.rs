@@ -11,6 +11,7 @@ use crate::k8s::{
 pub struct KubernetesFindings {
   pub min_replicas: Vec<checks::MinReplicas>,
   pub min_ready_seconds: Vec<checks::MinReadySeconds>,
+  pub readiness_probe: Vec<checks::Probe>,
 }
 
 pub async fn get_kubernetes_findings(k8s_client: &K8sClient) -> Result<KubernetesFindings> {
@@ -19,9 +20,11 @@ pub async fn get_kubernetes_findings(k8s_client: &K8sClient) -> Result<Kubernete
   let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();
   let min_ready_seconds: Vec<checks::MinReadySeconds> =
     resources.iter().filter_map(|s| s.min_ready_seconds()).collect();
+  let readiness_probe: Vec<checks::Probe> = resources.iter().filter_map(|s| s.readiness_probe()).collect();
 
   Ok(KubernetesFindings {
     min_replicas,
     min_ready_seconds,
+    readiness_probe,
   })
 }
