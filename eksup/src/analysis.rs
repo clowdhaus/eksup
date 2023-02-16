@@ -19,18 +19,19 @@ impl Results {
   pub(crate) fn to_stdout_table(&self) -> Result<String> {
     let mut output = String::new();
 
+    // Ordered sub-group (AWS -> EKS -> K8s) and check number
+    output.push_str(&self.subnets.pod_ips.to_stdout_table()?);
+    output.push_str(&self.subnets.control_plane_ips.to_stdout_table()?);
     output.push_str(&self.cluster.cluster_health.to_stdout_table()?);
 
-    output.push_str(&self.subnets.control_plane_ips.to_stdout_table()?);
-    output.push_str(&self.subnets.pod_ips.to_stdout_table()?);
-
-    output.push_str(&self.data_plane.version_skew.to_stdout_table()?);
     output.push_str(&self.data_plane.eks_managed_nodegroup_health.to_stdout_table()?);
+    output.push_str(&self.addons.health.to_stdout_table()?);
+    output.push_str(&self.addons.version_compatibility.to_stdout_table()?);
+
     output.push_str(&self.data_plane.eks_managed_nodegroup_update.to_stdout_table()?);
     output.push_str(&self.data_plane.self_managed_nodegroup_update.to_stdout_table()?);
 
-    output.push_str(&self.addons.health.to_stdout_table()?);
-    output.push_str(&self.addons.version_compatibility.to_stdout_table()?);
+    output.push_str(&self.data_plane.version_skew.to_stdout_table()?);
     output.push_str(&self.kubernetes.min_replicas.to_stdout_table()?);
     output.push_str(&self.kubernetes.min_ready_seconds.to_stdout_table()?);
 

@@ -73,8 +73,8 @@
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
 	| CHECK  |    | NODE  | CONTROL PLANE | SKEW | QUANTITY |
 	|--------|----|-------|---------------|------|----------|
-	| K8S001 | ⚠️  | v1.22 | v1.23         | +1   | 2        |
 	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
+	| K8S001 | ⚠️  | v1.22 | v1.23         | +1   | 2        |
 
 	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
 	|----|-----------------------------|-------|---------------|------|
@@ -211,9 +211,11 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
     🚧 TODO - fill in analysis results
 
     #### Check [[K8S002]](https://clowdhaus.github.io/eksup/process/checks/#k8s002)
-	|    | NAME    | NAMESPACE   | KIND       | REPLICAS |
-	|----|---------|-------------|------------|----------|
-	| ❌ | coredns | kube-system | Deployment | 2        |
+	|    | NAME    | NAMESPACE   | KIND        | REPLICAS |
+	|----|---------|-------------|-------------|----------|
+	| ❌ | bad-dpl | deployment  | Deployment  | 1        |
+	| ❌ | coredns | kube-system | Deployment  | 2        |
+	| ❌ | bad-ss  | statefulset | StatefulSet | 1        |
 
 
     #### Check [[K8S003]](https://clowdhaus.github.io/eksup/process/checks/#k8s003)
