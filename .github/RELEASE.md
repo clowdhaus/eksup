@@ -25,3 +25,9 @@ This document captures the steps to follow when releasing a new version of `eksu
   ```sh
   mkdocs gh-deploy
   ```
+
+5. Update package on crates.io. Update the version of `eksup` used throughout the project as well as within `Cargo.toml`. Commit the changes and push to `main` before publishing the new version to crates.io.
+
+  ```sh
+  cargo publish
+  ```
