@@ -405,10 +405,46 @@ impl checks::K8sFindings for StdResource {
             return Some(checks::Probe {
               finding,
               resource: self.get_resource(),
+              readiness_probe: !container.readiness_probe.is_none(),
             });
           }
         }
         None
+      }
+      None => None,
+    }
+  }
+
+  fn pod_topology_distribution(&self) -> Option<checks::PodTopologyDistribution> {
+    let pod_template = self.spec.template.to_owned();
+
+    let resource = self.get_resource();
+    match resource.kind {
+      Kind::DaemonSet | Kind::Job | Kind::CronJob => return None,
+      _ => (),
+    }
+
+    match pod_template {
+      Some(pod_template) => {
+        let pod_spec = pod_template.spec.unwrap_or_default();
+        if pod_spec.affinity.is_none() && pod_spec.topology_spread_constraints.is_none() {
+          let remediation = finding::Remediation::Required;
+          let finding = finding::Finding {
+            code: finding::Code::K8S005,
+            symbol: remediation.symbol(),
+            remediation,
+          };
+
+          // As soon as we find one container without a readiness probe, we return the finding
+          Some(checks::PodTopologyDistribution {
+            finding,
+            resource: self.get_resource(),
+            anti_affinity: !pod_spec.affinity.is_none(),
+            topology_spread_constraints: !pod_spec.topology_spread_constraints.is_none(),
+          })
+        } else {
+          None
+        }
       }
       None => None,
     }

@@ -226,24 +226,56 @@ impl Findings for Vec<MinReadySeconds> {
   }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct PodDisruptionBudgetFinding {
-  pub(crate) resource: Resource,
-  /// Has pod associated pod disruption budget
-  /// TODO - more relevant information than just present?
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct PodDisruptionBudget {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  #[tabled(inline)]
+  pub resource: Resource,
+  // Has pod associated pod disruption budget
+  // TODO - more relevant information than just present?
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct PodTopologyDistributionFinding {
-  pub(crate) resource: Resource,
-  ///
-  pub(crate) anti_affinity: Option<String>,
-  ///
-  pub(crate) toplogy_spread_constraints: Option<String>,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct PodTopologyDistribution {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  #[tabled(inline)]
+  pub resource: Resource,
+
+  pub anti_affinity: bool,
+  pub topology_spread_constraints: bool,
+}
+
+impl Findings for Vec<PodTopologyDistribution> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
+    if self.is_empty() {
+      return Ok(format!(
+        "{leading_whitespace}✅ - All relevant Kubernetes workloads have either podAntiAffinity or topologySpreadConstraints set"
+      ));
+    }
+
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
+
+    Ok(format!("{table}\n"))
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{table}\n"))
+  }
 }
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
@@ -253,7 +285,9 @@ pub struct Probe {
   pub finding: finding::Finding,
 
   #[tabled(inline)]
-  pub(crate) resource: Resource,
+  pub resource: Resource,
+  #[tabled(rename = "READINESS PROBE")]
+  pub readiness_probe: bool,
 }
 
 impl Findings for Vec<Probe> {
@@ -285,36 +319,104 @@ impl Findings for Vec<Probe> {
   }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct TerminationGracePeriodFinding {
-  pub(crate) resource: Resource,
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct TerminationGracePeriod {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+
+  #[tabled(inline)]
+  pub resource: Resource,
   /// Min ready seconds
-  pub(crate) seconds: i32,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+  pub seconds: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct DockerSocketFinding {
-  pub(crate) resource: Resource,
-  ///
-  pub(crate) volumes: Vec<String>,
-  pub(crate) remediation: finding::Remediation,
-  pub(crate) fcode: finding::Code,
+impl Findings for Vec<TerminationGracePeriod> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
+    if self.is_empty() {
+      return Ok(format!(
+        "{leading_whitespace}✅ - No StatefulSet workloads have a terminationGracePeriodSeconds set to more than 0"
+      ));
+    }
+
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
+
+    Ok(format!("{table}\n"))
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{table}\n"))
+  }
+}
+
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct DockerSocket {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+
+  #[tabled(inline)]
+  pub resource: Resource,
+}
+
+impl Findings for Vec<DockerSocket> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
+    if self.is_empty() {
+      return Ok(format!(
+        "{leading_whitespace}✅ - No relevant Kubernetes workloads are found to be utilizing the Docker socket"
+      ));
+    }
+
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
+
+    Ok(format!("{table}\n"))
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{table}\n"))
+  }
 }
 
 pub trait K8sFindings {
   fn get_resource(&self) -> Resource;
+
   /// K8S002 - check if resources contain a minimum of 3 replicas
   fn min_replicas(&self) -> Option<MinReplicas>;
+
   /// K8S003 - check if resources contain minReadySeconds > 0
   fn min_ready_seconds(&self) -> Option<MinReadySeconds>;
+
   // /// K8S004 - check if resources have associated podDisruptionBudgets
-  // fn pod_disruption_budget(&self) -> Result<Option<PodDisruptionBudgetFinding>>;
-  // /// K8S005 - check if resources have podAntiAffinity or topologySpreadConstraints
-  // fn pod_topology_distribution(&self) -> Result<Option<PodTopologyDistributionFinding>>;
+  // fn pod_disruption_budget(&self) -> Option<PodDisruptionBudget>;
+
+  /// K8S005 - check if resources have podAntiAffinity or topologySpreadConstraints
+  fn pod_topology_distribution(&self) -> Option<PodTopologyDistribution>;
+
   /// K8S006 - check if resources have readinessProbe
   fn readiness_probe(&self) -> Option<Probe>;
+
   // /// K8S008 - check if resources use the Docker socket
-  // fn docker_socket(&self) -> Result<Option<DockerSocketFinding>>;
+  // fn docker_socket(&self) -> Option<DockerSocket>;
 }
