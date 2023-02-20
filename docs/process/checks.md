@@ -193,8 +193,6 @@ The Kubernetes eviction API is the preferred method for draining nodes for repla
 
 #### K8S005
 
-!!! info "🚧 _Not yet implemented_"
-
 **❌ Remediation required**
 
 Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` is set to avoid multiple pods from the same workload from being scheduled on the same node.
@@ -210,8 +208,6 @@ Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` is 
 [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)
 
 #### K8S006
-
-**❌ Remediation required**
 
 A `readinessProbe` must be set to ensure traffic is not sent to pods before they are ready following their re-deployment from a node replacement.
 
