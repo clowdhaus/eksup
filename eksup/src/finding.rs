@@ -139,6 +139,9 @@ pub enum Code {
 
   /// `pod.spec.TerminationGracePeriodSeconds` is set to zero
   K8S007,
+
+  /// Mounts `docker.sock` or `dockershim.sock`
+  K8S008,
 }
 
 impl std::fmt::Display for Code {
@@ -163,6 +166,7 @@ impl std::fmt::Display for Code {
       Code::K8S005 => write!(f, "K8S005"),
       Code::K8S006 => write!(f, "K8S006"),
       Code::K8S007 => write!(f, "K8S007"),
+      Code::K8S008 => write!(f, "K8S008"),
     }
   }
 }

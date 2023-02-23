@@ -2,7 +2,7 @@ use anyhow::Result;
 use aws_sdk_eks::model::Cluster;
 use serde::{Deserialize, Serialize};
 
-use crate::{eks, finding::Findings, k8s};
+use crate::{eks, finding::Findings, k8s, version};
 
 /// Container of all findings collected
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,6 +37,7 @@ impl Results {
     output.push_str(&self.kubernetes.pod_topology_distribution.to_stdout_table()?);
     output.push_str(&self.kubernetes.readiness_probe.to_stdout_table()?);
     output.push_str(&self.kubernetes.termination_grace_period.to_stdout_table()?);
+    output.push_str(&self.kubernetes.docker_socket.to_stdout_table()?);
 
     Ok(output)
   }
@@ -52,13 +53,14 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
 
   let cluster_name = cluster.name().unwrap();
   let cluster_version = cluster.version().unwrap();
+  let target_version = version::get_target_version(cluster_version)?;
 
   let cluster_findings = eks::get_cluster_findings(cluster).await?;
   let subnet_findings = eks::get_subnet_findings(&ec2_client, &k8s_client, cluster).await?;
   let addon_findings = eks::get_addon_findings(&eks_client, cluster_name, cluster_version).await?;
   let dataplane_findings =
     eks::get_data_plane_findings(&asg_client, &ec2_client, &eks_client, &k8s_client, cluster).await?;
-  let kubernetes_findings = k8s::get_kubernetes_findings(&k8s_client).await?;
+  let kubernetes_findings = k8s::get_kubernetes_findings(&k8s_client, &target_version).await?;
 
   Ok(Results {
     cluster: cluster_findings,

@@ -73,8 +73,8 @@
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
 	| CHECK  |    | NODE  | CONTROL PLANE | SKEW | QUANTITY |
 	|--------|----|-------|---------------|------|----------|
-	| K8S001 | ⚠️  | v1.22 | v1.23         | +1   | 2        |
 	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
+	| K8S001 | ⚠️  | v1.22 | v1.23         | +1   | 2        |
 
 	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
 	|----|-----------------------------|-------|---------------|------|
@@ -246,6 +246,20 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	|    | NAME   | NAMESPACE   | KIND        | TERMINATIONGRACEPERIOD |
 	|----|--------|-------------|-------------|------------------------|
 	| ❌ | bad-ss | statefulset | StatefulSet | 0                      |
+
+
+    #### Check [[K8S008]](https://clowdhaus.github.io/eksup/process/checks/#k8s008)
+	|    | NAME              | NAMESPACE   | KIND        | DOCKERSOCKET |
+	|----|-------------------|-------------|-------------|--------------|
+	| ❌ | bad-cron          | cronjob     | CronJob     | true         |
+	| ❌ | bad-ds            | daemonset   | DaemonSet   | true         |
+	| ❌ | aws-node          | kube-system | DaemonSet   | true         |
+	| ❌ | bad-dpl           | deployment  | Deployment  | true         |
+	| ❌ | bad-cron-27953110 | cronjob     | Job         | true         |
+	| ❌ | bad-cron-27953115 | cronjob     | Job         | true         |
+	| ❌ | bad-cron-27953120 | cronjob     | Job         | true         |
+	| ❌ | bad-job           | job         | Job         | true         |
+	| ❌ | bad-ss            | statefulset | StatefulSet | true         |
 
 
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.

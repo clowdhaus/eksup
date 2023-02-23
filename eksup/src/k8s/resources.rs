@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 
-use crate::{finding, k8s::checks};
+use crate::{finding, k8s::checks, version};
 
 /// Custom resource definition for ENIConfig as specified in the AWS VPC CNI
 ///
@@ -497,6 +497,48 @@ impl checks::K8sFindings for StdResource {
           }
           None => None,
         }
+      }
+      None => None,
+    }
+  }
+
+  fn docker_socket(&self, target_version: &str) -> Option<checks::DockerSocket> {
+    let pod_template = self.spec.template.to_owned();
+
+    let target_version = version::parse_minor(target_version).unwrap();
+    if target_version > 24 {
+      // From 1.25+, there shouldn't be any further action required
+      return None;
+    }
+    let remediation = if target_version < 24 {
+      finding::Remediation::Recommended
+    } else {
+      finding::Remediation::Required
+    };
+
+    match pod_template {
+      Some(pod_template) => {
+        let containers = pod_template.spec.unwrap_or_default().containers;
+
+        for container in containers {
+          let volume_mounts = container.volume_mounts.unwrap_or_default();
+          for volume_mount in volume_mounts {
+            if volume_mount.mount_path.contains("docker.sock") || volume_mount.mount_path.contains("dockershim.sock") {
+              let finding = finding::Finding {
+                code: finding::Code::K8S008,
+                symbol: remediation.symbol(),
+                remediation,
+              };
+
+              return Some(checks::DockerSocket {
+                finding,
+                resource: self.get_resource(),
+                docker_socket: true,
+              });
+            }
+          }
+        }
+        None
       }
       None => None,
     }

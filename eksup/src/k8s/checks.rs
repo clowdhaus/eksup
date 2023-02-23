@@ -368,6 +368,8 @@ pub struct DockerSocket {
 
   #[tabled(inline)]
   pub resource: Resource,
+
+  pub docker_socket: bool,
 }
 
 impl Findings for Vec<DockerSocket> {
@@ -420,6 +422,6 @@ pub trait K8sFindings {
   /// K8S007 - check if StatefulSets have terminationGracePeriodSeconds == 0
   fn termination_grace_period(&self) -> Option<TerminationGracePeriod>;
 
-  // /// K8S008 - check if resources use the Docker socket
-  // fn docker_socket(&self) -> Option<DockerSocket>;
+  /// K8S008 - check if resources use the Docker socket
+  fn docker_socket(&self, target_version: &str) -> Option<DockerSocket>;
 }
