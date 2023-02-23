@@ -73,8 +73,8 @@
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
 	| CHECK  |    | NODE  | CONTROL PLANE | SKEW | QUANTITY |
 	|--------|----|-------|---------------|------|----------|
-	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
 	| K8S001 | ⚠️  | v1.22 | v1.23         | +1   | 2        |
+	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
 
 	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
 	|----|-----------------------------|-------|---------------|------|
@@ -219,10 +219,11 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 
     #### Check [[K8S003]](https://clowdhaus.github.io/eksup/process/checks/#k8s003)
-	|    | NAME     | NAMESPACE   | KIND        | SECONDS |
-	|----|----------|-------------|-------------|---------|
-	| ⚠️  | good-dpl | deployment  | Deployment  | 0       |
-	| ❌ | good-ss  | statefulset | StatefulSet | 0       |
+	|    | NAME    | NAMESPACE   | KIND        | SECONDS |
+	|----|---------|-------------|-------------|---------|
+	| ⚠️  | bad-dpl | deployment  | Deployment  | 0       |
+	| ⚠️  | coredns | kube-system | Deployment  | 0       |
+	| ❌ | bad-ss  | statefulset | StatefulSet | 0       |
 
 
     #### Check [[K8S004]](https://clowdhaus.github.io/eksup/process/checks/#k8s004)
@@ -255,9 +256,8 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	| ❌ | bad-ds            | daemonset   | DaemonSet   | true         |
 	| ❌ | aws-node          | kube-system | DaemonSet   | true         |
 	| ❌ | bad-dpl           | deployment  | Deployment  | true         |
-	| ❌ | bad-cron-27953110 | cronjob     | Job         | true         |
-	| ❌ | bad-cron-27953115 | cronjob     | Job         | true         |
-	| ❌ | bad-cron-27953120 | cronjob     | Job         | true         |
+	| ❌ | bad-cron-27953135 | cronjob     | Job         | true         |
+	| ❌ | bad-cron-27953140 | cronjob     | Job         | true         |
 	| ❌ | bad-job           | job         | Job         | true         |
 	| ❌ | bad-ss            | statefulset | StatefulSet | true         |
 

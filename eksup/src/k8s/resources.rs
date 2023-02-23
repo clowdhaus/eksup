@@ -355,6 +355,11 @@ impl checks::K8sFindings for StdResource {
 
   fn min_ready_seconds(&self) -> Option<checks::MinReadySeconds> {
     let resource = self.get_resource();
+
+    if vec![Kind::CronJob, Kind::DaemonSet, Kind::Job].contains(&resource.kind) {
+      return None;
+    }
+
     let remediation = match resource.kind {
       Kind::StatefulSet => finding::Remediation::Required,
       _ => finding::Remediation::Recommended,
@@ -377,15 +382,17 @@ impl checks::K8sFindings for StdResource {
             seconds,
           })
         } else {
-          // Default value is 0 if a value is not provided
-          Some(checks::MinReadySeconds {
-            finding,
-            resource: self.get_resource(),
-            seconds: 0,
-          })
+          None
         }
       }
-      None => None,
+      None => {
+        // Default value is 0 if a value is not provided
+        Some(checks::MinReadySeconds {
+          finding,
+          resource: self.get_resource(),
+          seconds: 0,
+        })
+      }
     }
   }
 
