@@ -78,10 +78,10 @@
 
 	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
 	|----|-----------------------------|-------|---------------|------|
-	| ❌ | ip-10-0-0-205.ec2.internal  | v1.21 | v1.23         | +2   |
-	| ⚠️  | ip-10-0-18-21.ec2.internal  | v1.22 | v1.23         | +1   |
-	| ⚠️  | ip-10-0-22-218.ec2.internal | v1.22 | v1.23         | +1   |
-	| ❌ | ip-10-0-26-202.ec2.internal | v1.21 | v1.23         | +2   |
+	| ⚠️  | ip-10-0-14-94.ec2.internal  | v1.22 | v1.23         | +1   |
+	| ⚠️  | ip-10-0-29-253.ec2.internal | v1.22 | v1.23         | +1   |
+	| ❌ | ip-10-0-39-157.ec2.internal | v1.21 | v1.23         | +2   |
+	| ❌ | ip-10-0-8-51.ec2.internal   | v1.21 | v1.23         | +2   |
 
 
 3. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
@@ -219,13 +219,33 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 
     #### Check [[K8S003]](https://clowdhaus.github.io/eksup/process/checks/#k8s003)
-	✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0
+	|    | NAME     | NAMESPACE   | KIND        | SECONDS |
+	|----|----------|-------------|-------------|---------|
+	| ⚠️  | good-dpl | deployment  | Deployment  | 0       |
+	| ❌ | good-ss  | statefulset | StatefulSet | 0       |
+
+
+    #### Check [[K8S004]](https://clowdhaus.github.io/eksup/process/checks/#k8s004)
+    🚧 TODO
+
+    #### Check [[K8S005]](https://clowdhaus.github.io/eksup/process/checks/#k8s005)
+	|    | NAME    | NAMESPACE   | KIND        | ANTIAFFINITY | TOPOLOGYSPREADCONSTRAINTS |
+	|----|---------|-------------|-------------|--------------|---------------------------|
+	| ❌ | bad-dpl | deployment  | Deployment  | false        | false                     |
+	| ❌ | bad-ss  | statefulset | StatefulSet | false        | false                     |
+
 
     #### Check [[K8S006]](https://clowdhaus.github.io/eksup/process/checks/#k8s006)
-	|    | NAME    | NAMESPACE   | KIND        |
-	|----|---------|-------------|-------------|
-	| ❌ | bad-dpl | deployment  | Deployment  |
-	| ❌ | bad-ss  | statefulset | StatefulSet |
+	|    | NAME    | NAMESPACE   | KIND        | READINESS PROBE |
+	|----|---------|-------------|-------------|-----------------|
+	| ❌ | bad-dpl | deployment  | Deployment  | false           |
+	| ❌ | bad-ss  | statefulset | StatefulSet | false           |
+
+
+    #### Check [[K8S007]](https://clowdhaus.github.io/eksup/process/checks/#k8s007)
+	|    | NAME   | NAMESPACE   | KIND        | TERMINATIONGRACEPERIOD |
+	|----|--------|-------------|-------------|------------------------|
+	| ❌ | bad-ss | statefulset | StatefulSet | 0                      |
 
 
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
@@ -294,7 +314,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
     Check [[EKS006]](https://clowdhaus.github.io/eksup/process/checks/#eks006)
 	|   | MANAGED NODEGROUP                   | LAUNCH TEMP ID       | CURRENT | LATEST |
 	|---|-------------------------------------|----------------------|---------|--------|
-	| ⚠️ | standard-2023021612275084860000002d | lt-05bf772fc86aeec1b | 1       | 2      |
+	| ⚠️ | standard-2023022314320292470000002f | lt-0fd64ef2eed7c35e5 | 1       | 2      |
 
 
 ##### Upgrade
@@ -370,7 +390,7 @@ A starting point for the instance refresh configuration is to use a value of 70%
     Check [[EKS007]](https://clowdhaus.github.io/eksup/process/checks/#eks007)
 	|   | AUTOSCALING GROUP                    | LAUNCH TEMP ID       | CURRENT | LATEST |
 	|---|--------------------------------------|----------------------|---------|--------|
-	| ⚠️ | different-20230216122750926300000031 | lt-0d5a725fa6187e683 | 1       | 2      |
+	| ⚠️ | different-20230223143203060000000031 | lt-0a85079cbff79cd84 | 1       | 2      |
 
 
 ##### Upgrade

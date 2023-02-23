@@ -328,7 +328,7 @@ pub struct TerminationGracePeriod {
   #[tabled(inline)]
   pub resource: Resource,
   /// Min ready seconds
-  pub seconds: i32,
+  pub termination_grace_period: i64,
 }
 
 impl Findings for Vec<TerminationGracePeriod> {
@@ -416,6 +416,9 @@ pub trait K8sFindings {
 
   /// K8S006 - check if resources have readinessProbe
   fn readiness_probe(&self) -> Option<Probe>;
+
+  /// K8S007 - check if StatefulSets have terminationGracePeriodSeconds == 0
+  fn termination_grace_period(&self) -> Option<TerminationGracePeriod>;
 
   // /// K8S008 - check if resources use the Docker socket
   // fn docker_socket(&self) -> Option<DockerSocket>;

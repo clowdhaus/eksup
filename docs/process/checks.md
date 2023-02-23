@@ -213,8 +213,6 @@ A `readinessProbe` must be set to ensure traffic is not sent to pods before they
 
 #### K8S007
 
-!!! info "🚧 _Not yet implemented_"
-
 **❌ Remediation required**
 
 The `StatefulSet` should not specify a `TerminationGracePeriodSeconds` of 0

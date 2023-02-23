@@ -354,25 +354,35 @@ impl checks::K8sFindings for StdResource {
   }
 
   fn min_ready_seconds(&self) -> Option<checks::MinReadySeconds> {
+    let resource = self.get_resource();
+    let remediation = match resource.kind {
+      Kind::StatefulSet => finding::Remediation::Required,
+      _ => finding::Remediation::Recommended,
+    };
+
+    let finding = finding::Finding {
+      code: finding::Code::K8S003,
+      symbol: remediation.symbol(),
+      remediation,
+    };
+
     let seconds = self.spec.min_ready_seconds;
 
     match seconds {
       Some(seconds) => {
         if seconds < 1 {
-          let remediation = finding::Remediation::Required;
-          let finding = finding::Finding {
-            code: finding::Code::K8S003,
-            symbol: remediation.symbol(),
-            remediation,
-          };
-
           Some(checks::MinReadySeconds {
             finding,
             resource: self.get_resource(),
             seconds,
           })
         } else {
-          None
+          // Default value is 0 if a value is not provided
+          Some(checks::MinReadySeconds {
+            finding,
+            resource: self.get_resource(),
+            seconds: 0,
+          })
         }
       }
       None => None,
@@ -405,7 +415,7 @@ impl checks::K8sFindings for StdResource {
             return Some(checks::Probe {
               finding,
               resource: self.get_resource(),
-              readiness_probe: !container.readiness_probe.is_none(),
+              readiness_probe: container.readiness_probe.is_some(),
             });
           }
         }
@@ -439,11 +449,53 @@ impl checks::K8sFindings for StdResource {
           Some(checks::PodTopologyDistribution {
             finding,
             resource: self.get_resource(),
-            anti_affinity: !pod_spec.affinity.is_none(),
-            topology_spread_constraints: !pod_spec.topology_spread_constraints.is_none(),
+            anti_affinity: pod_spec.affinity.is_some(),
+            topology_spread_constraints: pod_spec.topology_spread_constraints.is_some(),
           })
         } else {
           None
+        }
+      }
+      None => None,
+    }
+  }
+
+  fn termination_grace_period(&self) -> Option<checks::TerminationGracePeriod> {
+    let pod_template = self.spec.template.to_owned();
+
+    let resource = self.get_resource();
+    match resource.kind {
+      // Only applies to StatefulSets
+      Kind::StatefulSet => (),
+      _ => return None,
+    }
+
+    match pod_template {
+      Some(pod_template) => {
+        let pod_spec = pod_template.spec.unwrap_or_default();
+        let termination_grace_period = pod_spec.termination_grace_period_seconds;
+
+        match termination_grace_period {
+          Some(termination_grace_period) => {
+            if termination_grace_period <= 0 {
+              let remediation = finding::Remediation::Required;
+              let finding = finding::Finding {
+                code: finding::Code::K8S007,
+                symbol: remediation.symbol(),
+                remediation,
+              };
+
+              Some(checks::TerminationGracePeriod {
+                finding,
+                resource: self.get_resource(),
+                termination_grace_period,
+              })
+            } else {
+              // Defaults to 30 seconds if not provided
+              None
+            }
+          }
+          None => None,
         }
       }
       None => None,

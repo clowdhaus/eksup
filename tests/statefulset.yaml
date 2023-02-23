@@ -29,6 +29,7 @@ metadata:
     app: bad-ss
 spec:
   replicas: 1
+  minReadySeconds: 0
   serviceName: bad-ss
   selector:
     matchLabels:
@@ -38,6 +39,8 @@ spec:
       labels:
         app: bad-ss
     spec:
+      # Defaults to 30s
+      terminationGracePeriodSeconds: 0
       containers:
         - name: goproxy
           image: registry.k8s.io/goproxy:0.1
