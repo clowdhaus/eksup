@@ -354,25 +354,35 @@ impl checks::K8sFindings for StdResource {
   }
 
   fn min_ready_seconds(&self) -> Option<checks::MinReadySeconds> {
+    let resource = self.get_resource();
+    let remediation = match resource.kind {
+      Kind::StatefulSet => finding::Remediation::Required,
+      _ => finding::Remediation::Recommended,
+    };
+
+    let finding = finding::Finding {
+      code: finding::Code::K8S003,
+      symbol: remediation.symbol(),
+      remediation,
+    };
+
     let seconds = self.spec.min_ready_seconds;
 
     match seconds {
       Some(seconds) => {
         if seconds < 1 {
-          let remediation = finding::Remediation::Required;
-          let finding = finding::Finding {
-            code: finding::Code::K8S003,
-            symbol: remediation.symbol(),
-            remediation,
-          };
-
           Some(checks::MinReadySeconds {
             finding,
             resource: self.get_resource(),
             seconds,
           })
         } else {
-          None
+          // Default value is 0 if a value is not provided
+          Some(checks::MinReadySeconds {
+            finding,
+            resource: self.get_resource(),
+            seconds: 0,
+          })
         }
       }
       None => None,

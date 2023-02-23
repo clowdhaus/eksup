@@ -29,6 +29,7 @@ metadata:
     app: bad-ss
 spec:
   replicas: 1
+  minReadySeconds: 0
   serviceName: bad-ss
   selector:
     matchLabels:
