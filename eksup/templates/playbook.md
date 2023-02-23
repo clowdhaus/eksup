@@ -209,11 +209,17 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
     #### Check [[K8S003]](https://clowdhaus.github.io/eksup/process/checks/#k8s003)
 {{ min_ready_seconds }}
 
+    #### Check [[K8S004]](https://clowdhaus.github.io/eksup/process/checks/#k8s004)
+    🚧 TODO
+
+    #### Check [[K8S005]](https://clowdhaus.github.io/eksup/process/checks/#k8s005)
+{{ pod_topology_distribution }}
+
     #### Check [[K8S006]](https://clowdhaus.github.io/eksup/process/checks/#k8s006)
 {{ readiness_probe }}
 
     #### Check [[K8S007]](https://clowdhaus.github.io/eksup/process/checks/#k8s007)
-{{ pod_topology_distribution }}
+{{ termination_grace_period }}
 
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
 

@@ -57,8 +57,9 @@ pub struct TemplateData {
   // kubernetes_findings: k8s::KubernetesFindings,
   min_replicas: String,
   min_ready_seconds: String,
-  readiness_probe: String,
   pod_topology_distribution: String,
+  readiness_probe: String,
+  termination_grace_period: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
@@ -179,8 +180,9 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     // kubernetes_findings,
     min_replicas: kubernetes_findings.min_replicas.to_markdown_table("\t")?,
     min_ready_seconds: kubernetes_findings.min_ready_seconds.to_markdown_table("\t")?,
-    readiness_probe: kubernetes_findings.readiness_probe.to_markdown_table("\t")?,
     pod_topology_distribution: kubernetes_findings.pod_topology_distribution.to_markdown_table("\t")?,
+    readiness_probe: kubernetes_findings.readiness_probe.to_markdown_table("\t")?,
+    termination_grace_period: kubernetes_findings.termination_grace_period.to_markdown_table("\t")?,
   };
 
   let filename = match &args.filename {

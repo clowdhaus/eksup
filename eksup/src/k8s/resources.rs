@@ -480,7 +480,7 @@ impl checks::K8sFindings for StdResource {
             if termination_grace_period <= 0 {
               let remediation = finding::Remediation::Required;
               let finding = finding::Finding {
-                code: finding::Code::K8S004,
+                code: finding::Code::K8S007,
                 symbol: remediation.symbol(),
                 remediation,
               };
@@ -491,6 +491,7 @@ impl checks::K8sFindings for StdResource {
                 termination_grace_period,
               })
             } else {
+              // Defaults to 30 seconds if not provided
               None
             }
           }

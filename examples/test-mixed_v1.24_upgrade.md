@@ -73,8 +73,8 @@
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
 	| CHECK  |    | NODE  | CONTROL PLANE | SKEW | QUANTITY |
 	|--------|----|-------|---------------|------|----------|
-	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
 	| K8S001 | ⚠️  | v1.22 | v1.23         | +1   | 2        |
+	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
 
 	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
 	|----|-----------------------------|-------|---------------|------|
@@ -225,6 +225,16 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	| ❌ | good-ss  | statefulset | StatefulSet | 0       |
 
 
+    #### Check [[K8S004]](https://clowdhaus.github.io/eksup/process/checks/#k8s004)
+    🚧 TODO
+
+    #### Check [[K8S005]](https://clowdhaus.github.io/eksup/process/checks/#k8s005)
+	|    | NAME    | NAMESPACE   | KIND        | ANTIAFFINITY | TOPOLOGYSPREADCONSTRAINTS |
+	|----|---------|-------------|-------------|--------------|---------------------------|
+	| ❌ | bad-dpl | deployment  | Deployment  | false        | false                     |
+	| ❌ | bad-ss  | statefulset | StatefulSet | false        | false                     |
+
+
     #### Check [[K8S006]](https://clowdhaus.github.io/eksup/process/checks/#k8s006)
 	|    | NAME    | NAMESPACE   | KIND        | READINESS PROBE |
 	|----|---------|-------------|-------------|-----------------|
@@ -233,10 +243,9 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 
     #### Check [[K8S007]](https://clowdhaus.github.io/eksup/process/checks/#k8s007)
-	|    | NAME    | NAMESPACE   | KIND        | ANTIAFFINITY | TOPOLOGYSPREADCONSTRAINTS |
-	|----|---------|-------------|-------------|--------------|---------------------------|
-	| ❌ | bad-dpl | deployment  | Deployment  | false        | false                     |
-	| ❌ | bad-ss  | statefulset | StatefulSet | false        | false                     |
+	|    | NAME   | NAMESPACE   | KIND        | TERMINATIONGRACEPERIOD |
+	|----|--------|-------------|-------------|------------------------|
+	| ❌ | bad-ss | statefulset | StatefulSet | 0                      |
 
 
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.

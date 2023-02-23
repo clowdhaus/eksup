@@ -39,6 +39,8 @@ spec:
       labels:
         app: bad-ss
     spec:
+      # Defaults to 30s
+      terminationGracePeriodSeconds: 0
       containers:
         - name: goproxy
           image: registry.k8s.io/goproxy:0.1
