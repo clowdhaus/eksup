@@ -401,6 +401,45 @@ impl Findings for Vec<DockerSocket> {
   }
 }
 
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct PodSecurityPolicy {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+
+  #[tabled(inline)]
+  pub resource: Resource,
+}
+
+impl Findings for Vec<PodSecurityPolicy> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
+    if self.is_empty() {
+      return Ok(format!(
+        "{leading_whitespace}✅ - No PodSecurityPolicys were found within the cluster"
+      ));
+    }
+
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
+
+    Ok(format!("{table}\n"))
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{table}\n"))
+  }
+}
+
 pub trait K8sFindings {
   fn get_resource(&self) -> Resource;
 
@@ -424,4 +463,6 @@ pub trait K8sFindings {
 
   /// K8S008 - check if resources use the Docker socket
   fn docker_socket(&self, target_version: &str) -> Option<DockerSocket>;
+
+  // K8S009 - pod security policies (separate from workload resources)
 }

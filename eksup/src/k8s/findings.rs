@@ -15,6 +15,7 @@ pub struct KubernetesFindings {
   pub pod_topology_distribution: Vec<checks::PodTopologyDistribution>,
   pub termination_grace_period: Vec<checks::TerminationGracePeriod>,
   pub docker_socket: Vec<checks::DockerSocket>,
+  pub pod_security_policy: Vec<checks::PodSecurityPolicy>,
 }
 
 pub async fn get_kubernetes_findings(k8s_client: &K8sClient, target_version: &str) -> Result<KubernetesFindings> {
@@ -32,6 +33,7 @@ pub async fn get_kubernetes_findings(k8s_client: &K8sClient, target_version: &st
     .iter()
     .filter_map(|s| s.docker_socket(target_version))
     .collect();
+  let pod_security_policy = resources::get_podsecuritypolicies(k8s_client, target_version).await?;
 
   Ok(KubernetesFindings {
     min_replicas,
@@ -40,5 +42,6 @@ pub async fn get_kubernetes_findings(k8s_client: &K8sClient, target_version: &st
     pod_topology_distribution,
     termination_grace_period,
     docker_socket,
+    pod_security_policy,
   })
 }
