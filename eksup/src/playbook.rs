@@ -60,6 +60,7 @@ pub struct TemplateData {
   pod_topology_distribution: String,
   readiness_probe: String,
   termination_grace_period: String,
+  docker_socket: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
@@ -183,6 +184,7 @@ pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Res
     pod_topology_distribution: kubernetes_findings.pod_topology_distribution.to_markdown_table("\t")?,
     readiness_probe: kubernetes_findings.readiness_probe.to_markdown_table("\t")?,
     termination_grace_period: kubernetes_findings.termination_grace_period.to_markdown_table("\t")?,
+    docker_socket: kubernetes_findings.docker_socket.to_markdown_table("\t")?,
   };
 
   let filename = match &args.filename {

@@ -8,6 +8,12 @@ use serde::{Deserialize, Serialize};
 /// Latest support version
 pub const LATEST: &str = "1.25";
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Versions {
+  pub current: String,
+  pub target: String,
+}
+
 seq!(N in 20..=24 {
     /// Kubernetes version(s) supported
     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
