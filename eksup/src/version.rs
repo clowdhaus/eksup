@@ -6,7 +6,7 @@ use seq_macro::seq;
 use serde::{Deserialize, Serialize};
 
 /// Latest support version
-pub const LATEST: &str = "1.24";
+pub const LATEST: &str = "1.25";
 
 seq!(N in 20..=24 {
     /// Kubernetes version(s) supported
