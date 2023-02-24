@@ -78,10 +78,10 @@
 
 	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
 	|----|-----------------------------|-------|---------------|------|
-	| ⚠️  | ip-10-0-14-94.ec2.internal  | v1.22 | v1.23         | +1   |
-	| ⚠️  | ip-10-0-29-253.ec2.internal | v1.22 | v1.23         | +1   |
-	| ❌ | ip-10-0-39-157.ec2.internal | v1.21 | v1.23         | +2   |
-	| ❌ | ip-10-0-8-51.ec2.internal   | v1.21 | v1.23         | +2   |
+	| ❌ | ip-10-0-0-88.ec2.internal   | v1.21 | v1.23         | +2   |
+	| ⚠️  | ip-10-0-29-52.ec2.internal  | v1.22 | v1.23         | +1   |
+	| ⚠️  | ip-10-0-35-194.ec2.internal | v1.22 | v1.23         | +1   |
+	| ❌ | ip-10-0-39-138.ec2.internal | v1.21 | v1.23         | +2   |
 
 
 3. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
@@ -144,7 +144,7 @@
 	|----|------------|---------------------|--------------------|--------------------|
 	| ⚠️  | coredns    | v1.8.4-eksbuild.2   | v1.9.3-eksbuild.2  | v1.8.7-eksbuild.3  |
 	| ❌ | kube-proxy | v1.21.14-eksbuild.3 | v1.24.9-eksbuild.1 | v1.24.7-eksbuild.2 |
-	| ❌ | vpc-cni    | v1.11.3-eksbuild.3  | v1.12.2-eksbuild.1 | v1.11.4-eksbuild.1 |
+	| ❌ | vpc-cni    | v1.11.3-eksbuild.3  | v1.12.5-eksbuild.1 | v1.11.4-eksbuild.1 |
 
 
 5. Check Kubernetes API versions currently in use and ensure any versions that are removed in the next Kubernetes release are updated prior to upgrading the cluster. There are several open source tools that can help you identify deprecated API versions in your Kubernetes manifests. The following open source projects support scanning both your cluster as well as manifest files to identify deprecated and/or removed API versions:
@@ -250,16 +250,14 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 
     #### Check [[K8S008]](https://clowdhaus.github.io/eksup/process/checks/#k8s008)
-	|    | NAME              | NAMESPACE   | KIND        | DOCKERSOCKET |
-	|----|-------------------|-------------|-------------|--------------|
-	| ❌ | bad-cron          | cronjob     | CronJob     | true         |
-	| ❌ | bad-ds            | daemonset   | DaemonSet   | true         |
-	| ❌ | aws-node          | kube-system | DaemonSet   | true         |
-	| ❌ | bad-dpl           | deployment  | Deployment  | true         |
-	| ❌ | bad-cron-27953330 | cronjob     | Job         | true         |
-	| ❌ | bad-cron-27953335 | cronjob     | Job         | true         |
-	| ❌ | bad-job           | job         | Job         | true         |
-	| ❌ | bad-ss            | statefulset | StatefulSet | true         |
+	|    | NAME     | NAMESPACE   | KIND        | DOCKERSOCKET |
+	|----|----------|-------------|-------------|--------------|
+	| ❌ | bad-cron | cronjob     | CronJob     | true         |
+	| ❌ | bad-ds   | daemonset   | DaemonSet   | true         |
+	| ❌ | aws-node | kube-system | DaemonSet   | true         |
+	| ❌ | bad-dpl  | deployment  | Deployment  | true         |
+	| ❌ | bad-job  | job         | Job         | true         |
+	| ❌ | bad-ss   | statefulset | StatefulSet | true         |
 
 
     #### Check [[K8S009]](https://clowdhaus.github.io/eksup/process/checks/#k8s009)
@@ -334,7 +332,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
     Check [[EKS006]](https://clowdhaus.github.io/eksup/process/checks/#eks006)
 	|   | MANAGED NODEGROUP                   | LAUNCH TEMP ID       | CURRENT | LATEST |
 	|---|-------------------------------------|----------------------|---------|--------|
-	| ⚠️ | standard-2023022314320292470000002f | lt-0fd64ef2eed7c35e5 | 1       | 2      |
+	| ⚠️ | standard-2023022413020559720000002f | lt-071aa47a3286ac78b | 1       | 2      |
 
 
 ##### Upgrade
@@ -410,7 +408,7 @@ A starting point for the instance refresh configuration is to use a value of 70%
     Check [[EKS007]](https://clowdhaus.github.io/eksup/process/checks/#eks007)
 	|   | AUTOSCALING GROUP                    | LAUNCH TEMP ID       | CURRENT | LATEST |
 	|---|--------------------------------------|----------------------|---------|--------|
-	| ⚠️ | different-20230223143203060000000031 | lt-0a85079cbff79cd84 | 1       | 2      |
+	| ⚠️ | different-20230224130205688000000031 | lt-0257b5e7a6bf5ce7d | 1       | 2      |
 
 
 ##### Upgrade

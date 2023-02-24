@@ -203,25 +203,28 @@ async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
   let jobs = job_list
     .items
     .iter()
-    .map(|job| {
-      let objmeta = job.metadata.clone();
-      let spec = job.spec.clone().unwrap();
+    .filter_map(|job| match job.metadata.owner_references {
+      None => {
+        let objmeta = job.metadata.clone();
+        let spec = job.spec.clone().unwrap();
 
-      let metadata = StdMetadata {
-        name: objmeta.name.unwrap(),
-        namespace: objmeta.namespace.unwrap(),
-        kind: Kind::Job,
-        labels: objmeta.labels.unwrap_or_default(),
-        annotations: objmeta.annotations.unwrap_or_default(),
-      };
+        let metadata = StdMetadata {
+          name: objmeta.name.unwrap(),
+          namespace: objmeta.namespace.unwrap(),
+          kind: Kind::Job,
+          labels: objmeta.labels.unwrap_or_default(),
+          annotations: objmeta.annotations.unwrap_or_default(),
+        };
 
-      let spec = StdSpec {
-        min_ready_seconds: None,
-        replicas: None,
-        template: Some(spec.template),
-      };
+        let spec = StdSpec {
+          min_ready_seconds: None,
+          replicas: None,
+          template: Some(spec.template),
+        };
 
-      StdResource { metadata, spec }
+        Some(StdResource { metadata, spec })
+      }
+      Some(_) => None,
     })
     .collect();
 
