@@ -545,6 +545,47 @@ impl Findings for Vec<KubeProxyVersionSkew> {
   }
 }
 
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct StorageClass {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+
+  #[tabled(inline)]
+  pub resource: Resource,
+
+  pub provisioner: String,
+}
+
+impl Findings for Vec<StorageClass> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
+    if self.is_empty() {
+      return Ok(format!(
+        "{leading_whitespace}✅ - No PodSecurityPolicys were found within the cluster"
+      ));
+    }
+
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
+
+    Ok(format!("{table}\n"))
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{table}\n"))
+  }
+}
+
 pub trait K8sFindings {
   fn get_resource(&self) -> Resource;
 

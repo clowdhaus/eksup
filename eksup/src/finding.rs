@@ -146,7 +146,7 @@ pub enum Code {
   /// Pod security policies present
   K8S009,
 
-  /// EBS CSI driver not installed (v1.23+)
+  /// In-tree EBS storage driver removed, EBS CSI driver should be installed (v1.23+)
   K8S010,
 
   /// Kubernetes version skew detected between kube-proxy and kubelet

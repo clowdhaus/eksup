@@ -259,8 +259,6 @@ For clusters on Kubernetes <`v1.23`
 
 #### K8S010
 
-!!! info "🚧 _Not yet implemented_"
-
 The [in-tree Amazon EBS storage provisioner](https://kubernetes.io/docs/concepts/storage/volumes/#awselasticblockstore) is deprecated. If you are upgrading your cluster to version `v1.23`, then you must first install the Amazon EBS driver before updating your cluster. For more information, see [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html).
 
 **❌ Remediation required**

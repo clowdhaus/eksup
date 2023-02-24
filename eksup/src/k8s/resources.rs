@@ -4,7 +4,7 @@ use anyhow::Result;
 use k8s_openapi::api::{
   apps, batch,
   core::{self, v1::PodTemplateSpec},
-  policy,
+  policy, storage,
 };
 use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;
@@ -42,6 +42,7 @@ pub enum Kind {
   ReplicaSet,
   ReplicationController,
   StatefulSet,
+  StorageClass,
   CronJob,
   Job,
 }
@@ -55,6 +56,7 @@ impl std::fmt::Display for Kind {
       Kind::ReplicaSet => write!(f, "ReplicaSet"),
       Kind::ReplicationController => write!(f, "ReplicationController"),
       Kind::StatefulSet => write!(f, "StatefulSet"),
+      Kind::StorageClass => write!(f, "StorageClass"),
       Kind::CronJob => write!(f, "CronJob"),
       Kind::Job => write!(f, "Job"),
     }
@@ -377,6 +379,37 @@ pub(crate) async fn get_podsecuritypolicies(
     .collect();
 
   Ok(psps)
+}
+
+pub(crate) async fn get_storageclasses(client: &Client) -> Result<Vec<StdResource>> {
+  let api: Api<storage::v1::StorageClass> = Api::all(client.to_owned());
+  let sc_list = api.list(&Default::default()).await?;
+
+  let storageclasses = sc_list
+    .items
+    .iter()
+    .map(|sclass| {
+      let objmeta = sclass.metadata.clone();
+
+      let metadata = StdMetadata {
+        name: objmeta.name.unwrap(),
+        namespace: objmeta.namespace.unwrap(),
+        kind: Kind::StorageClass,
+        labels: objmeta.labels.unwrap_or_default(),
+        annotations: objmeta.annotations.unwrap_or_default(),
+      };
+
+      let spec = StdSpec {
+        min_ready_seconds: None,
+        replicas: None,
+        template: None,
+      };
+
+      StdResource { metadata, spec }
+    })
+    .collect();
+
+  Ok(storageclasses)
 }
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
