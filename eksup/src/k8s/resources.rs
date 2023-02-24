@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use k8s_openapi::api::{apps, batch, core::v1::PodTemplateSpec};
+use k8s_openapi::api::{apps, batch, core::v1::PodTemplateSpec, policy};
 use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -34,6 +34,7 @@ pub struct EniConfigSpec {
 pub enum Kind {
   DaemonSet,
   Deployment,
+  PodSecurityPolicy,
   ReplicaSet,
   ReplicationController,
   StatefulSet,
@@ -46,6 +47,7 @@ impl std::fmt::Display for Kind {
     match *self {
       Kind::DaemonSet => write!(f, "DaemonSet"),
       Kind::Deployment => write!(f, "Deployment"),
+      Kind::PodSecurityPolicy => write!(f, "PodSecurityPolicy"),
       Kind::ReplicaSet => write!(f, "ReplicaSet"),
       Kind::ReplicationController => write!(f, "ReplicationController"),
       Kind::StatefulSet => write!(f, "StatefulSet"),
@@ -270,14 +272,43 @@ async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
 //   Ok(pdb_list.items)
 // }
 
-// async fn get_podsecuritypolicies(
-//   client: &Client,
-// ) -> Result<Vec<policy::v1beta1::PodSecurityPolicy>> {
-//   let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.to_owned());
-//   let nodes = api.list(&Default::default()).await?;
+pub(crate) async fn get_podsecuritypolicies(
+  client: &Client,
+  target_version: &str,
+) -> Result<Vec<checks::PodSecurityPolicy>> {
+  let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.to_owned());
+  let psp_list = api.list(&Default::default()).await?;
 
-//   Ok(nodes.items)
-// }
+  let target_version = version::parse_minor(target_version).unwrap();
+  let remediation = if target_version >= 25 {
+    finding::Remediation::Required
+  } else {
+    finding::Remediation::Recommended
+  };
+
+  let psps = psp_list
+    .items
+    .iter()
+    .map(|psp| {
+      let objmeta = psp.metadata.clone();
+
+      let resource = Resource {
+        name: objmeta.name.unwrap(),
+        namespace: objmeta.namespace.unwrap_or_default(),
+        kind: Kind::PodSecurityPolicy,
+      };
+
+      let finding = finding::Finding {
+        code: finding::Code::K8S009,
+        symbol: remediation.symbol(),
+        remediation: remediation.to_owned(),
+      };
+      checks::PodSecurityPolicy { finding, resource }
+    })
+    .collect();
+
+  Ok(psps)
+}
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -513,14 +544,10 @@ impl checks::K8sFindings for StdResource {
     let pod_template = self.spec.template.to_owned();
 
     let target_version = version::parse_minor(target_version).unwrap();
-    if target_version > 24 {
-      // From 1.25+, there shouldn't be any further action required
-      return None;
-    }
-    let remediation = if target_version < 24 {
-      finding::Remediation::Recommended
-    } else {
+    let remediation = if target_version >= 24 {
       finding::Remediation::Required
+    } else {
+      finding::Remediation::Recommended
     };
 
     match pod_template {

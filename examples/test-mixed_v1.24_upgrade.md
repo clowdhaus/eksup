@@ -256,10 +256,16 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	| ❌ | bad-ds            | daemonset   | DaemonSet   | true         |
 	| ❌ | aws-node          | kube-system | DaemonSet   | true         |
 	| ❌ | bad-dpl           | deployment  | Deployment  | true         |
-	| ❌ | bad-cron-27953135 | cronjob     | Job         | true         |
-	| ❌ | bad-cron-27953140 | cronjob     | Job         | true         |
+	| ❌ | bad-cron-27953330 | cronjob     | Job         | true         |
+	| ❌ | bad-cron-27953335 | cronjob     | Job         | true         |
 	| ❌ | bad-job           | job         | Job         | true         |
 	| ❌ | bad-ss            | statefulset | StatefulSet | true         |
+
+
+    #### Check [[K8S009]](https://clowdhaus.github.io/eksup/process/checks/#k8s009)
+	|   | NAME           | NAMESPACE | KIND              |
+	|---|----------------|-----------|-------------------|
+	| ⚠️ | eks.privileged |           | PodSecurityPolicy |
 
 
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.

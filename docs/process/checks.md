@@ -225,8 +225,6 @@ The `StatefulSet` should not specify a `TerminationGracePeriodSeconds` of 0
 
 #### K8S008
 
-!!! info "🚧 _Not yet implemented_"
-
 Pod volumes should not mount the `docker.sock` file with the removal of the Dockershim starting in Kubernetes `v1.24`
 
 **❌ Remediation required**
@@ -242,8 +240,6 @@ For clusters on Kubernetes <`v1.22`
 [Detector for Docker Socket (DDS)](https://github.com/aws-containers/kubectl-detector-for-docker-socket)
 
 #### K8S009
-
-!!! info "🚧 _Not yet implemented_"
 
 The pod security policy resource has been removed started in Kubernetes `v1.25`
 
