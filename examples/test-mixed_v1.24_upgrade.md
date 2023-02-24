@@ -215,6 +215,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	|----|---------|-------------|-------------|----------|
 	| ❌ | bad-dpl | deployment  | Deployment  | 1        |
 	| ❌ | coredns | kube-system | Deployment  | 2        |
+	| ❌ | bad-rs  | replicaset  | ReplicaSet  | 1        |
 	| ❌ | bad-ss  | statefulset | StatefulSet | 1        |
 
 
@@ -223,6 +224,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	|----|---------|-------------|-------------|---------|
 	| ⚠️  | bad-dpl | deployment  | Deployment  | 0       |
 	| ⚠️  | coredns | kube-system | Deployment  | 0       |
+	| ⚠️  | bad-rs  | replicaset  | ReplicaSet  | 0       |
 	| ❌ | bad-ss  | statefulset | StatefulSet | 0       |
 
 
@@ -233,6 +235,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	|    | NAME    | NAMESPACE   | KIND        | ANTIAFFINITY | TOPOLOGYSPREADCONSTRAINTS |
 	|----|---------|-------------|-------------|--------------|---------------------------|
 	| ❌ | bad-dpl | deployment  | Deployment  | false        | false                     |
+	| ❌ | bad-rs  | replicaset  | ReplicaSet  | false        | false                     |
 	| ❌ | bad-ss  | statefulset | StatefulSet | false        | false                     |
 
 
@@ -240,6 +243,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	|    | NAME    | NAMESPACE   | KIND        | READINESS PROBE |
 	|----|---------|-------------|-------------|-----------------|
 	| ❌ | bad-dpl | deployment  | Deployment  | false           |
+	| ❌ | bad-rs  | replicaset  | ReplicaSet  | false           |
 	| ❌ | bad-ss  | statefulset | StatefulSet | false           |
 
 
@@ -257,6 +261,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	| ❌ | aws-node | kube-system | DaemonSet   | true         |
 	| ❌ | bad-dpl  | deployment  | Deployment  | true         |
 	| ❌ | bad-job  | job         | Job         | true         |
+	| ❌ | bad-rs   | replicaset  | ReplicaSet  | true         |
 	| ❌ | bad-ss   | statefulset | StatefulSet | true         |
 
 

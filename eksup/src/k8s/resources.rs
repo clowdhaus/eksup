@@ -100,32 +100,35 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
   Ok(deployments)
 }
 
-async fn _get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
+async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::ReplicaSet> = Api::all(client.to_owned());
   let replicaset_list = api.list(&Default::default()).await?;
 
   let replicasets = replicaset_list
     .items
     .iter()
-    .map(|repl| {
-      let objmeta = repl.metadata.clone();
-      let spec = repl.spec.clone().unwrap();
+    .filter_map(|repl| match repl.metadata.owner_references {
+      None => {
+        let objmeta = repl.metadata.clone();
+        let spec = repl.spec.clone().unwrap();
 
-      let metadata = StdMetadata {
-        name: objmeta.name.unwrap(),
-        namespace: objmeta.namespace.unwrap(),
-        kind: Kind::ReplicaSet,
-        labels: objmeta.labels.unwrap_or_default(),
-        annotations: objmeta.annotations.unwrap_or_default(),
-      };
+        let metadata = StdMetadata {
+          name: objmeta.name.unwrap(),
+          namespace: objmeta.namespace.unwrap(),
+          kind: Kind::ReplicaSet,
+          labels: objmeta.labels.unwrap_or_default(),
+          annotations: objmeta.annotations.unwrap_or_default(),
+        };
 
-      let spec = StdSpec {
-        min_ready_seconds: spec.min_ready_seconds,
-        replicas: spec.replicas,
-        template: spec.template,
-      };
+        let spec = StdSpec {
+          min_ready_seconds: spec.min_ready_seconds,
+          replicas: spec.replicas,
+          template: spec.template,
+        };
 
-      StdResource { metadata, spec }
+        Some(StdResource { metadata, spec })
+      }
+      Some(_) => None,
     })
     .collect();
 
@@ -587,7 +590,7 @@ pub async fn get_resources(client: &Client) -> Result<Vec<StdResource>> {
   let daemonsets = get_daemonsets(client).await?;
   let deployments = get_deployments(client).await?;
   let jobs = get_jobs(client).await?;
-  // let replicasets = get_replicasets(client).await?;
+  let replicasets = get_replicasets(client).await?;
   let statefulsets = get_statefulsets(client).await?;
 
   let mut resources = Vec::new();
@@ -595,7 +598,7 @@ pub async fn get_resources(client: &Client) -> Result<Vec<StdResource>> {
   resources.extend(daemonsets);
   resources.extend(deployments);
   resources.extend(jobs);
-  // resources.extend(replicasets);
+  resources.extend(replicasets);
   resources.extend(statefulsets);
 
   Ok(resources)
