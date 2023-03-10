@@ -6,9 +6,11 @@ mod output;
 mod playbook;
 mod version;
 
-use std::{process, str};
+use std::{env, process, str};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use aws_config::meta::region::RegionProviderChain;
+use aws_types::region::Region;
 use clap::{Args, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
@@ -86,7 +88,7 @@ pub struct Playbook {
 
 /// Someting TODO
 pub async fn analyze(args: &Analysis) -> Result<()> {
-  let aws_config = eks::get_config(&args.region.to_owned()).await?;
+  let aws_config = get_config(&args.region.to_owned()).await?;
   let eks_client = aws_sdk_eks::Client::new(&aws_config);
   let cluster = eks::get_cluster(&eks_client, &args.cluster).await?;
 
@@ -97,15 +99,29 @@ pub async fn analyze(args: &Analysis) -> Result<()> {
   Ok(())
 }
 
+/// Get the configuration to authn/authz with AWS that will be used across AWS clients
+async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig> {
+  let aws_region = match region {
+    Some(region) => Some(Region::new(region.to_owned())),
+    None => env::var("AWS_REGION").ok().map(Region::new),
+  };
+
+  let region_provider = RegionProviderChain::first_try(aws_region).or_default_provider();
+
+  Ok(aws_config::from_env().region(region_provider).load().await)
+}
+
 /// Someting TODO
 pub async fn create(args: &Create) -> Result<()> {
   match &args.command {
     CreateCommands::Playbook(playbook) => {
       // Query Kubernetes first so that we can get AWS details that require them
-      let aws_config = eks::get_config(&playbook.region.to_owned()).await?;
+      let aws_config = get_config(&playbook.region.to_owned()).await?;
+      let region = aws_config.region().unwrap().to_string();
+
       let eks_client = aws_sdk_eks::Client::new(&aws_config);
       let cluster = eks::get_cluster(&eks_client, &playbook.cluster).await?;
-      let cluster_version = cluster.version().unwrap();
+      let cluster_version = cluster.version().context("Cluster version not found")?;
 
       if version::LATEST.eq(cluster_version) {
         println!("Cluster is already at the latest supported version: {cluster_version}");
@@ -115,7 +131,7 @@ pub async fn create(args: &Create) -> Result<()> {
 
       let results = analysis::analyze(&aws_config, &cluster).await?;
 
-      if let Err(err) = playbook::create(playbook, &cluster, results) {
+      if let Err(err) = playbook::create(playbook, region, &cluster, results) {
         eprintln!("{err}");
         process::exit(2);
       }

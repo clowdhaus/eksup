@@ -126,8 +126,8 @@ pub async fn get_data_plane_findings(
   k8s_client: &kube::Client,
   cluster: &Cluster,
 ) -> Result<DataPlaneFindings> {
-  let cluster_name = cluster.name().unwrap();
-  let cluster_version = cluster.version().unwrap();
+  let cluster_name = cluster.name().unwrap_or_default();
+  let cluster_version = cluster.version().unwrap_or_default();
 
   let eks_mngs = resources::get_eks_managed_nodegroups(eks_client, cluster_name).await?;
   let self_mngs = resources::get_self_managed_nodegroups(asg_client, cluster_name).await?;
@@ -161,15 +161,15 @@ pub async fn get_data_plane_findings(
     // Pass through to avoid additional API calls
     eks_managed_nodegroups: eks_mngs
       .iter()
-      .map(|mng| mng.nodegroup_name().unwrap().to_owned())
+      .map(|mng| mng.nodegroup_name().unwrap_or_default().to_owned())
       .collect(),
     self_managed_nodegroups: self_mngs
       .iter()
-      .map(|asg| asg.auto_scaling_group_name().unwrap().to_owned())
+      .map(|asg| asg.auto_scaling_group_name().unwrap_or_default().to_owned())
       .collect(),
     fargate_profiles: fargate_profiles
       .iter()
-      .map(|fp| fp.fargate_profile_name().unwrap().to_owned())
+      .map(|fp| fp.fargate_profile_name().unwrap_or_default().to_owned())
       .collect(),
   })
 }
