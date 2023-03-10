@@ -131,9 +131,10 @@ module "eks" {
     }
 
     different = {
-      pre_bootstrap_user_data = <<-EOT
-        echo "Hello from user data!"
-      EOT
+      # pre_bootstrap_user_data = <<-EOT
+      #   #!/bin/bash
+      #   echo "Hello from user data!"
+      # EOT
 
       # To show pending changes
       instance_refresh                       = {}
@@ -141,18 +142,14 @@ module "eks" {
     }
   }
 
-
-  fargate_profiles = merge(
-    { for i in range(3) :
-      "kube-system-${element(split("-", local.azs[i]), 2)}" => {
-        selectors = [
-          { namespace = "kube-system" }
-        ]
-        # We want to create a profile per AZ for high availability
-        subnet_ids = [element(module.vpc.private_subnets, i)]
-      }
-    },
-  )
+  fargate_profiles = {
+    kube_system = {
+      name = "kube-system"
+      selectors = [
+        { namespace = "kube-system" }
+      ]
+    }
+  }
 
   tags = local.tags
 }

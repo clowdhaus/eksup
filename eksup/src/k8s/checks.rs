@@ -120,10 +120,26 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
     // Prior to upgrade, the node version should not be more than 1 version behind
     // the control plane version. If it is, the node must be upgraded before
     // attempting the cluster upgrade
-    let remediation = match version_skew {
+    let mut remediation = match version_skew {
       1 => finding::Remediation::Recommended,
       _ => finding::Remediation::Required,
     };
+
+    if let Some(labels) = &node.metadata.labels {
+      if labels.contains_key("eks.amazonaws.com/nodegroup") {
+        // Nodes created by EKS managed nodegroups are required to match control plane
+        // before the control plane will permit an upgrade
+        remediation = finding::Remediation::Required;
+      }
+    }
+
+    if let Some(name) = &node.metadata.name {
+      if name.starts_with("fargate-") {
+        // Nodes created by EKS Fargate are required to match control plane
+        // before the control plane will permit an upgrade
+        remediation = finding::Remediation::Required;
+      }
+    }
 
     let finding = finding::Finding {
       code: finding::Code::K8S001,
@@ -136,8 +152,8 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
       name: node.metadata.name.as_ref().unwrap().to_owned(),
       kubelet_version: kubelet_version.to_owned(),
       kubernetes_version: format!("v{}", version::normalize(&kubelet_version).unwrap()),
-      control_plane_version: format!("v{}", cluster_version.to_owned()),
-      version_skew: format!("+{}", version_skew),
+      control_plane_version: format!("v{cluster_version}"),
+      version_skew: format!("+{version_skew}"),
     };
 
     findings.push(node)
