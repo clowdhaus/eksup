@@ -16,7 +16,15 @@ use tabled::Tabled;
 /// Describe the cluster to get its full details
 pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
   let request = client.describe_cluster().name(name);
-  let response = request.send().await?;
+  let response = match request.send().await {
+    Ok(response) => response,
+    Err(_) => {
+      bail!(
+        "Unable to connect to cluster. Ensure kubeconfig file is present and updated to connect to the cluster.
+      Try: aws eks update-kubeconfig --name {name}"
+      );
+    }
+  };
 
   match response.cluster {
     Some(cluster) => Ok(cluster),
