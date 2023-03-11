@@ -54,7 +54,7 @@ Checks that are specific to Amazon EKS
 
 **❌ Remediation required**
 
-There are at least 5 available IPs for the control plane to upgrade; required for cross account ENI creation.
+There are at least 2 subnets in different availability zones, each with at least 5 available IPs for the control plane to upgrade.
 
 #### EKS002
 

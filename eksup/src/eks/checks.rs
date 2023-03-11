@@ -5,6 +5,7 @@ use aws_sdk_eks::{
   model::{Addon, Cluster, Nodegroup},
   Client as EksClient,
 };
+use itertools::Itertools;
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 use tabled::{locator::ByColumnName, Disable, Margin, Style, Table, Tabled};
@@ -100,57 +101,69 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealt
 pub struct InsufficientSubnetIps {
   #[tabled(inline)]
   pub finding: finding::Finding,
-  #[tabled(display_with = "tabled_vec_to_string")]
-  pub ids: Vec<String>,
+  pub id: String,
   pub available_ips: i32,
 }
 
-impl Findings for Option<InsufficientSubnetIps> {
+impl Findings for Vec<InsufficientSubnetIps> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
-    match self {
-      Some(finding) => {
-        let mut table = Table::new(vec![finding]);
-        table
-          .with(Disable::column(ByColumnName::new("CHECK")))
-          .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
-          .with(Style::markdown());
-
-        Ok(format!("{table}\n"))
-      }
-      None => Ok(format!(
+    if self.is_empty() {
+      return Ok(format!(
         "{leading_whitespace}✅ - There is sufficient IP space in the subnets provided"
-      )),
+      ));
     }
+
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
+
+    Ok(format!("{table}\n"))
   }
 
   fn to_stdout_table(&self) -> Result<String> {
-    match self {
-      None => Ok("".to_owned()),
-      Some(finding) => {
-        let mut table = Table::new(vec![finding]);
-        table.with(Style::sharp());
-
-        Ok(format!("{table}\n"))
-      }
+    if self.is_empty() {
+      return Ok("".to_owned());
     }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{table}\n"))
   }
 }
 
-pub(crate) async fn control_plane_ips(
-  ec2_client: &Ec2Client,
-  cluster: &Cluster,
-) -> Result<Option<InsufficientSubnetIps>> {
+pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster) -> Result<Vec<InsufficientSubnetIps>> {
   let subnet_ids = match cluster.resources_vpc_config() {
     Some(vpc_config) => match vpc_config.subnet_ids() {
       Some(subnet_ids) => subnet_ids.to_owned(),
-      None => return Ok(None),
+      None => return Ok(vec![]),
     },
-    None => return Ok(None),
+    None => return Ok(vec![]),
   };
 
   let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
-  if subnet_ips.available_ips >= 5 {
-    return Ok(None);
+
+  let availability_zone_ips: Vec<(String, i32)> = subnet_ips
+    .iter()
+    .group_by(|subnet| subnet.availablity_zone_id.clone())
+    .into_iter()
+    .map(|(az, subnets)| {
+      let total_ips = subnets.map(|subnet| subnet.available_ips).sum();
+      (az, total_ips)
+    })
+    .collect();
+
+  // There are at least 2 different availability zones with 5 or more IPs; no finding
+  if availability_zone_ips
+    .iter()
+    .filter(|(_az, ips)| ips >= &5)
+    .collect::<Vec<_>>()
+    .len()
+    >= 2
+  {
+    return Ok(vec![]);
   }
 
   let remediation = finding::Remediation::Required;
@@ -160,13 +173,16 @@ pub(crate) async fn control_plane_ips(
     remediation,
   };
 
-  let finding = InsufficientSubnetIps {
-    finding,
-    ids: subnet_ips.ids,
-    available_ips: subnet_ips.available_ips,
-  };
-
-  Ok(Some(finding))
+  Ok(
+    availability_zone_ips
+      .iter()
+      .map(|(az, ips)| InsufficientSubnetIps {
+        finding: finding.clone(),
+        id: az.clone(),
+        available_ips: *ips,
+      })
+      .collect(),
+  )
 }
 
 /// Check if the subnets used by the pods will support an upgrade
@@ -179,10 +195,10 @@ pub(crate) async fn pod_ips(
   k8s_client: &K8sClient,
   required_ips: i32,
   recommended_ips: i32,
-) -> Result<Option<InsufficientSubnetIps>> {
+) -> Result<Vec<InsufficientSubnetIps>> {
   let eniconfigs = k8s::get_eniconfigs(k8s_client).await?;
   if eniconfigs.is_empty() {
-    return Ok(None);
+    return Ok(vec![]);
   }
 
   let subnet_ids = eniconfigs
@@ -191,12 +207,13 @@ pub(crate) async fn pod_ips(
     .collect();
 
   let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
+  let available_ips: i32 = subnet_ips.iter().map(|subnet| subnet.available_ips).sum();
 
-  if subnet_ips.available_ips >= recommended_ips {
-    return Ok(None);
+  if available_ips >= recommended_ips {
+    return Ok(vec![]);
   }
 
-  let remediation = if subnet_ips.available_ips >= required_ips {
+  let remediation = if available_ips >= required_ips {
     finding::Remediation::Required
   } else {
     finding::Remediation::Recommended
@@ -208,13 +225,18 @@ pub(crate) async fn pod_ips(
     remediation,
   };
 
-  let subnetips = InsufficientSubnetIps {
-    finding,
-    ids: subnet_ips.ids,
-    available_ips: subnet_ips.available_ips,
-  };
-
-  Ok(Some(subnetips))
+  Ok(
+    subnet_ips
+      .iter()
+      .group_by(|subnet| subnet.availablity_zone_id.clone())
+      .into_iter()
+      .map(|(az, subnets)| InsufficientSubnetIps {
+        finding: finding.clone(),
+        id: az,
+        available_ips: subnets.map(|subnet| subnet.available_ips).sum(),
+      })
+      .collect(),
+  )
 }
 
 /// Details of the addon as viewed from an upgrade perspective
