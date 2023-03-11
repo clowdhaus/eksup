@@ -1,7 +1,11 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use k8s_openapi::api::{apps, batch, core::v1::PodTemplateSpec, policy};
+use k8s_openapi::api::{
+  apps, batch,
+  core::{self, v1::PodTemplateSpec},
+  policy,
+};
 use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -55,6 +59,38 @@ impl std::fmt::Display for Kind {
       Kind::Job => write!(f, "Job"),
     }
   }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Node {
+  pub name: String,
+  pub labels: Option<BTreeMap<String, String>>,
+  pub kubelet_version: String,
+  pub minor_version: i32,
+}
+
+pub async fn get_nodes(client: &Client) -> Result<Vec<Node>> {
+  let api: Api<core::v1::Node> = Api::all(client.to_owned());
+  let node_list = api.list(&Default::default()).await?;
+
+  Ok(
+    node_list
+      .iter()
+      .map(|node| {
+        let status = node.status.as_ref().unwrap();
+        let node_info = status.node_info.as_ref().unwrap();
+        let kubelet_version = node_info.kubelet_version.to_owned();
+        let minor_version = version::parse_minor(&kubelet_version).unwrap();
+
+        Node {
+          name: node.metadata.name.as_ref().unwrap().to_owned(),
+          labels: node.metadata.labels.to_owned(),
+          kubelet_version,
+          minor_version,
+        }
+      })
+      .collect(),
+  )
 }
 
 /// Returns all of the ENIConfigs in the cluster, if any are present

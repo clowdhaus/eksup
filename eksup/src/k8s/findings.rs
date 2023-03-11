@@ -9,6 +9,11 @@ use crate::k8s::{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct KubernetesFindings {
+  /// The skew/diff between the cluster control plane (API Server) and the nodes in the data plane (kubelet)
+  /// It is recommended that these versions are aligned prior to upgrading, and changes are required when
+  /// the skew policy could be violated post upgrade (i.e. if current skew is +2, the policy would be violated
+  /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
+  pub version_skew: Vec<checks::VersionSkew>,
   pub min_replicas: Vec<checks::MinReplicas>,
   pub min_ready_seconds: Vec<checks::MinReadySeconds>,
   pub readiness_probe: Vec<checks::Probe>,
@@ -16,11 +21,18 @@ pub struct KubernetesFindings {
   pub termination_grace_period: Vec<checks::TerminationGracePeriod>,
   pub docker_socket: Vec<checks::DockerSocket>,
   pub pod_security_policy: Vec<checks::PodSecurityPolicy>,
+  pub kube_proxy_version_skew: Vec<checks::KubeProxyVersionSkew>,
 }
 
-pub async fn get_kubernetes_findings(k8s_client: &K8sClient, target_version: &str) -> Result<KubernetesFindings> {
-  let resources = resources::get_resources(k8s_client).await?;
+pub async fn get_kubernetes_findings(
+  client: &K8sClient,
+  cluster_version: &str,
+  target_version: &str,
+) -> Result<KubernetesFindings> {
+  let resources = resources::get_resources(client).await?;
+  let nodes = resources::get_nodes(client).await?;
 
+  let version_skew = checks::version_skew(&nodes, cluster_version).await?;
   let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();
   let min_ready_seconds: Vec<checks::MinReadySeconds> =
     resources.iter().filter_map(|s| s.min_ready_seconds()).collect();
@@ -33,9 +45,11 @@ pub async fn get_kubernetes_findings(k8s_client: &K8sClient, target_version: &st
     .iter()
     .filter_map(|s| s.docker_socket(target_version))
     .collect();
-  let pod_security_policy = resources::get_podsecuritypolicies(k8s_client, target_version).await?;
+  let pod_security_policy = resources::get_podsecuritypolicies(client, target_version).await?;
+  let kube_proxy_version_skew = checks::kube_proxy_version_skew(&nodes, &resources).await?;
 
   Ok(KubernetesFindings {
+    version_skew,
     min_replicas,
     min_ready_seconds,
     readiness_probe,
@@ -43,5 +57,6 @@ pub async fn get_kubernetes_findings(k8s_client: &K8sClient, target_version: &st
     termination_grace_period,
     docker_socket,
     pod_security_policy,
+    kube_proxy_version_skew,
   })
 }

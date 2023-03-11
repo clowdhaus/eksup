@@ -31,7 +31,7 @@ impl Results {
     output.push_str(&self.data_plane.eks_managed_nodegroup_update.to_stdout_table()?);
     output.push_str(&self.data_plane.self_managed_nodegroup_update.to_stdout_table()?);
 
-    output.push_str(&self.data_plane.version_skew.to_stdout_table()?);
+    output.push_str(&self.kubernetes.version_skew.to_stdout_table()?);
     output.push_str(&self.kubernetes.min_replicas.to_stdout_table()?);
     output.push_str(&self.kubernetes.min_ready_seconds.to_stdout_table()?);
     output.push_str(&self.kubernetes.pod_topology_distribution.to_stdout_table()?);
@@ -39,6 +39,7 @@ impl Results {
     output.push_str(&self.kubernetes.termination_grace_period.to_stdout_table()?);
     output.push_str(&self.kubernetes.docker_socket.to_stdout_table()?);
     output.push_str(&self.kubernetes.pod_security_policy.to_stdout_table()?);
+    output.push_str(&self.kubernetes.kube_proxy_version_skew.to_stdout_table()?);
 
     Ok(output)
   }
@@ -59,9 +60,8 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
   let cluster_findings = eks::get_cluster_findings(cluster).await?;
   let subnet_findings = eks::get_subnet_findings(&ec2_client, &k8s_client, cluster).await?;
   let addon_findings = eks::get_addon_findings(&eks_client, cluster_name, cluster_version).await?;
-  let dataplane_findings =
-    eks::get_data_plane_findings(&asg_client, &ec2_client, &eks_client, &k8s_client, cluster).await?;
-  let kubernetes_findings = k8s::get_kubernetes_findings(&k8s_client, &target_version).await?;
+  let dataplane_findings = eks::get_data_plane_findings(&asg_client, &ec2_client, &eks_client, cluster).await?;
+  let kubernetes_findings = k8s::get_kubernetes_findings(&k8s_client, cluster_version, &target_version).await?;
 
   Ok(Results {
     cluster: cluster_findings,

@@ -62,9 +62,9 @@ pub(crate) fn get_target_version(current_version: &str) -> Result<String> {
 ///
 /// For example, the format Amazon EKS of v1.20.7-eks-123456 returns 20
 /// Or the format of v1.22.7 returns 22
-pub(crate) fn parse_minor(version: &str) -> Result<u32> {
+pub(crate) fn parse_minor(version: &str) -> Result<i32> {
   let version = version.split('.').collect::<Vec<&str>>();
-  let minor = version[1].parse::<u32>()?;
+  let minor = version[1].parse::<i32>()?;
 
   Ok(minor)
 }

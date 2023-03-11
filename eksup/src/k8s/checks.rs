@@ -1,14 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use anyhow::Result;
-use k8s_openapi::api::core;
-use kube::{api::Api, Client};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tabled::{locator::ByColumnName, Disable, Margin, Style, Table, Tabled};
 
 use crate::{
   finding::{self, Findings},
-  k8s::resources::Resource,
+  k8s::resources::{self, Resource},
   version,
 };
 
@@ -99,20 +97,12 @@ impl Findings for Vec<VersionSkew> {
 }
 
 /// Returns all of the nodes in the cluster
-pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<VersionSkew>> {
-  let api: Api<core::v1::Node> = Api::all(client.to_owned());
-  let node_list = api.list(&Default::default()).await?;
-
+pub async fn version_skew(nodes: &[resources::Node], cluster_version: &str) -> Result<Vec<VersionSkew>> {
   let mut findings = vec![];
 
-  for node in &node_list {
-    let status = node.status.as_ref().unwrap();
-    let node_info = status.node_info.as_ref().unwrap();
-    let kubelet_version = node_info.kubelet_version.to_owned();
-
-    let node_minor_version = version::parse_minor(&kubelet_version).unwrap();
+  for node in nodes {
     let control_plane_minor_version = version::parse_minor(cluster_version)?;
-    let version_skew = control_plane_minor_version - node_minor_version;
+    let version_skew = control_plane_minor_version - node.minor_version;
     if version_skew == 0 {
       continue;
     }
@@ -125,7 +115,7 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
       _ => finding::Remediation::Required,
     };
 
-    if let Some(labels) = &node.metadata.labels {
+    if let Some(labels) = &node.labels {
       if labels.contains_key("eks.amazonaws.com/nodegroup") {
         // Nodes created by EKS managed nodegroups are required to match control plane
         // before the control plane will permit an upgrade
@@ -133,12 +123,10 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
       }
     }
 
-    if let Some(name) = &node.metadata.name {
-      if name.starts_with("fargate-") {
-        // Nodes created by EKS Fargate are required to match control plane
-        // before the control plane will permit an upgrade
-        remediation = finding::Remediation::Required;
-      }
+    if node.name.starts_with("fargate-") {
+      // Nodes created by EKS Fargate are required to match control plane
+      // before the control plane will permit an upgrade
+      remediation = finding::Remediation::Required;
     }
 
     let finding = finding::Finding {
@@ -149,9 +137,9 @@ pub async fn version_skew(client: &Client, cluster_version: &str) -> Result<Vec<
 
     let node = VersionSkew {
       finding,
-      name: node.metadata.name.as_ref().unwrap().to_owned(),
-      kubelet_version: kubelet_version.to_owned(),
-      kubernetes_version: format!("v{}", version::normalize(&kubelet_version).unwrap()),
+      name: node.name.to_owned(),
+      kubelet_version: node.kubelet_version.to_owned(),
+      kubernetes_version: format!("v{}", version::normalize(&node.kubelet_version).unwrap()),
       control_plane_version: format!("v{cluster_version}"),
       version_skew: format!("+{version_skew}"),
     };
@@ -432,6 +420,104 @@ impl Findings for Vec<PodSecurityPolicy> {
     if self.is_empty() {
       return Ok(format!(
         "{leading_whitespace}✅ - No PodSecurityPolicys were found within the cluster"
+      ));
+    }
+
+    let mut table = Table::new(self);
+    table
+      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Style::markdown());
+
+    Ok(format!("{table}\n"))
+  }
+
+  fn to_stdout_table(&self) -> Result<String> {
+    if self.is_empty() {
+      return Ok("".to_owned());
+    }
+
+    let mut table = Table::new(self);
+    table.with(Style::sharp());
+
+    Ok(format!("{table}\n"))
+  }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct KubeProxyVersionSkew {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  #[tabled(rename = "KUBELET")]
+  pub kubelet_version: String,
+  #[tabled(rename = "KUBE PROXY")]
+  pub kube_proxy_version: String,
+  #[tabled(rename = "SKEW")]
+  pub version_skew: String,
+}
+
+pub async fn kube_proxy_version_skew(
+  nodes: &[resources::Node],
+  resources: &[resources::StdResource],
+) -> Result<Vec<KubeProxyVersionSkew>> {
+  let kube_proxy = match resources
+    .iter()
+    .filter(|r| r.metadata.kind == resources::Kind::DaemonSet && r.metadata.name == "kube-proxy")
+    .collect::<Vec<_>>()
+    .get(0)
+  {
+    Some(k) => k.to_owned(),
+    None => {
+      println!("Unable to find kube-proxy");
+      return Ok(vec![]);
+    }
+  };
+
+  let ptmpl = kube_proxy.spec.template.as_ref().unwrap();
+  let pspec = ptmpl.spec.as_ref().unwrap();
+  let kproxy_minor_version = pspec
+    .containers
+    .iter()
+    .map(|container| {
+      // TODO - this seems brittle
+      let image = container.image.as_ref().unwrap().split(':').collect::<Vec<_>>()[1];
+      version::parse_minor(image).unwrap()
+    })
+    .next()
+    .context("Unable to find image version for kube-proxy")?;
+
+  let findings = nodes
+    .iter()
+    .map(|node| node.minor_version)
+    .collect::<HashSet<_>>()
+    .into_iter()
+    .filter(|node_ver| node_ver != &kproxy_minor_version)
+    .map(|node_ver| {
+      let remediation = finding::Remediation::Required;
+      let finding = finding::Finding {
+        code: finding::Code::K8S011,
+        symbol: remediation.symbol(),
+        remediation,
+      };
+
+      KubeProxyVersionSkew {
+        finding,
+        kubelet_version: format!("v1.{node_ver}"),
+        kube_proxy_version: format!("v1.{kproxy_minor_version}"),
+        version_skew: format!("{}", kproxy_minor_version - node_ver),
+      }
+    })
+    .collect();
+
+  Ok(findings)
+}
+
+impl Findings for Vec<KubeProxyVersionSkew> {
+  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
+    if self.is_empty() {
+      return Ok(format!(
+        "{leading_whitespace}✅ - `kube-proxy` version is aligned with the node/`kubelet` versions in use"
       ));
     }
 
