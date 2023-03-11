@@ -108,11 +108,10 @@ fn char_replace(text: String) -> String {
     .replace("&#x3D;", "=")
 }
 
-pub(crate) fn create(args: &Playbook, cluster: &Cluster, analysis: analysis::Results) -> Result<()> {
+pub(crate) fn create(args: &Playbook, region: String, cluster: &Cluster, analysis: analysis::Results) -> Result<()> {
   let mut handlebars = Handlebars::new();
   handlebars.register_embed_templates::<Templates>()?;
 
-  let region = args.region.as_ref().unwrap().to_owned();
   let cluster_name = cluster.name().unwrap();
   let cluster_version = cluster.version().unwrap();
   let target_version = version::get_target_version(cluster_version)?;

@@ -77,20 +77,25 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
     .iter()
     .map(|dplmnt| {
       let objmeta = dplmnt.metadata.clone();
-      let spec = dplmnt.spec.clone().unwrap();
 
       let metadata = StdMetadata {
-        name: objmeta.name.unwrap(),
-        namespace: objmeta.namespace.unwrap(),
+        name: objmeta.name.unwrap_or_default(),
+        namespace: objmeta.namespace.unwrap_or_default(),
         kind: Kind::Deployment,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
-
-      let spec = StdSpec {
-        min_ready_seconds: spec.min_ready_seconds,
-        replicas: spec.replicas,
-        template: Some(spec.template),
+      let spec = match &dplmnt.spec {
+        Some(spec) => StdSpec {
+          min_ready_seconds: spec.min_ready_seconds,
+          replicas: spec.replicas,
+          template: Some(spec.template.clone()),
+        },
+        None => StdSpec {
+          min_ready_seconds: None,
+          replicas: None,
+          template: None,
+        },
       };
 
       StdResource { metadata, spec }
@@ -110,20 +115,25 @@ async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
     .filter_map(|repl| match repl.metadata.owner_references {
       None => {
         let objmeta = repl.metadata.clone();
-        let spec = repl.spec.clone().unwrap();
 
         let metadata = StdMetadata {
-          name: objmeta.name.unwrap(),
-          namespace: objmeta.namespace.unwrap(),
+          name: objmeta.name.unwrap_or_default(),
+          namespace: objmeta.namespace.unwrap_or_default(),
           kind: Kind::ReplicaSet,
           labels: objmeta.labels.unwrap_or_default(),
           annotations: objmeta.annotations.unwrap_or_default(),
         };
-
-        let spec = StdSpec {
-          min_ready_seconds: spec.min_ready_seconds,
-          replicas: spec.replicas,
-          template: spec.template,
+        let spec = match &repl.spec {
+          Some(spec) => StdSpec {
+            min_ready_seconds: spec.min_ready_seconds,
+            replicas: spec.replicas,
+            template: spec.template.clone(),
+          },
+          None => StdSpec {
+            min_ready_seconds: None,
+            replicas: None,
+            template: None,
+          },
         };
 
         Some(StdResource { metadata, spec })
@@ -144,20 +154,25 @@ async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
     .iter()
     .map(|sset| {
       let objmeta = sset.metadata.clone();
-      let spec = sset.spec.clone().unwrap();
 
       let metadata = StdMetadata {
-        name: objmeta.name.unwrap(),
-        namespace: objmeta.namespace.unwrap(),
+        name: objmeta.name.unwrap_or_default(),
+        namespace: objmeta.namespace.unwrap_or_default(),
         kind: Kind::StatefulSet,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
-
-      let spec = StdSpec {
-        min_ready_seconds: spec.min_ready_seconds,
-        replicas: spec.replicas,
-        template: Some(spec.template),
+      let spec = match &sset.spec {
+        Some(spec) => StdSpec {
+          min_ready_seconds: spec.min_ready_seconds,
+          replicas: spec.replicas,
+          template: Some(spec.template.clone()),
+        },
+        None => StdSpec {
+          min_ready_seconds: None,
+          replicas: None,
+          template: None,
+        },
       };
 
       StdResource { metadata, spec }
@@ -176,20 +191,25 @@ async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
     .iter()
     .map(|dset| {
       let objmeta = dset.metadata.clone();
-      let spec = dset.spec.clone().unwrap();
 
       let metadata = StdMetadata {
-        name: objmeta.name.unwrap(),
-        namespace: objmeta.namespace.unwrap(),
+        name: objmeta.name.unwrap_or_default(),
+        namespace: objmeta.namespace.unwrap_or_default(),
         kind: Kind::DaemonSet,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
-
-      let spec = StdSpec {
-        min_ready_seconds: spec.min_ready_seconds,
-        replicas: None,
-        template: Some(spec.template),
+      let spec = match &dset.spec {
+        Some(spec) => StdSpec {
+          min_ready_seconds: spec.min_ready_seconds,
+          replicas: None,
+          template: Some(spec.template.clone()),
+        },
+        None => StdSpec {
+          min_ready_seconds: None,
+          replicas: None,
+          template: None,
+        },
       };
 
       StdResource { metadata, spec }
@@ -209,20 +229,25 @@ async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
     .filter_map(|job| match job.metadata.owner_references {
       None => {
         let objmeta = job.metadata.clone();
-        let spec = job.spec.clone().unwrap();
 
         let metadata = StdMetadata {
-          name: objmeta.name.unwrap(),
-          namespace: objmeta.namespace.unwrap(),
+          name: objmeta.name.unwrap_or_default(),
+          namespace: objmeta.namespace.unwrap_or_default(),
           kind: Kind::Job,
           labels: objmeta.labels.unwrap_or_default(),
           annotations: objmeta.annotations.unwrap_or_default(),
         };
-
-        let spec = StdSpec {
-          min_ready_seconds: None,
-          replicas: None,
-          template: Some(spec.template),
+        let spec = match &job.spec {
+          Some(spec) => StdSpec {
+            min_ready_seconds: None,
+            replicas: None,
+            template: Some(spec.template.clone()),
+          },
+          None => StdSpec {
+            min_ready_seconds: None,
+            replicas: None,
+            template: None,
+          },
         };
 
         Some(StdResource { metadata, spec })
@@ -243,22 +268,24 @@ async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
     .iter()
     .map(|cjob| {
       let objmeta = cjob.metadata.clone();
-      let spec = cjob.spec.clone().unwrap();
 
       let metadata = StdMetadata {
-        name: objmeta.name.unwrap(),
-        namespace: objmeta.namespace.unwrap(),
+        name: objmeta.name.unwrap_or_default(),
+        namespace: objmeta.namespace.unwrap_or_default(),
         kind: Kind::CronJob,
         labels: objmeta.labels.unwrap_or_default(),
         annotations: objmeta.annotations.unwrap_or_default(),
       };
-
-      let spec = StdSpec {
-        min_ready_seconds: None,
-        replicas: None,
-        template: match spec.job_template.spec {
-          Some(spec) => Some(spec.template),
-          None => None,
+      let spec = match &cjob.spec {
+        Some(spec) => StdSpec {
+          min_ready_seconds: None,
+          replicas: None,
+          template: spec.job_template.spec.as_ref().map(|spec| spec.template.clone()),
+        },
+        None => StdSpec {
+          min_ready_seconds: None,
+          replicas: None,
+          template: None,
         },
       };
 
@@ -285,7 +312,7 @@ pub(crate) async fn get_podsecuritypolicies(
   let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.to_owned());
   let psp_list = api.list(&Default::default()).await?;
 
-  let target_version = version::parse_minor(target_version).unwrap();
+  let target_version = version::parse_minor(target_version)?;
   let remediation = if target_version >= 25 {
     finding::Remediation::Required
   } else {
@@ -299,7 +326,7 @@ pub(crate) async fn get_podsecuritypolicies(
       let objmeta = psp.metadata.clone();
 
       let resource = Resource {
-        name: objmeta.name.unwrap(),
+        name: objmeta.name.unwrap_or_default(),
         namespace: objmeta.namespace.unwrap_or_default(),
         kind: Kind::PodSecurityPolicy,
       };

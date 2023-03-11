@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use aws_sdk_autoscaling::model::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{
@@ -63,33 +63,33 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealt
   let health = cluster.health();
 
   match health {
-    Some(health) => {
-      let issues = health
-        .issues()
-        .unwrap()
-        .to_owned()
-        .iter()
-        .map(|issue| {
-          let code = &issue.code().unwrap().to_owned();
+    Some(health) => match health.issues() {
+      Some(issues) => Ok(
+        issues
+          .iter()
+          .filter_map(|issue| {
+            issue.code.as_ref().map(|_| {
+              let code = &issue.code().unwrap().to_owned();
 
-          let remediation = finding::Remediation::Required;
-          let finding = finding::Finding {
-            code: finding::Code::EKS002,
-            symbol: remediation.symbol(),
-            remediation,
-          };
+              let remediation = finding::Remediation::Required;
+              let finding = finding::Finding {
+                code: finding::Code::EKS002,
+                symbol: remediation.symbol(),
+                remediation,
+              };
 
-          ClusterHealthIssue {
-            finding,
-            code: code.as_str().to_string(),
-            message: issue.message().unwrap().to_string(),
-            resource_ids: issue.resource_ids().unwrap().to_owned(),
-          }
-        })
-        .collect();
-
-      Ok(issues)
-    }
+              ClusterHealthIssue {
+                finding,
+                code: code.as_str().to_string(),
+                message: issue.message().unwrap_or_default().to_string(),
+                resource_ids: issue.resource_ids().unwrap_or_default().to_owned(),
+              }
+            })
+          })
+          .collect(),
+      ),
+      None => Ok(vec![]),
+    },
     None => Ok(vec![]),
   }
 }
@@ -140,7 +140,13 @@ pub(crate) async fn control_plane_ips(
   ec2_client: &Ec2Client,
   cluster: &Cluster,
 ) -> Result<Option<InsufficientSubnetIps>> {
-  let subnet_ids = cluster.resources_vpc_config().unwrap().subnet_ids().unwrap().to_owned();
+  let subnet_ids = match cluster.resources_vpc_config() {
+    Some(vpc_config) => match vpc_config.subnet_ids() {
+      Some(subnet_ids) => subnet_ids.to_owned(),
+      None => return Ok(None),
+    },
+    None => return Ok(None),
+  };
 
   let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
   if subnet_ips.available_ips >= 5 {
@@ -276,8 +282,8 @@ pub(crate) async fn addon_version_compatibility(
   let target_k8s_version = format!("1.{}", version::parse_minor(cluster_version)? + 1);
 
   for addon in addons {
-    let name = addon.addon_name().unwrap().to_owned();
-    let version = addon.addon_version().unwrap().to_owned();
+    let name = addon.addon_name().unwrap_or_default().to_owned();
+    let version = addon.addon_version().unwrap_or_default().to_owned();
 
     let current_kubernetes_version = resources::get_addon_versions(client, &name, cluster_version).await?;
     let target_kubernetes_version = resources::get_addon_versions(client, &name, &target_k8s_version).await?;
@@ -365,32 +371,37 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssu
   let health_issues = addons
     .iter()
     .flat_map(|addon| {
-      let name = addon.addon_name().unwrap();
-      let health = addon.health().unwrap();
+      let name = addon.addon_name().unwrap_or_default();
 
-      health
-        .issues()
-        .unwrap()
-        .iter()
-        .map(|issue| {
-          let code = issue.code().unwrap();
+      match addon.health() {
+        Some(health) => match health.issues() {
+          Some(issues) => issues
+            .iter()
+            .filter_map(|issue| {
+              issue.code.as_ref().map(|_| {
+                let code = issue.code().unwrap();
 
-          let remediation = finding::Remediation::Required;
-          let finding = finding::Finding {
-            code: finding::Code::EKS004,
-            symbol: remediation.symbol(),
-            remediation,
-          };
+                let remediation = finding::Remediation::Required;
+                let finding = finding::Finding {
+                  code: finding::Code::EKS004,
+                  symbol: remediation.symbol(),
+                  remediation,
+                };
 
-          AddonHealthIssue {
-            finding,
-            name: name.to_owned(),
-            code: code.as_str().to_string(),
-            message: issue.message().unwrap().to_owned(),
-            resource_ids: issue.resource_ids().unwrap().to_owned(),
-          }
-        })
-        .collect::<Vec<AddonHealthIssue>>()
+                AddonHealthIssue {
+                  finding,
+                  name: name.to_owned(),
+                  code: code.as_str().to_string(),
+                  message: issue.message().unwrap_or_default().to_owned(),
+                  resource_ids: issue.resource_ids().unwrap_or_default().to_owned(),
+                }
+              })
+            })
+            .collect::<Vec<AddonHealthIssue>>(),
+          None => vec![],
+        },
+        None => vec![],
+      }
     })
     .collect();
 
@@ -445,28 +456,36 @@ pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Re
   let health_issues = nodegroups
     .iter()
     .flat_map(|nodegroup| {
-      let name = nodegroup.nodegroup_name().unwrap();
-      let health = nodegroup.health().unwrap();
-      let issues = health.issues().unwrap();
+      let name = nodegroup.nodegroup_name().unwrap_or_default();
 
-      issues.iter().map(|issue| {
-        let code = issue.code().unwrap();
-        let message = issue.message().unwrap();
+      match nodegroup.health() {
+        Some(health) => match health.issues() {
+          Some(issues) => issues
+            .iter()
+            .filter_map(|issue| {
+              issue.code.as_ref().map(|_| {
+                let code = &issue.code().unwrap().to_owned();
 
-        let remediation = finding::Remediation::Required;
-        let finding = finding::Finding {
-          code: finding::Code::EKS003,
-          symbol: remediation.symbol(),
-          remediation,
-        };
+                let remediation = finding::Remediation::Required;
+                let finding = finding::Finding {
+                  code: finding::Code::EKS003,
+                  symbol: remediation.symbol(),
+                  remediation,
+                };
 
-        NodegroupHealthIssue {
-          finding,
-          name: name.to_owned(),
-          code: code.as_str().to_owned(),
-          message: message.to_owned(),
-        }
-      })
+                NodegroupHealthIssue {
+                  finding,
+                  name: name.to_owned(),
+                  code: code.as_str().to_string(),
+                  message: issue.message().unwrap_or_default().to_owned(),
+                }
+              })
+            })
+            .collect::<Vec<NodegroupHealthIssue>>(),
+          None => vec![],
+        },
+        None => vec![],
+      }
     })
     .collect();
 
@@ -542,31 +561,38 @@ pub(crate) async fn eks_managed_nodegroup_update(
       let launch_template_id = launch_template_spec.id().unwrap().to_owned();
       let launch_template = resources::get_launch_template(client, &launch_template_id).await?;
 
-      let updates = nodegroup
-        .resources()
-        .unwrap()
-        .auto_scaling_groups()
-        .unwrap()
-        .iter()
-        .map(|asg| {
-          let remediation = finding::Remediation::Recommended;
-          let finding = finding::Finding {
-            code: finding::Code::EKS006,
-            symbol: remediation.symbol(),
-            remediation,
+      match nodegroup.resources() {
+        Some(resources) => {
+          let asgs = match resources.auto_scaling_groups() {
+            Some(groups) => groups,
+            None => return Ok(vec![]),
           };
 
-          ManagedNodeGroupUpdate {
-            finding,
-            name: nodegroup.nodegroup_name().unwrap().to_owned(),
-            autoscaling_group_name: asg.name().unwrap().to_owned(),
-            launch_template: launch_template.to_owned(),
-          }
-        })
-        // Only interested in those that are not using the latest version
-        .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
-        .collect();
-      Ok(updates)
+          let updates = asgs
+            .iter()
+            .map(|asg| {
+              let remediation = finding::Remediation::Recommended;
+              let finding = finding::Finding {
+                code: finding::Code::EKS006,
+                symbol: remediation.symbol(),
+                remediation,
+              };
+
+              ManagedNodeGroupUpdate {
+                finding,
+                name: nodegroup.nodegroup_name().unwrap_or_default().to_owned(),
+                autoscaling_group_name: asg.name().unwrap_or_default().to_owned(),
+                launch_template: launch_template.to_owned(),
+              }
+            })
+            // Only interested in those that are not using the latest version
+            .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
+            .collect();
+
+          Ok(updates)
+        }
+        None => Ok(vec![]),
+      }
     }
     None => Ok(vec![]),
   }
@@ -632,9 +658,12 @@ pub(crate) async fn self_managed_nodegroup_update(
   client: &Ec2Client,
   asg: &AutoScalingGroup,
 ) -> Result<Option<AutoscalingGroupUpdate>> {
-  let name = asg.auto_scaling_group_name().unwrap().to_owned();
-  let launch_template_id = asg.launch_template().unwrap().launch_template_id().unwrap().to_owned();
-  let launch_template = resources::get_launch_template(client, &launch_template_id).await?;
+  let name = asg.auto_scaling_group_name().unwrap_or_default().to_owned();
+  let lt_spec = asg
+    .launch_template()
+    .context("Launch template not found, launch configuration is not supported")?;
+  let launch_template =
+    resources::get_launch_template(client, lt_spec.launch_template_id().unwrap_or_default()).await?;
 
   // Only interested in those that are not using the latest version
   if launch_template.current_version != launch_template.latest_version {

@@ -1,7 +1,6 @@
-use std::{collections::HashSet, env};
+use std::collections::HashSet;
 
-use anyhow::{bail, Result};
-use aws_config::meta::region::RegionProviderChain;
+use anyhow::{bail, Context, Result};
 use aws_sdk_autoscaling::{
   model::{AutoScalingGroup, Filter as AsgFilter},
   Client as AsgClient,
@@ -11,21 +10,8 @@ use aws_sdk_eks::{
   model::{Addon, Cluster, FargateProfile, Nodegroup},
   Client as EksClient,
 };
-use aws_types::region::Region;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
-
-/// Get the configuration to authn/authz with AWS that will be used across AWS clients
-pub async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig> {
-  let aws_region = match region {
-    Some(region) => Region::new(region.to_owned()),
-    None => env::var("AWS_REGION").ok().map(Region::new).unwrap(),
-  };
-
-  let region_provider = RegionProviderChain::first_try(aws_region).or_default_provider();
-
-  Ok(aws_config::from_env().region(region_provider).load().await)
-}
 
 /// Describe the cluster to get its full details
 pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
@@ -58,16 +44,16 @@ pub(crate) async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) 
     .send()
     .await?
     .subnets
-    .unwrap();
+    .context("Subnets not found")?;
 
   let available_ips = subnets
     .iter()
-    .map(|subnet| subnet.available_ip_address_count.unwrap())
+    .map(|subnet| subnet.available_ip_address_count.unwrap_or_default())
     .sum();
 
   let ids = subnets
     .iter()
-    .map(|subnet| subnet.subnet_id().unwrap().to_string())
+    .map(|subnet| subnet.subnet_id().unwrap_or_default().to_string())
     .collect::<Vec<String>>();
 
   Ok(SubnetIPs { ids, available_ips })
@@ -134,28 +120,40 @@ pub(crate) async fn get_addon_versions(
     .await?;
 
   // Since we are providing an addon name, we are only concerned with the first and only item
-  let addon = describe.addons().unwrap().get(0).unwrap();
-  let addon_version = addon.addon_versions().unwrap();
-  let latest_version = addon_version.first().unwrap().addon_version().unwrap();
+  let addon = describe.addons().unwrap_or_default().get(0).unwrap();
+  let latest_version = match addon.addon_versions() {
+    Some(versions) => match versions.first() {
+      Some(version) => version.addon_version().unwrap_or_default(),
+      None => bail!("No addon versions found for addon {}", name),
+    },
+    None => bail!("No addon versions found for addon {}", name),
+  };
 
   // The default version as specified by the EKS API for a given addon and Kubernetes version
-  let default_version = addon
-    .addon_versions()
-    .unwrap()
-    .iter()
-    .filter(|v| v.compatibilities().unwrap().iter().any(|c| c.default_version))
-    .map(|v| v.addon_version().unwrap())
-    .next()
-    .unwrap();
+  let default_version = match addon.addon_versions() {
+    Some(versions) => versions
+      .iter()
+      .filter(|v| {
+        v.compatibilities()
+          .unwrap_or_default()
+          .iter()
+          .any(|c| c.default_version)
+      })
+      .map(|v| v.addon_version().unwrap_or_default())
+      .next()
+      .unwrap_or_default(),
+    None => "",
+  };
 
   // Get the list of ALL supported version for this addon and Kubernetes version
   // The results maintain the oder of latest version to oldest
-  let supported_versions: HashSet<String> = addon
-    .addon_versions()
-    .unwrap()
-    .iter()
-    .map(|v| v.addon_version().unwrap().to_owned())
-    .collect();
+  let supported_versions: HashSet<String> = match addon.addon_versions() {
+    Some(versions) => versions
+      .iter()
+      .map(|v| v.addon_version().unwrap_or_default().to_owned())
+      .collect(),
+    None => HashSet::new(),
+  };
 
   Ok(AddonVersion {
     latest: latest_version.to_owned(),
@@ -282,20 +280,23 @@ pub(crate) async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<
     .send()
     .await?;
 
-  let template = output
-    .launch_templates
-    .unwrap()
-    .into_iter()
-    .map(|lt| LaunchTemplate {
-      name: lt.launch_template_name.unwrap(),
-      id: lt.launch_template_id.unwrap(),
-      current_version: lt.default_version_number.unwrap().to_string(),
-      latest_version: lt.latest_version_number.unwrap().to_string(),
-    })
-    .next();
+  match output.launch_templates {
+    Some(lts) => {
+      let lt = lts
+        .into_iter()
+        .map(|lt| LaunchTemplate {
+          name: lt.launch_template_name.unwrap_or_default(),
+          id: lt.launch_template_id.unwrap_or_default(),
+          current_version: lt.default_version_number.unwrap_or_default().to_string(),
+          latest_version: lt.latest_version_number.unwrap_or_default().to_string(),
+        })
+        .next();
 
-  match template {
-    Some(t) => Ok(t),
+      match lt {
+        Some(t) => Ok(t),
+        None => bail!("Unable to find launch template with id: {id}"),
+      }
+    }
     None => bail!("Unable to find launch template with id: {id}"),
   }
 }
