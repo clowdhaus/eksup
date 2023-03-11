@@ -279,7 +279,7 @@ For clusters on Kubernetes <`v1.21`
 
 **❌ Remediation required**
 
-`kube-proxy` on an Amazon EKS cluster has the same compatibility and skew policy as Kubernetes
+`kube-proxy` on an Amazon EKS cluster has the same [compatibility and skew policy as Kubernetes](https://kubernetes.io/releases/version-skew-policy/#kube-proxy)
 
 - It must be the same minor version as kubelet on your Amazon EC2 nodes
 - It cannot be newer than the minor version of your cluster's control plane
