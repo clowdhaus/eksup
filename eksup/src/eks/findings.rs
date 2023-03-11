@@ -5,10 +5,7 @@ use aws_sdk_eks::{model::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-  eks::{checks, resources},
-  k8s,
-};
+use crate::eks::{checks, resources};
 
 /// Findings related to the cluster itself, primarily the control plane
 #[derive(Debug, Serialize, Deserialize)]
@@ -96,11 +93,6 @@ pub async fn get_addon_findings(
 /// (pods, deployments, etc.)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DataPlaneFindings {
-  /// The skew/diff between the cluster control plane (API Server) and the nodes in the data plane (kubelet)
-  /// It is recommended that these versions are aligned prior to upgrading, and changes are required when
-  /// the skew policy could be violated post upgrade (i.e. if current skew is +2, the policy would be violated
-  /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
-  pub version_skew: Vec<k8s::VersionSkew>,
   /// The health of the EKS managed node groups as reported by the Amazon EKS managed node group API
   pub eks_managed_nodegroup_health: Vec<checks::NodegroupHealthIssue>,
   /// Will show if the current launch template provided to the Amazon EKS managed node group is NOT the latest
@@ -123,17 +115,14 @@ pub async fn get_data_plane_findings(
   asg_client: &AsgClient,
   ec2_client: &Ec2Client,
   eks_client: &EksClient,
-  k8s_client: &kube::Client,
   cluster: &Cluster,
 ) -> Result<DataPlaneFindings> {
   let cluster_name = cluster.name().unwrap_or_default();
-  let cluster_version = cluster.version().unwrap_or_default();
 
   let eks_mngs = resources::get_eks_managed_nodegroups(eks_client, cluster_name).await?;
   let self_mngs = resources::get_self_managed_nodegroups(asg_client, cluster_name).await?;
   let fargate_profiles = resources::get_fargate_profiles(eks_client, cluster_name).await?;
 
-  let version_skew = k8s::version_skew(k8s_client, cluster_version).await?;
   let eks_managed_nodegroup_health = checks::eks_managed_nodegroup_health(&eks_mngs).await?;
   let mut eks_managed_nodegroup_update = Vec::new();
   for eks_mng in &eks_mngs {
@@ -148,7 +137,6 @@ pub async fn get_data_plane_findings(
   }
 
   Ok(DataPlaneFindings {
-    version_skew,
     eks_managed_nodegroup_health,
     eks_managed_nodegroup_update: eks_managed_nodegroup_update
       .into_iter()

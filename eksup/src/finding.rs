@@ -145,6 +145,12 @@ pub enum Code {
 
   /// Pod security policies present
   K8S009,
+
+  /// EBS CSI driver not installed (v1.23+)
+  K8S010,
+
+  /// Kubernetes version skew detected between kube-proxy and kubelet
+  K8S011,
 }
 
 impl std::fmt::Display for Code {
@@ -171,6 +177,8 @@ impl std::fmt::Display for Code {
       Code::K8S007 => write!(f, "K8S007"),
       Code::K8S008 => write!(f, "K8S008"),
       Code::K8S009 => write!(f, "K8S009"),
+      Code::K8S010 => write!(f, "K8S010"),
+      Code::K8S011 => write!(f, "K8S011"),
     }
   }
 }

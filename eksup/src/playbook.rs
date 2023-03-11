@@ -62,6 +62,7 @@ pub struct TemplateData {
   termination_grace_period: String,
   docker_socket: String,
   pod_security_policy: String,
+  kube_proxy_version_skew: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
@@ -173,12 +174,12 @@ pub(crate) fn create(args: &Playbook, region: String, cluster: &Cluster, analysi
     cluster_health: cluster_findings.cluster_health.to_markdown_table("\t")?,
     addon_health: addon_findings.health.to_markdown_table("\t")?,
     addon_version_compatibility: addon_findings.version_compatibility.to_markdown_table("\t")?,
-    version_skew: data_plane_findings.version_skew.to_markdown_table("\t")?,
     data_plane_findings,
     eks_managed_nodegroup_template,
     self_managed_nodegroup_template,
     fargate_profile_template,
     // kubernetes_findings,
+    version_skew: kubernetes_findings.version_skew.to_markdown_table("\t")?,
     min_replicas: kubernetes_findings.min_replicas.to_markdown_table("\t")?,
     min_ready_seconds: kubernetes_findings.min_ready_seconds.to_markdown_table("\t")?,
     pod_topology_distribution: kubernetes_findings.pod_topology_distribution.to_markdown_table("\t")?,
@@ -186,6 +187,7 @@ pub(crate) fn create(args: &Playbook, region: String, cluster: &Cluster, analysi
     termination_grace_period: kubernetes_findings.termination_grace_period.to_markdown_table("\t")?,
     docker_socket: kubernetes_findings.docker_socket.to_markdown_table("\t")?,
     pod_security_policy: kubernetes_findings.pod_security_policy.to_markdown_table("\t")?,
+    kube_proxy_version_skew: kubernetes_findings.kube_proxy_version_skew.to_markdown_table("\t")?,
   };
 
   let filename = match &args.filename {

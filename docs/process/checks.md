@@ -209,7 +209,9 @@ Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` is 
 
 #### K8S006
 
-A `readinessProbe` must be set to ensure traffic is not sent to pods before they are ready following their re-deployment from a node replacement.
+**❌ Remediation required**
+
+A `readinessProbe` must be set to ensure traffic is not routed to pods before they are ready following their re-deployment from a node replacement.
 
 #### K8S007
 
@@ -272,3 +274,19 @@ For clusters on Kubernetes <`v1.21`
 [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html)
 
 [Kubernetes In-Tree to CSI Volume Migration Status Update](https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/)
+
+#### K8S011
+
+**❌ Remediation required**
+
+`kube-proxy` on an Amazon EKS cluster has the same compatibility and skew policy as Kubernetes
+
+- It must be the same minor version as kubelet on your Amazon EC2 nodes
+- It cannot be newer than the minor version of your cluster's control plane
+- Its version on your Amazon EC2 nodes can't be more than two minor versions older than your control plane. For example, if your control plane is running Kubernetes `1.25`, then the kube-proxy minor version cannot be older than `1.23`
+
+If you recently updated your cluster to a new Kubernetes minor version, then update your Amazon EC2 nodes (i.e. - `kubelet`) to the same minor version before updating `kube-proxy` to the same minor version as your nodes. The order of operations during an upgrade are as follows:
+
+    1. Update the control plane to the new Kubernetes minor version
+    2. Update the nodes, which updates `kubelet`, to the new Kubernetes minor version
+    3. Update `kube-proxy` to the new Kubernetes minor version

@@ -73,8 +73,8 @@
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/process/checks/#k8s001)
 	| CHECK  |    | NODE  | CONTROL PLANE | SKEW | QUANTITY |
 	|--------|----|-------|---------------|------|----------|
-	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
 	| K8S001 | ❌ | v1.22 | v1.23         | +1   | 2        |
+	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
 
 	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
 	|----|-----------------------------|-------|---------------|------|
@@ -172,36 +172,6 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
         --query 'cluster.status'
     ```
 
-## Upgrade EKS Addons
-
-### Addon Pre-Upgrade
-
-1. Ensure the EKS addons in use are free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster.
-
-    <details>
-    <summary>📌 CLI Example</summary>
-
-    ```sh
-    aws eks describe-addon --region us-east-1 --cluster-name test-mixed \
-        --addon-name <ADDON_NAME> --query 'addon.health'
-    ```
-
-    </details>
-
-    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/process/checks/#eks004)
-	✅ - There are no reported addon health issues.
-
-### Addon Upgrade
-
-1. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
-
-    ```sh
-    aws eks update-addon --region us-east-1 --cluster-name test-mixed \
-        --addon-name <ADDON_NAME> --addon-version <ADDON_VERSION>
-    ```
-
-    You may need to add `--resolve-conflicts OVERWRITE` to the command if the addon has been modified since it was deployed to ensure the addon is upgraded.
-
 ## Upgrade the Data Plane
 
 ### Data Plane Pre-Upgrade
@@ -269,6 +239,13 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	|   | NAME           | NAMESPACE | KIND              |
 	|---|----------------|-----------|-------------------|
 	| ⚠️ | eks.privileged |           | PodSecurityPolicy |
+
+
+    #### Check [[K8S0011]](https://clowdhaus.github.io/eksup/process/checks/#k8s011)
+	|    | KUBELET | KUBE PROXY | SKEW |
+	|----|---------|------------|------|
+	| ❌ | v1.23   | v1.21      | -2   |
+	| ❌ | v1.22   | v1.21      | -1   |
 
 
 2. Inspect [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html) before upgrading. Accounts that are multi-tenant or already have a number of resources provisioned may be at risk of hitting service quota limits which will cause the cluster upgrade to fail, or impede the upgrade process.
@@ -479,6 +456,36 @@ The Kubernetes version used by Fargate nodes is referenced from the control plan
     kubectl drain <FARGATE-NODE> --delete-emptydir-data
     ```
 
+
+## Upgrade EKS Addons
+
+### Addon Pre-Upgrade
+
+1. Ensure the EKS addons in use are free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster.
+
+    <details>
+    <summary>📌 CLI Example</summary>
+
+    ```sh
+    aws eks describe-addon --region us-east-1 --cluster-name test-mixed \
+        --addon-name <ADDON_NAME> --query 'addon.health'
+    ```
+
+    </details>
+
+    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/process/checks/#eks004)
+	✅ - There are no reported addon health issues.
+
+### Addon Upgrade
+
+1. Upgrade the addon to an appropriate version for the upgraded Kubernetes version:
+
+    ```sh
+    aws eks update-addon --region us-east-1 --cluster-name test-mixed \
+        --addon-name <ADDON_NAME> --addon-version <ADDON_VERSION>
+    ```
+
+    You may need to add `--resolve-conflicts OVERWRITE` to the command if the addon has been modified since it was deployed to ensure the addon is upgraded.
 
 ## Post Upgrade
 
