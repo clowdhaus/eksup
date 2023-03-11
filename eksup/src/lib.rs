@@ -131,8 +131,8 @@ pub async fn create(args: &Create) -> Result<()> {
 
       let results = analysis::analyze(&aws_config, &cluster).await?;
 
-      if let Err(err) = playbook::create(playbook, region, &cluster, results) {
-        eprintln!("{err}");
+      if let Err(_err) = playbook::create(playbook, region, &cluster, results) {
+        // eprintln!("{err}");
         process::exit(2);
       }
     }
