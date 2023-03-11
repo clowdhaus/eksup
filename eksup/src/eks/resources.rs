@@ -34,9 +34,10 @@ pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
 
 /// Container for the subnet IDs and their total available IPs
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct SubnetIPs {
-  pub(crate) ids: Vec<String>,
+pub(crate) struct VpcSubnet {
+  pub(crate) id: String,
   pub(crate) available_ips: i32,
+  pub(crate) availablity_zone_id: String,
 }
 
 /// Describe the subnets provided by ID
@@ -45,7 +46,7 @@ pub(crate) struct SubnetIPs {
 /// IP contention/exhaustion across the various subnets in use
 /// by the control plane ENIs, the nodes, and the pods (when custom
 /// networking is enabled)
-pub(crate) async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<SubnetIPs> {
+pub(crate) async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<Vec<VpcSubnet>> {
   let subnets = client
     .describe_subnets()
     .set_subnet_ids(Some(subnet_ids))
@@ -54,17 +55,22 @@ pub(crate) async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) 
     .subnets
     .context("Subnets not found")?;
 
-  let available_ips = subnets
-    .iter()
-    .map(|subnet| subnet.available_ip_address_count.unwrap_or_default())
-    .sum();
+  Ok(
+    subnets
+      .iter()
+      .map(|subnet| {
+        let id = subnet.subnet_id().unwrap_or_default().to_string();
+        let available_ips = subnet.available_ip_address_count.unwrap_or_default();
+        let availablity_zone_id = subnet.availability_zone_id().unwrap_or_default().to_string();
 
-  let ids = subnets
-    .iter()
-    .map(|subnet| subnet.subnet_id().unwrap_or_default().to_string())
-    .collect::<Vec<String>>();
-
-  Ok(SubnetIPs { ids, available_ips })
+        VpcSubnet {
+          id,
+          available_ips,
+          availablity_zone_id,
+        }
+      })
+      .collect(),
+  )
 }
 
 pub async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Addon>> {

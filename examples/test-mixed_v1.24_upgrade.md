@@ -76,12 +76,12 @@
 	| K8S001 | ❌ | v1.21 | v1.23         | +2   | 2        |
 	| K8S001 | ❌ | v1.22 | v1.23         | +1   | 2        |
 
-	|    | NAME                       | NODE  | CONTROL PLANE | SKEW |
-	|----|----------------------------|-------|---------------|------|
-	| ❌ | ip-10-0-10-49.ec2.internal | v1.21 | v1.23         | +2   |
-	| ❌ | ip-10-0-14-22.ec2.internal | v1.22 | v1.23         | +1   |
-	| ❌ | ip-10-0-20-62.ec2.internal | v1.22 | v1.23         | +1   |
-	| ❌ | ip-10-0-7-12.ec2.internal  | v1.21 | v1.23         | +2   |
+	|    | NAME                        | NODE  | CONTROL PLANE | SKEW |
+	|----|-----------------------------|-------|---------------|------|
+	| ❌ | ip-10-0-0-100.ec2.internal  | v1.21 | v1.23         | +2   |
+	| ❌ | ip-10-0-14-188.ec2.internal | v1.22 | v1.23         | +1   |
+	| ❌ | ip-10-0-19-35.ec2.internal  | v1.21 | v1.23         | +2   |
+	| ❌ | ip-10-0-40-93.ec2.internal  | v1.22 | v1.23         | +1   |
 
 
 3. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
@@ -337,7 +337,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
     Check [[EKS006]](https://clowdhaus.github.io/eksup/process/checks/#eks006)
 	|   | MANAGED NODEGROUP                   | LAUNCH TEMP ID       | CURRENT | LATEST |
 	|---|-------------------------------------|----------------------|---------|--------|
-	| ⚠️ | standard-20230310135434793800000027 | lt-0d8873f5c893efaa0 | 1       | 2      |
+	| ⚠️ | standard-20230311143408696200000027 | lt-0a9ebcea03f330711 | 1       | 2      |
 
 
 ##### Upgrade
@@ -413,7 +413,7 @@ A starting point for the instance refresh configuration is to use a value of 70%
     Check [[EKS007]](https://clowdhaus.github.io/eksup/process/checks/#eks007)
 	|   | AUTOSCALING GROUP                    | LAUNCH TEMP ID       | CURRENT | LATEST |
 	|---|--------------------------------------|----------------------|---------|--------|
-	| ⚠️ | different-20230310135435081600000029 | lt-0a880c2680a8cf174 | 1       | 2      |
+	| ⚠️ | different-20230311143408778000000029 | lt-061e6a6f3cc5c1db9 | 1       | 2      |
 
 
 ##### Upgrade
