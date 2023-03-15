@@ -1,7 +1,4 @@
-
-## Commands
-
-``` linenums="1"
+```
 A CLI to aid in upgrading Amazon EKS clusters
 
 Usage: eksup <COMMAND>
@@ -20,7 +17,7 @@ Options:
 
 Analyze cluster for any potential issues to remediate prior to upgrade.
 
-``` linenums="1"
+```
 Analyze an Amazon EKS cluster for potential upgrade issues
 
 Usage: eksup analyze [OPTIONS] --cluster <CLUSTER>
@@ -89,7 +86,7 @@ This CLI produces a cluster upgrade playbook that attempts to:
 - Provide one approach as the basis for upgrading a cluster that users can modify/customize to suit their cluster configuration/architecture and business requirements
 - Provide recommendations on what to check for and precautions to consider before upgrading, how to perform the cluster upgrade, and considerations for configuring your cluster and/or applications to minimize risk and disruption during the upgrade process
 
-``` linenums="1"
+```
 Create a playbook for upgrading an Amazon EKS cluster
 
 Usage: eksup create playbook [OPTIONS] --cluster <CLUSTER>

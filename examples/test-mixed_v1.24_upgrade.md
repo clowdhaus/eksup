@@ -70,7 +70,7 @@
     ```
     </details>
 
-    #### Check [[K8S001]](https://clowdhaus.github.io/eksup/usage/checks/#k8s001)
+    #### Check [[K8S001]](https://clowdhaus.github.io/eksup/checks/#k8s001)
 	| CHECK  |    | NODE  | CONTROL PLANE | SKEW | QUANTITY |
 	|--------|----|-------|---------------|------|----------|
 	| K8S001 | ❌ | v1.22 | v1.23         | +1   | 2        |
@@ -98,7 +98,7 @@
 
     </details>
 
-    #### Check [[EKS001]](https://clowdhaus.github.io/eksup/usage/checks/#eks001)
+    #### Check [[EKS001]](https://clowdhaus.github.io/eksup/checks/#eks001)
 	✅ - There is sufficient IP space in the subnets provided
 
 4. Ensure the cluster is free of any health issues as reported by Amazon EKS. If there are any issues, resolution of those issues is required before upgrading the cluster. Note - resolution in some cases may require creating a new cluster. For example, if the cluster primary security group was deleted, at this time, the only course of remediation is to create a new cluster and migrate any workloads over to that cluster (treated as a blue/green cluster upgrade).
@@ -113,7 +113,7 @@
 
     </details>
 
-    #### Check [[EKS002]](https://clowdhaus.github.io/eksup/usage/checks/#eks002)
+    #### Check [[EKS002]](https://clowdhaus.github.io/eksup/checks/#eks002)
 	✅ - There are no reported health issues on the cluster control plane
 
 5. Ensure the EKS addons in use are using a version that is supported by the intended target Kubernetes version. If an addon is not compatible with the intended target Kubernetes version, upgrade the addon to a version that is compatible before upgrading the cluster.
@@ -139,7 +139,7 @@
 
     </details>
 
-    #### Check [[EKS005]](https://clowdhaus.github.io/eksup/usage/checks/#eks005)
+    #### Check [[EKS005]](https://clowdhaus.github.io/eksup/checks/#eks005)
 	|    | NAME       | CURRENT             | LATEST              | DEFAULT            |
 	|----|------------|---------------------|---------------------|--------------------|
 	| ⚠️  | coredns    | v1.8.4-eksbuild.2   | v1.9.3-eksbuild.2   | v1.8.7-eksbuild.3  |
@@ -180,7 +180,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     🚧 TODO - fill in analysis results
 
-    #### Check [[K8S002]](https://clowdhaus.github.io/eksup/usage/checks/#k8s002)
+    #### Check [[K8S002]](https://clowdhaus.github.io/eksup/checks/#k8s002)
 	|    | NAME    | NAMESPACE   | KIND        | REPLICAS |
 	|----|---------|-------------|-------------|----------|
 	| ❌ | bad-dpl | deployment  | Deployment  | 1        |
@@ -189,7 +189,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	| ❌ | bad-ss  | statefulset | StatefulSet | 1        |
 
 
-    #### Check [[K8S003]](https://clowdhaus.github.io/eksup/usage/checks/#k8s003)
+    #### Check [[K8S003]](https://clowdhaus.github.io/eksup/checks/#k8s003)
 	|    | NAME    | NAMESPACE   | KIND        | SECONDS |
 	|----|---------|-------------|-------------|---------|
 	| ⚠️  | bad-dpl | deployment  | Deployment  | 0       |
@@ -198,10 +198,10 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	| ❌ | bad-ss  | statefulset | StatefulSet | 0       |
 
 
-    #### Check [[K8S004]](https://clowdhaus.github.io/eksup/usage/checks/#k8s004)
+    #### Check [[K8S004]](https://clowdhaus.github.io/eksup/checks/#k8s004)
     🚧 TODO
 
-    #### Check [[K8S005]](https://clowdhaus.github.io/eksup/usage/checks/#k8s005)
+    #### Check [[K8S005]](https://clowdhaus.github.io/eksup/checks/#k8s005)
 	|    | NAME    | NAMESPACE   | KIND        | ANTIAFFINITY | TOPOLOGYSPREADCONSTRAINTS |
 	|----|---------|-------------|-------------|--------------|---------------------------|
 	| ❌ | bad-dpl | deployment  | Deployment  | false        | false                     |
@@ -209,7 +209,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	| ❌ | bad-ss  | statefulset | StatefulSet | false        | false                     |
 
 
-    #### Check [[K8S006]](https://clowdhaus.github.io/eksup/usage/checks/#k8s006)
+    #### Check [[K8S006]](https://clowdhaus.github.io/eksup/checks/#k8s006)
 	|    | NAME    | NAMESPACE   | KIND        | READINESS PROBE |
 	|----|---------|-------------|-------------|-----------------|
 	| ❌ | bad-dpl | deployment  | Deployment  | false           |
@@ -217,13 +217,13 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	| ❌ | bad-ss  | statefulset | StatefulSet | false           |
 
 
-    #### Check [[K8S007]](https://clowdhaus.github.io/eksup/usage/checks/#k8s007)
+    #### Check [[K8S007]](https://clowdhaus.github.io/eksup/checks/#k8s007)
 	|    | NAME   | NAMESPACE   | KIND        | TERMINATIONGRACEPERIOD |
 	|----|--------|-------------|-------------|------------------------|
 	| ❌ | bad-ss | statefulset | StatefulSet | 0                      |
 
 
-    #### Check [[K8S008]](https://clowdhaus.github.io/eksup/usage/checks/#k8s008)
+    #### Check [[K8S008]](https://clowdhaus.github.io/eksup/checks/#k8s008)
 	|    | NAME     | NAMESPACE   | KIND        | DOCKERSOCKET |
 	|----|----------|-------------|-------------|--------------|
 	| ❌ | bad-cron | cronjob     | CronJob     | true         |
@@ -235,13 +235,13 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	| ❌ | bad-ss   | statefulset | StatefulSet | true         |
 
 
-    #### Check [[K8S009]](https://clowdhaus.github.io/eksup/usage/checks/#k8s009)
+    #### Check [[K8S009]](https://clowdhaus.github.io/eksup/checks/#k8s009)
 	|   | NAME           | NAMESPACE | KIND              |
 	|---|----------------|-----------|-------------------|
 	| ⚠️ | eks.privileged |           | PodSecurityPolicy |
 
 
-    #### Check [[K8S0011]](https://clowdhaus.github.io/eksup/usage/checks/#k8s011)
+    #### Check [[K8S0011]](https://clowdhaus.github.io/eksup/checks/#k8s011)
 	|    | KUBELET | KUBE PROXY | SKEW |
 	|----|---------|------------|------|
 	| ❌ | v1.23   | v1.21      | -2   |
@@ -270,7 +270,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     </details>
 
-    #### Check [[AWS002]](https://clowdhaus.github.io/eksup/usage/checks/#aws002)
+    #### Check [[AWS002]](https://clowdhaus.github.io/eksup/checks/#aws002)
 	✅ - There is sufficient IP space in the subnets provided
 
 #### EKS Managed Nodegroup
@@ -297,7 +297,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
 
     </details>
 
-    #### Check [[EKS003]](https://clowdhaus.github.io/eksup/usage/checks/#eks003)
+    #### Check [[EKS003]](https://clowdhaus.github.io/eksup/checks/#eks003)
 	✅ - There are no reported nodegroup health issues.
 
 2. Ensure the EKS managed nodegroup(s) do not have any pending updates and they are using the latest version of their respective launch templates. If the nodegroup(s) are not using the latest launch template, it is recommended to update to the latest to avoid accidentally introducing any additional and un-intended changes during the upgrade.
@@ -311,7 +311,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
 
     </details>
 
-    Check [[EKS006]](https://clowdhaus.github.io/eksup/usage/checks/#eks006)
+    Check [[EKS006]](https://clowdhaus.github.io/eksup/checks/#eks006)
 	|   | MANAGED NODEGROUP                   | LAUNCH TEMP ID       | CURRENT | LATEST |
 	|---|-------------------------------------|----------------------|---------|--------|
 	| ⚠️ | standard-20230311143408696200000027 | lt-0a9ebcea03f330711 | 1       | 2      |
@@ -387,7 +387,7 @@ A starting point for the instance refresh configuration is to use a value of 70%
 
     </details>
 
-    Check [[EKS007]](https://clowdhaus.github.io/eksup/usage/checks/#eks007)
+    Check [[EKS007]](https://clowdhaus.github.io/eksup/checks/#eks007)
 	|   | AUTOSCALING GROUP                    | LAUNCH TEMP ID       | CURRENT | LATEST |
 	|---|--------------------------------------|----------------------|---------|--------|
 	| ⚠️ | different-20230311143408778000000029 | lt-061e6a6f3cc5c1db9 | 1       | 2      |
@@ -473,7 +473,7 @@ The Kubernetes version used by Fargate nodes is referenced from the control plan
 
     </details>
 
-    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/usage/checks/#eks004)
+    #### Check [[EKS004]](https://clowdhaus.github.io/eksup/checks/#eks004)
 	✅ - There are no reported addon health issues.
 
 ### Addon Upgrade
