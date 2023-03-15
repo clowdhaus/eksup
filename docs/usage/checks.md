@@ -5,7 +5,7 @@ If a check fails, it is reported as a finding. Each check will have a remediatio
 - ⚠️ Recommended: A finding that users are encouraged to evaluate the recommendation and determine if it is applicable and whether or not to act upon that recommendation. Not remediating the finding does not prevent the upgrade from occurring.
 - ❌ Required: A finding that requires remediation prior to upgrading to be able to perform the upgrade and avoid downtime or disruption
 
-See the [symbol table](https://clowdhaus.github.io/eksup/process/#symbol-table) for further details on the symbols used throughout the documentation.
+See the [symbol table](https://clowdhaus.github.io/eksup/#symbol-table) for further details on the symbols used throughout the documentation.
 
 ## Amazon
 

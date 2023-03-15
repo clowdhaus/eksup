@@ -81,6 +81,8 @@ eksup analyze --cluster <cluster> --region <region> \
 
 Create a playbook with analysis findings to guide users through pre-upgrade, upgrade, and post-upgrade process.
 
+!!! info "See [`examples/test-mixed_v1.24_upgrade.md`](https://github.com/clowdhaus/eksup/blob/main/examples/test-mixed_v1.24_upgrade.md) for an example of a playbook created with `eksup`."
+
 This CLI produces a cluster upgrade playbook that attempts to:
 
 - Educate users on the overall process of upgrading an Amazon EKS cluster (order of operations, which parts AWS manages and which parts are the user's responsibility, etc.)
@@ -112,5 +114,3 @@ Create playbook and save locally, ignoring recommendations:
 ```sh linenums="1"
 eksup create playbook --cluster <cluster> --region <region> --ignore-recommended
 ```
-
-See [examples](https://github.com/clowdhaus/eksup/tree/main/examples) for examples of the playbook output.

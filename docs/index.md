@@ -21,3 +21,11 @@ Kubernetes releases a new version [approximately every 4 months](https://kuberne
 - `eksup` is not a tool that will perform the cluster upgrade. It is assumed that clusters are generally created using an infrastructure as code approach through tools such as Terraform, `eksctl`, or CloudFormation. Therefore, users are encouraged to use those tools to perform the upgrade to avoid any resource definition conflicts.
 - It does not perform any modifications on the resources it identifies as needing, or recommending, changes. Again, following the approach of infrastructure as code, users are encouraged to make these changes through their normal change control process at the appropriate time in the upgrade process.
   - In the future, `eksup` may provide functionality to help in converting a Kubernetes manifest definition from one API version to the next. However, this will occur on the users local filesystem and not against a live cluster. `eksup` will always operate from the perspective of infrastructure as code; any feature requests that support this tenant are encouraged.
+
+### Symbol Table
+
+| Symbol | Description |
+| :----: | :---------- |
+| ℹ️     | Informational - users are encouraged to familiarize themselves with the information but no action is required to upgrade  |
+| ⚠️     | Recommended - users are encouraged to evaluate the recommendation and determine if it is applicable and whether or not to act upon that recommendation. Not remediating the finding does not prevent the upgrade from occurring. |
+| ❌     | Required - users must remediate the finding prior to upgrading to be able to perform the upgrade and avoid downtime or disruption |

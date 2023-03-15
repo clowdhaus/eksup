@@ -7,13 +7,12 @@ repo_url: https://github.com/clowdhaus/eksup
 edit_uri: "https://github.com/clowdhaus/eksup/tree/main/docs"
 
 nav:
-  - Home: index.md
-  - Process:
-      - Getting Started: process/index.md
-      - Commands: process/commands.md
-      - Checks: process/checks.md
-  - Design:
-    - Overview: design/overview.md
+  - Information:
+    - Overview: index.md
+  - Usage:
+    - Commands: usage/commands.md
+    - Checks: usage/checks.md
+    - Design: usage/design.md
 
 theme:
   name: material
@@ -42,6 +41,9 @@ theme:
   features:
     - navigation.tabs
     - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.instant
+    - navigation.tracking
   highlightjs: true
   hljs_languages:
       - yaml
