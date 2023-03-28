@@ -20,7 +20,7 @@ This document captures the steps to follow when releasing a new version of `eksu
   git push origin main
   ```
 
-4. Update the `eksup` documentation site to ensure any changes have been synced with the documetnation. This is done from within the `eksup` repository.
+4. Update the `eksup` documentation site to ensure any changes have been synced with the documentation. This is done from within the `eksup` repository.
 
   ```sh
   mkdocs gh-deploy
