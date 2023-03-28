@@ -39,9 +39,6 @@ Options:
   -o, --output <OUTPUT>
           Write to file instead of stdout
 
-      --ignore-recommended
-          Exclude recommendations from the output
-
   -h, --help
           Print help (see a summary with '-h')
 
@@ -95,7 +92,6 @@ Options:
   -c, --cluster <CLUSTER>    The name of the cluster to analyze
   -r, --region <REGION>      The AWS region where the cluster is provisioned
   -f, --filename <FILENAME>  Name of the playbook saved locally
-      --ignore-recommended   Exclude recommendations from the output
   -h, --help                 Print help
   -V, --version              Print version
 ```
