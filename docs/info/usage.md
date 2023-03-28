@@ -1,7 +1,4 @@
-
-## Commands
-
-``` linenums="1"
+```
 A CLI to aid in upgrading Amazon EKS clusters
 
 Usage: eksup <COMMAND>
@@ -20,7 +17,7 @@ Options:
 
 Analyze cluster for any potential issues to remediate prior to upgrade.
 
-``` linenums="1"
+```
 Analyze an Amazon EKS cluster for potential upgrade issues
 
 Usage: eksup analyze [OPTIONS] --cluster <CLUSTER>
@@ -41,9 +38,6 @@ Options:
 
   -o, --output <OUTPUT>
           Write to file instead of stdout
-
-      --ignore-recommended
-          Exclude recommendations from the output
 
   -h, --help
           Print help (see a summary with '-h')
@@ -81,13 +75,15 @@ eksup analyze --cluster <cluster> --region <region> \
 
 Create a playbook with analysis findings to guide users through pre-upgrade, upgrade, and post-upgrade process.
 
+!!! info "See [`examples/test-mixed_v1.24_upgrade.md`](https://github.com/clowdhaus/eksup/blob/main/examples/test-mixed_v1.24_upgrade.md) for an example of a playbook created with `eksup`."
+
 This CLI produces a cluster upgrade playbook that attempts to:
 
 - Educate users on the overall process of upgrading an Amazon EKS cluster (order of operations, which parts AWS manages and which parts are the user's responsibility, etc.)
 - Provide one approach as the basis for upgrading a cluster that users can modify/customize to suit their cluster configuration/architecture and business requirements
 - Provide recommendations on what to check for and precautions to consider before upgrading, how to perform the cluster upgrade, and considerations for configuring your cluster and/or applications to minimize risk and disruption during the upgrade process
 
-``` linenums="1"
+```
 Create a playbook for upgrading an Amazon EKS cluster
 
 Usage: eksup create playbook [OPTIONS] --cluster <CLUSTER>
@@ -96,7 +92,6 @@ Options:
   -c, --cluster <CLUSTER>    The name of the cluster to analyze
   -r, --region <REGION>      The AWS region where the cluster is provisioned
   -f, --filename <FILENAME>  Name of the playbook saved locally
-      --ignore-recommended   Exclude recommendations from the output
   -h, --help                 Print help
   -V, --version              Print version
 ```
@@ -112,5 +107,3 @@ Create playbook and save locally, ignoring recommendations:
 ```sh linenums="1"
 eksup create playbook --cluster <cluster> --region <region> --ignore-recommended
 ```
-
-See [examples](https://github.com/clowdhaus/eksup/tree/main/examples) for examples of the playbook output.

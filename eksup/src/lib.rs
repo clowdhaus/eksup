@@ -80,10 +80,9 @@ pub struct Playbook {
   /// Name of the playbook saved locally
   #[arg(short, long)]
   pub filename: Option<String>,
-
-  /// Exclude recommendations from the output
-  #[arg(long)]
-  pub ignore_recommended: bool,
+  // /// Exclude recommendations from the output
+  // #[arg(long)]
+  // pub ignore_recommended: bool,
 }
 
 /// Someting TODO

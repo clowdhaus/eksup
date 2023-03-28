@@ -7,13 +7,15 @@ repo_url: https://github.com/clowdhaus/eksup
 edit_uri: "https://github.com/clowdhaus/eksup/tree/main/docs"
 
 nav:
-  - Home: index.md
-  - Process:
-      - Getting Started: process/index.md
-      - Commands: process/commands.md
-      - Checks: process/checks.md
-  - Design:
-    - Overview: design/overview.md
+  - Information:
+    - Overview: index.md
+    - Usage: info/usage.md
+    - Checks: info/checks.md
+    - Design: info/design.md
+  # - Guides:
+  #   - Process: guides/process.md
+  #   - In-Place Upgrade: guides/in-place.md
+  #   - Blue/Green Upgrade: guides/blue-green.md
 
 theme:
   name: material
@@ -42,6 +44,9 @@ theme:
   features:
     - navigation.tabs
     - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.instant
+    - navigation.tracking
   highlightjs: true
   hljs_languages:
       - yaml
@@ -62,7 +67,11 @@ markdown_extensions:
       anchor_linenums: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - toc:
       permalink: true
 
