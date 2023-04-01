@@ -1,7 +1,7 @@
 use anyhow::Result;
 use aws_sdk_autoscaling::Client as AsgClient;
 use aws_sdk_ec2::Client as Ec2Client;
-use aws_sdk_eks::{model::Cluster, Client as EksClient};
+use aws_sdk_eks::{types::Cluster, Client as EksClient};
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 

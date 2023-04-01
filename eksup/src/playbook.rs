@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs};
 
 use anyhow::Result;
-use aws_sdk_eks::model::Cluster;
+use aws_sdk_eks::types::Cluster;
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};

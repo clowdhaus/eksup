@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use aws_sdk_autoscaling::model::AutoScalingGroup;
+use aws_sdk_autoscaling::types::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{
-  model::{Addon, Cluster, Nodegroup},
+  types::{Addon, Cluster, Nodegroup},
   Client as EksClient,
 };
 use itertools::Itertools;

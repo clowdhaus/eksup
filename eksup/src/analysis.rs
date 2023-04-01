@@ -1,5 +1,5 @@
-use anyhow::Result;
-use aws_sdk_eks::model::Cluster;
+use anyhow::{bail, Result};
+use aws_sdk_eks::types::Cluster;
 use serde::{Deserialize, Serialize};
 
 use crate::{eks, finding::Findings, k8s, version};
@@ -51,9 +51,19 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
   let asg_client = aws_sdk_autoscaling::Client::new(aws_shared_config);
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
   let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
-  let k8s_client = kube::Client::try_default().await?;
 
   let cluster_name = cluster.name().unwrap();
+
+  let k8s_client = match kube::Client::try_default().await {
+    Ok(client) => client,
+    Err(_) => {
+      bail!(
+        "Unable to connect to cluster. Ensure kubeconfig file is present and updated to connect to the cluster.
+      Try: aws eks update-kubeconfig --name {cluster_name}"
+      );
+    }
+  };
+
   let cluster_version = cluster.version().unwrap();
   let target_version = version::get_target_version(cluster_version)?;
 

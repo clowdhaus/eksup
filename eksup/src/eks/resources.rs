@@ -2,12 +2,12 @@ use std::collections::HashSet;
 
 use anyhow::{bail, Context, Result};
 use aws_sdk_autoscaling::{
-  model::{AutoScalingGroup, Filter as AsgFilter},
+  types::{AutoScalingGroup, Filter as AsgFilter},
   Client as AsgClient,
 };
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{
-  model::{Addon, Cluster, FargateProfile, Nodegroup},
+  types::{Addon, Cluster, FargateProfile, Nodegroup},
   Client as EksClient,
 };
 use serde::{Deserialize, Serialize};
@@ -18,12 +18,7 @@ pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
   let request = client.describe_cluster().name(name);
   let response = match request.send().await {
     Ok(response) => response,
-    Err(_) => {
-      bail!(
-        "Unable to connect to cluster. Ensure kubeconfig file is present and updated to connect to the cluster.
-      Try: aws eks update-kubeconfig --name {name}"
-      );
-    }
+    Err(_) => bail!("Unable to find cluster {name}"),
   };
 
   match response.cluster {
