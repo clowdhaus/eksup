@@ -32,7 +32,7 @@ pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
 pub(crate) struct VpcSubnet {
   pub(crate) id: String,
   pub(crate) available_ips: i32,
-  pub(crate) availablity_zone_id: String,
+  pub(crate) availability_zone_id: String,
 }
 
 /// Describe the subnets provided by ID
@@ -56,12 +56,12 @@ pub(crate) async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) 
       .map(|subnet| {
         let id = subnet.subnet_id().unwrap_or_default().to_string();
         let available_ips = subnet.available_ip_address_count.unwrap_or_default();
-        let availablity_zone_id = subnet.availability_zone_id().unwrap_or_default().to_string();
+        let availability_zone_id = subnet.availability_zone_id().unwrap_or_default().to_string();
 
         VpcSubnet {
           id,
           available_ips,
-          availablity_zone_id,
+          availability_zone_id,
         }
       })
       .collect(),

@@ -147,7 +147,7 @@ pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster)
 
   let availability_zone_ips: Vec<(String, i32)> = subnet_ips
     .iter()
-    .group_by(|subnet| subnet.availablity_zone_id.clone())
+    .group_by(|subnet| subnet.availability_zone_id.clone())
     .into_iter()
     .map(|(az, subnets)| {
       let total_ips = subnets.map(|subnet| subnet.available_ips).sum();
@@ -228,7 +228,7 @@ pub(crate) async fn pod_ips(
   Ok(
     subnet_ips
       .iter()
-      .group_by(|subnet| subnet.availablity_zone_id.clone())
+      .group_by(|subnet| subnet.availability_zone_id.clone())
       .into_iter()
       .map(|(az, subnets)| InsufficientSubnetIps {
         finding: finding.clone(),
