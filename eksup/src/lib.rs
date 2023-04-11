@@ -12,6 +12,7 @@ use anyhow::{Context, Result};
 use aws_config::meta::region::RegionProviderChain;
 use aws_types::region::Region;
 use clap::{Args, Parser, Subcommand};
+use clap_verbosity_flag::Verbosity;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
@@ -20,6 +21,9 @@ use serde::{Deserialize, Serialize};
 pub struct Cli {
   #[command(subcommand)]
   pub commands: Commands,
+
+  #[clap(flatten)]
+  pub verbose: Verbosity,
 }
 
 #[derive(Debug, Subcommand)]

@@ -1,6 +1,6 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, process::exit};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use aws_sdk_autoscaling::{
   types::{AutoScalingGroup, Filter as AsgFilter},
   Client as AsgClient,
@@ -12,18 +12,22 @@ use aws_sdk_eks::{
 };
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
+use tracing::error;
 
 /// Describe the cluster to get its full details
 pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
   let request = client.describe_cluster().name(name);
   let response = match request.send().await {
     Ok(response) => response,
-    Err(_) => bail!("Unable to find cluster {name}"),
+    Err(_) => {
+      error!("Cluster {name} not found");
+      exit(1)
+    }
   };
 
   match response.cluster {
     Some(cluster) => Ok(cluster),
-    None => bail!("Cluster {name} not found"),
+    None => exit(1),
   }
 }
 
@@ -133,9 +137,12 @@ pub(crate) async fn get_addon_versions(
   let latest_version = match addon.addon_versions() {
     Some(versions) => match versions.first() {
       Some(version) => version.addon_version().unwrap_or_default(),
-      None => bail!("No addon versions found for addon {}", name),
+      None => {
+        error!("No addon versions found for addon {name}");
+        exit(1)
+      }
     },
-    None => bail!("No addon versions found for addon {}", name),
+    None => exit(1),
   };
 
   // The default version as specified by the EKS API for a given addon and Kubernetes version
@@ -303,9 +310,12 @@ pub(crate) async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<
 
       match lt {
         Some(t) => Ok(t),
-        None => bail!("Unable to find launch template with id: {id}"),
+        None => {
+          error!("Unable to find launch template with id: {id}");
+          exit(1)
+        }
       }
     }
-    None => bail!("Unable to find launch template with id: {id}"),
+    None => exit(1),
   }
 }

@@ -32,6 +32,7 @@ aws-sdk-ec2 = "0.25"
 aws-sdk-eks = "0.25"
 aws-types = "0.55"
 clap = { version = "4.0", features = ["derive", "string"] }
+clap-verbosity-flag = "2.0"
 handlebars = { version = "4.3", features = ["rust-embed"] }
 itertools = "0.10"
 # https://kube.rs/kubernetes-version/
@@ -45,4 +46,6 @@ serde_json = "1.0"
 serde_yaml = "0.9"
 tabled = "0.10"
 tokio = { version = "1.23", features = ["full"] }
-tracing = "0.1"
+tracing = {version = "0.1", features = ["log-always"] }
+tracing-log = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
