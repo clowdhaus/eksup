@@ -22,7 +22,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
 
     </details>
 
-    #### Check [[EKS003]](https://clowdhaus.github.io/eksup/checks/#eks003)
+    #### Check [[EKS003]](https://clowdhaus.github.io/eksup/info/checks/#eks003)
 {{ eks_managed_nodegroup_health }}
 
 2. Ensure the EKS managed nodegroup(s) do not have any pending updates and they are using the latest version of their respective launch templates. If the nodegroup(s) are not using the latest launch template, it is recommended to update to the latest to avoid accidentally introducing any additional and un-intended changes during the upgrade.
@@ -36,7 +36,7 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
 
     </details>
 
-    Check [[EKS006]](https://clowdhaus.github.io/eksup/checks/#eks006)
+    Check [[EKS006]](https://clowdhaus.github.io/eksup/info/checks/#eks006)
 {{ eks_managed_nodegroup_update }}
 
 ##### Upgrade
