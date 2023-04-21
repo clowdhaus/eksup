@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use tabled::{locator::ByColumnName, Disable, Margin, Style, Table, Tabled};
+use tabled::{
+  settings::{locator::ByColumnName, Disable, Margin, Style},
+  Table, Tabled,
+};
 
 use crate::{
   finding::{self, Findings},
@@ -70,7 +73,7 @@ impl Findings for Vec<VersionSkew> {
 
     let mut summary_tbl = Table::new(summary);
     summary_tbl
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Disable::column(ByColumnName::new("String")))
       .with(Disable::column(ByColumnName::new("NAME")))
       .with(Style::markdown());
@@ -78,7 +81,7 @@ impl Findings for Vec<VersionSkew> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{summary_tbl}\n\n{table}\n"))
@@ -172,7 +175,7 @@ impl Findings for Vec<MinReplicas> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -212,7 +215,7 @@ impl Findings for Vec<MinReadySeconds> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -264,7 +267,7 @@ impl Findings for Vec<PodTopologyDistribution> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -305,7 +308,7 @@ impl Findings for Vec<Probe> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -346,7 +349,7 @@ impl Findings for Vec<TerminationGracePeriod> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -387,7 +390,7 @@ impl Findings for Vec<DockerSocket> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -426,7 +429,7 @@ impl Findings for Vec<PodSecurityPolicy> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -524,7 +527,7 @@ impl Findings for Vec<KubeProxyVersionSkew> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))

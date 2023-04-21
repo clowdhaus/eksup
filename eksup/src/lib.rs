@@ -15,9 +15,36 @@ use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
 use serde::{Deserialize, Serialize};
 
+fn get_styles() -> clap::builder::Styles {
+  clap::builder::Styles::styled()
+    .header(
+      anstyle::Style::new()
+        .bold()
+        .underline()
+        .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Green))),
+    )
+    .literal(
+      anstyle::Style::new()
+        .bold()
+        .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::BrightCyan))),
+    )
+    .usage(
+      anstyle::Style::new()
+        .bold()
+        .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Green))),
+    )
+    .placeholder(
+      anstyle::Style::new()
+        .bold()
+        .underline()
+        .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Yellow))),
+    )
+}
+
 #[derive(Parser, Debug)]
 #[command(author, about, version)]
 #[command(propagate_version = true)]
+#[command(styles=get_styles())]
 pub struct Cli {
   #[command(subcommand)]
   pub commands: Commands,

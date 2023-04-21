@@ -8,7 +8,10 @@ use aws_sdk_eks::{
 use itertools::Itertools;
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
-use tabled::{locator::ByColumnName, Disable, Margin, Style, Table, Tabled};
+use tabled::{
+  settings::{locator::ByColumnName, Disable, Margin, Style},
+  Table, Tabled,
+};
 
 use crate::{
   eks::resources,
@@ -41,7 +44,7 @@ impl Findings for Vec<ClusterHealthIssue> {
 
     let mut table = Table::new(self);
     table
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -116,7 +119,7 @@ impl Findings for Vec<InsufficientSubnetIps> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -276,7 +279,7 @@ impl Findings for Vec<AddonVersionCompatibility> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -371,7 +374,7 @@ impl Findings for Vec<AddonHealthIssue> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -455,7 +458,7 @@ impl Findings for Vec<NodegroupHealthIssue> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -548,7 +551,7 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))
@@ -648,7 +651,7 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
     let mut table = Table::new(self);
     table
       .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).set_fill('\t', 'x', 'x', 'x'))
+      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
     Ok(format!("{table}\n"))

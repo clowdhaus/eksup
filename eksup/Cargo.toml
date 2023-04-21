@@ -25,13 +25,14 @@ name = "eksup"
 path = "src/main.rs"
 
 [dependencies]
+anstyle = "1.0.0"
 anyhow = "1.0"
 aws-config = "0.55"
-aws-sdk-autoscaling = "0.25"
-aws-sdk-ec2 = "0.25"
-aws-sdk-eks = "0.25"
+aws-sdk-autoscaling = "0.26"
+aws-sdk-ec2 = "0.26"
+aws-sdk-eks = "0.26"
 aws-types = "0.55"
-clap = { version = "4.0", features = ["derive", "string"] }
+clap = { version = "4.2", features = ["derive", "string", "color", "unstable-styles"] }
 clap-verbosity-flag = "2.0"
 handlebars = { version = "4.3", features = ["rust-embed"] }
 itertools = "0.10"
@@ -44,7 +45,7 @@ seq-macro = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-tabled = "0.10"
+tabled = "0.11"
 tokio = { version = "1.23", features = ["full"] }
 tracing = {version = "0.1", features = ["log-always"] }
 tracing-log = "0.1"
