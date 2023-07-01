@@ -15,6 +15,8 @@ async fn main() -> Result<()> {
 
   let subscriber = FmtSubscriber::builder()
     .with_max_level(cli.verbose.log_level_filter().as_trace())
+    .without_time()
+    .pretty()
     .finish();
   tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
