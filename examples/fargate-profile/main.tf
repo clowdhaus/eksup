@@ -19,7 +19,7 @@ data "aws_availability_zones" "available" {}
 
 locals {
   name          = "test-${basename(path.cwd)}"
-  minor_version = 23
+  minor_version = 25
   region        = "us-east-1"
 
   vpc_cidr = "10.0.0.0/16"
@@ -37,7 +37,7 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.12"
+  version = "~> 19.15"
 
   cluster_name                   = local.name
   cluster_version                = "1.${local.minor_version}"
@@ -75,7 +75,7 @@ module "eks" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 3.0"
+  version = "~> 5.0"
 
   name = local.name
   cidr = local.vpc_cidr

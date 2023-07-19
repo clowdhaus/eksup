@@ -33,7 +33,7 @@ data "aws_availability_zones" "available" {}
 
 locals {
   name          = "test-${basename(path.cwd)}"
-  minor_version = 23
+  minor_version = 25
   region        = "us-east-1"
 
   vpc_cidr_nodes = "10.0.0.0/16"
@@ -52,7 +52,7 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.12"
+  version = "~> 19.15"
 
   cluster_name                   = local.name
   cluster_version                = "1.${local.minor_version}"
@@ -60,19 +60,20 @@ module "eks" {
 
   cluster_addons = {
     coredns = {
-      # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name coredns
+      # aws eks describe-addon-versions --kubernetes-version 1.25 --addon-name coredns --query 'addons[*].addonVersions[*].addonVersion'
       addon_version = "v1.8.4-eksbuild.2"
       configuration_values = jsonencode({
         computeType = "Fargate"
       })
     }
     kube-proxy = {
-      # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name kube-proxy
-      addon_version = "v1.21.14-eksbuild.3"
+      # aws eks describe-addon-versions --kubernetes-version 1.25 --addon-name kube-proxy --query 'addons[*].addonVersions[*].addonVersion'
+      addon_version = "v1.23.15-eksbuild.1"
     }
     vpc-cni = {
-      # aws eks describe-addon-versions --kubernetes-version 1.21 --addon-name vpc-cni
-      addon_version = "v1.11.3-eksbuild.3"
+      # aws eks describe-addon-versions --kubernetes-version 1.25 --addon-name vpc-cni --query 'addons[*].addonVersions[*].addonVersion'
+      addon_version  = "v1.11.5-eksbuild.1"
+      before_compute = true
       configuration_values = jsonencode({
         env = {
           # Reference https://aws.github.io/aws-eks-best-practices/reliability/docs/networkmanagement/#cni-custom-networking
@@ -99,10 +100,10 @@ module "eks" {
   eks_managed_node_groups = {
     # This uses a custom launch template (custom as in module/user supplied)
     standard = {
-      pre_bootstrap_user_data = <<-EOT
-        #!/bin/bash
-        echo "Hello from user data!"
-      EOT
+      # pre_bootstrap_user_data = <<-EOT
+      #   #!/bin/bash
+      #   echo "Hello from user data!"
+      # EOT
 
       # To show pending changes
       update_launch_template_default_version = false
@@ -131,10 +132,10 @@ module "eks" {
     }
 
     different = {
-      pre_bootstrap_user_data = <<-EOT
-        #!/bin/bash
-        echo "Hello from user data!"
-      EOT
+      # pre_bootstrap_user_data = <<-EOT
+      #   #!/bin/bash
+      #   echo "Hello from user data!"
+      # EOT
 
       # To show pending changes
       instance_refresh                       = {}
@@ -182,7 +183,7 @@ resource "kubectl_manifest" "eni_config" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 4.0"
+  version = "~> 5.0"
 
   name = local.name
   cidr = local.vpc_cidr_nodes

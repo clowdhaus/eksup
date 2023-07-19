@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use k8s_openapi::api::{
   apps, batch,
   core::{self, v1::PodTemplateSpec},
@@ -10,6 +10,7 @@ use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
+use tracing::warn;
 
 use crate::{finding, k8s::checks, version};
 
@@ -71,7 +72,7 @@ pub struct Node {
 
 pub async fn get_nodes(client: &Client) -> Result<Vec<Node>> {
   let api: Api<core::v1::Node> = Api::all(client.to_owned());
-  let node_list = api.list(&Default::default()).await?;
+  let node_list = api.list(&Default::default()).await.context("Failed to list Nodes")?;
 
   Ok(
     node_list
@@ -99,14 +100,23 @@ pub async fn get_nodes(client: &Client) -> Result<Vec<Node>> {
 /// available IPs in the subnet(s) when custom networking is enabled
 pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
   let api = Api::<ENIConfig>::all(client.to_owned());
-  let eniconfigs: Vec<ENIConfig> = api.list(&Default::default()).await?.items;
+  let eniconfigs = match api.list(&Default::default()).await {
+    Ok(eniconfigs) => eniconfigs.items,
+    Err(_) => {
+      warn!("Failed to list ENIConfigs");
+      vec![]
+    },
+  };
 
   Ok(eniconfigs)
 }
 
 async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::Deployment> = Api::all(client.to_owned());
-  let deployment_list = api.list(&Default::default()).await?;
+  let deployment_list = api
+    .list(&Default::default())
+    .await
+    .context("Failed to list Deployments")?;
 
   let deployments = deployment_list
     .items
@@ -143,7 +153,10 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::ReplicaSet> = Api::all(client.to_owned());
-  let replicaset_list = api.list(&Default::default()).await?;
+  let replicaset_list = api
+    .list(&Default::default())
+    .await
+    .context("Failed to list ReplicaSets")?;
 
   let replicasets = replicaset_list
     .items
@@ -183,7 +196,10 @@ async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::StatefulSet> = Api::all(client.to_owned());
-  let statefulset_list = api.list(&Default::default()).await?;
+  let statefulset_list = api
+    .list(&Default::default())
+    .await
+    .context("Failed to list StatefulSets")?;
 
   let statefulsets = statefulset_list
     .items
@@ -220,7 +236,10 @@ async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::DaemonSet> = Api::all(client.to_owned());
-  let daemonset_list = api.list(&Default::default()).await?;
+  let daemonset_list = api
+    .list(&Default::default())
+    .await
+    .context("Failed to list DaemonSets")?;
 
   let daemonsets = daemonset_list
     .items
@@ -257,7 +276,7 @@ async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::Job> = Api::all(client.to_owned());
-  let job_list = api.list(&Default::default()).await?;
+  let job_list = api.list(&Default::default()).await.context("Failed to list Jobs")?;
 
   let jobs = job_list
     .items
@@ -297,7 +316,7 @@ async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::CronJob> = Api::all(client.to_owned());
-  let cronjob_list = api.list(&Default::default()).await?;
+  let cronjob_list = api.list(&Default::default()).await.context("Failed to list CronJobs")?;
 
   let cronjobs = cronjob_list
     .items
@@ -344,9 +363,19 @@ async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
 pub(crate) async fn get_podsecuritypolicies(
   client: &Client,
   target_version: &str,
+  current_version: &str,
 ) -> Result<Vec<checks::PodSecurityPolicy>> {
+  let current_version = version::parse_minor(current_version)?;
+  if current_version <= 25 {
+    // Pod Security Policy support is removed starting in 1.25
+    return Ok(vec![]);
+  }
+
   let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.to_owned());
-  let psp_list = api.list(&Default::default()).await?;
+  let psp_list = api
+    .list(&Default::default())
+    .await
+    .context("Failed to list PodSecurityPolicies")?;
 
   let target_version = version::parse_minor(target_version)?;
   let remediation = if target_version >= 25 {
@@ -456,7 +485,7 @@ impl checks::K8sFindings for StdResource {
   fn min_ready_seconds(&self) -> Option<checks::MinReadySeconds> {
     let resource = self.get_resource();
 
-    if vec![Kind::CronJob, Kind::DaemonSet, Kind::Job].contains(&resource.kind) {
+    if [Kind::CronJob, Kind::DaemonSet, Kind::Job].contains(&resource.kind) {
       return None;
     }
 
