@@ -27,25 +27,25 @@ path = "src/main.rs"
 [dependencies]
 anstyle = "1.0.0"
 anyhow = "1.0"
-aws-config = "0.55"
-aws-sdk-autoscaling = "0.28"
-aws-sdk-ec2 = "0.28"
-aws-sdk-eks = "0.28"
-aws-types = "0.55"
+aws-config = "0.56"
+aws-sdk-autoscaling = "0.29"
+aws-sdk-ec2 = "0.29"
+aws-sdk-eks = "0.29"
+aws-types = "0.56"
 clap = { version = "4.2", features = ["derive", "string", "color", "unstable-styles"] }
 clap-verbosity-flag = "2.0"
 handlebars = { version = "4.3", features = ["rust-embed"] }
 itertools = "0.11"
 # https://kube.rs/kubernetes-version/
-k8s-openapi = { version = "0.18.0", default-features = false, features = ["v1_23"] }
-kube = { version = "0.84.0", default-features = false, features = [ "client", "derive", "rustls-tls" ] }
+k8s-openapi = { version = "0.19.0", default-features = false, features = ["v1_23"] }
+kube = { version = "0.85.0", default-features = false, features = [ "client", "derive", "rustls-tls" ] }
 rust-embed = { version = "6.4", features = ["compression"] }
 schemars = "0.8"
 seq-macro = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-tabled = "0.12"
+tabled = "0.14"
 tokio = { version = "1.23", features = ["full"] }
 tracing = {version = "0.1", features = ["log-always"] }
 tracing-log = "0.1"

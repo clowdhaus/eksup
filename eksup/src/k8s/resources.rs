@@ -105,7 +105,7 @@ pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
     Err(_) => {
       warn!("Failed to list ENIConfigs");
       vec![]
-    },
+    }
   };
 
   Ok(eniconfigs)
