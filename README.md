@@ -30,7 +30,7 @@ git clone https://github.com/clowdhaus/eksup
 cd eksup
 cargo build --release
 ./target/release/eksup --version
-0.3.2
+0.3.3
 ```
 
 ## Local Development

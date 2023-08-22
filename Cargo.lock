@@ -791,7 +791,7 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "eksup"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anstyle",
  "anyhow",
