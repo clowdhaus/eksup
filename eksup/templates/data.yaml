@@ -27,7 +27,7 @@
     deprecation_url: https://kubernetes.io/docs/reference/using-api/deprecation-guide/#v1-27
 
 '1.28':
-    release_url: TBD
+    release_url: https://kubernetes.io/blog/2023/08/15/kubernetes-v1-28-release/
 
 '1.29':
     release_url: TBD

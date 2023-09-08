@@ -28,18 +28,18 @@ path = "src/main.rs"
 anstyle = "1.0.0"
 anyhow = "1.0"
 aws-config = "0.56"
-aws-sdk-autoscaling = "0.29"
-aws-sdk-ec2 = "0.29"
-aws-sdk-eks = "0.29"
+aws-sdk-autoscaling = "0.30"
+aws-sdk-ec2 = "0.30"
+aws-sdk-eks = "0.30"
 aws-types = "0.56"
 clap = { version = "4.2", features = ["derive", "string", "color", "unstable-styles"] }
 clap-verbosity-flag = "2.0"
 handlebars = { version = "4.3", features = ["rust-embed"] }
 itertools = "0.11"
 # https://kube.rs/kubernetes-version/
-k8s-openapi = { version = "0.19.0", default-features = false, features = ["v1_23"] }
-kube = { version = "0.85.0", default-features = false, features = [ "client", "derive", "rustls-tls" ] }
-rust-embed = { version = "6.4", features = ["compression"] }
+k8s-openapi = { version = "0.20.0", default-features = false, features = ["v1_23"] }
+kube = { version = "0.86.0", default-features = false, features = [ "client", "derive", "rustls-tls" ] }
+rust-embed = { version = "8.0", features = ["compression"] }
 schemars = "0.8"
 seq-macro = "0.3"
 serde = { version = "1.0", features = ["derive"] }
