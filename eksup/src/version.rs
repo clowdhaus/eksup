@@ -14,7 +14,7 @@ pub struct Versions {
   pub target: String,
 }
 
-seq!(N in 20..=28 {
+seq!(N in 22..=28 {
     /// Kubernetes version(s) supported
     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
     pub enum KubernetesVersion {
