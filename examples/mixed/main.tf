@@ -33,7 +33,7 @@ data "aws_availability_zones" "available" {}
 
 locals {
   name          = "test-${basename(path.cwd)}"
-  minor_version = 25
+  minor_version = 27
   region        = "us-east-1"
 
   vpc_cidr_nodes = "10.0.0.0/16"
@@ -52,7 +52,7 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.15"
+  version = "~> 19.16"
 
   cluster_name                   = local.name
   cluster_version                = "1.${local.minor_version}"
@@ -60,19 +60,19 @@ module "eks" {
 
   cluster_addons = {
     coredns = {
-      # aws eks describe-addon-versions --kubernetes-version 1.25 --addon-name coredns --query 'addons[*].addonVersions[*].addonVersion'
-      addon_version = "v1.8.4-eksbuild.2"
+      # aws eks describe-addon-versions --kubernetes-version 1.27 --addon-name coredns --query 'addons[*].addonVersions[*].addonVersion'
+      addon_version = "v1.9.3-eksbuild.3"
       configuration_values = jsonencode({
         computeType = "Fargate"
       })
     }
     kube-proxy = {
-      # aws eks describe-addon-versions --kubernetes-version 1.25 --addon-name kube-proxy --query 'addons[*].addonVersions[*].addonVersion'
-      addon_version = "v1.23.15-eksbuild.1"
+      # aws eks describe-addon-versions --kubernetes-version 1.27 --addon-name kube-proxy --query 'addons[*].addonVersions[*].addonVersion'
+      addon_version = "v1.25.6-eksbuild.2"
     }
     vpc-cni = {
-      # aws eks describe-addon-versions --kubernetes-version 1.25 --addon-name vpc-cni --query 'addons[*].addonVersions[*].addonVersion'
-      addon_version  = "v1.11.5-eksbuild.1"
+      # aws eks describe-addon-versions --kubernetes-version 1.27 --addon-name vpc-cni --query 'addons[*].addonVersions[*].addonVersion'
+      addon_version  = "v1.12.5-eksbuild.2"
       before_compute = true
       configuration_values = jsonencode({
         env = {

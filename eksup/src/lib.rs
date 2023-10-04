@@ -116,11 +116,17 @@ pub struct Playbook {
   // pub ignore_recommended: bool,
 }
 
-/// Someting TODO
 pub async fn analyze(args: &Analysis) -> Result<()> {
   let aws_config = get_config(&args.region.to_owned()).await?;
   let eks_client = aws_sdk_eks::Client::new(&aws_config);
   let cluster = eks::get_cluster(&eks_client, &args.cluster).await?;
+  let cluster_version = cluster.version().context("Cluster version not found")?;
+
+  if version::LATEST.eq(cluster_version) {
+    println!("Cluster is already at the latest supported version: {cluster_version}");
+    println!("Nothing to upgrade at this time");
+    return Ok(());
+  }
 
   // All checks and validations on input should happen above/before running the analysis
   let results = analysis::analyze(&aws_config, &cluster).await?;
@@ -141,7 +147,6 @@ async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig> {
   Ok(aws_config::from_env().region(region_provider).load().await)
 }
 
-/// Someting TODO
 pub async fn create(args: &Create) -> Result<()> {
   match &args.command {
     CreateCommands::Playbook(playbook) => {
