@@ -1,6 +1,6 @@
 [package]
 name = "eksup"
-version = "0.3.3"
+version = "0.4.0"
 authors = ["Bryant Biggs <bryantbiggs@gmail.com>"]
 description = "A CLI to aid in upgrading Amazon EKS clusters"
 documentation = "https://github.com/clowdhaus/eksup"
