@@ -366,7 +366,7 @@ pub(crate) async fn get_podsecuritypolicies(
   current_version: &str,
 ) -> Result<Vec<checks::PodSecurityPolicy>> {
   let current_version = version::parse_minor(current_version)?;
-  if current_version <= 25 {
+  if current_version >= 25 {
     // Pod Security Policy support is removed starting in 1.25
     return Ok(vec![]);
   }
