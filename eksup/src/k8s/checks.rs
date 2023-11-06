@@ -468,7 +468,7 @@ pub async fn kube_proxy_version_skew(
     .iter()
     .filter(|r| r.metadata.kind == resources::Kind::DaemonSet && r.metadata.name == "kube-proxy")
     .collect::<Vec<_>>()
-    .get(0)
+    .first()
   {
     Some(k) => k.to_owned(),
     None => {

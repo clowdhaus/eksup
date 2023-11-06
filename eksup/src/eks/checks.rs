@@ -67,33 +67,31 @@ pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealt
   let health = cluster.health();
 
   match health {
-    Some(health) => match health.issues() {
-      Some(issues) => Ok(
-        issues
-          .iter()
-          .filter_map(|issue| {
-            issue.code.as_ref().map(|_| {
-              let code = &issue.code().unwrap().to_owned();
+    Some(health) => Ok(
+      health
+        .issues()
+        .iter()
+        .filter_map(|issue| {
+          issue.code.as_ref().map(|_| {
+            let code = &issue.code().unwrap().to_owned();
 
-              let remediation = finding::Remediation::Required;
-              let finding = finding::Finding {
-                code: finding::Code::EKS002,
-                symbol: remediation.symbol(),
-                remediation,
-              };
+            let remediation = finding::Remediation::Required;
+            let finding = finding::Finding {
+              code: finding::Code::EKS002,
+              symbol: remediation.symbol(),
+              remediation,
+            };
 
-              ClusterHealthIssue {
-                finding,
-                code: code.as_str().to_string(),
-                message: issue.message().unwrap_or_default().to_string(),
-                resource_ids: issue.resource_ids().unwrap_or_default().to_owned(),
-              }
-            })
+            ClusterHealthIssue {
+              finding,
+              code: code.as_str().to_string(),
+              message: issue.message().unwrap_or_default().to_string(),
+              resource_ids: issue.resource_ids().to_owned(),
+            }
           })
-          .collect(),
-      ),
-      None => Ok(vec![]),
-    },
+        })
+        .collect(),
+    ),
     None => Ok(vec![]),
   }
 }
@@ -139,10 +137,7 @@ impl Findings for Vec<InsufficientSubnetIps> {
 
 pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster) -> Result<Vec<InsufficientSubnetIps>> {
   let subnet_ids = match cluster.resources_vpc_config() {
-    Some(vpc_config) => match vpc_config.subnet_ids() {
-      Some(subnet_ids) => subnet_ids.to_owned(),
-      None => return Ok(vec![]),
-    },
+    Some(vpc_config) => vpc_config.subnet_ids().to_owned(),
     None => return Ok(vec![]),
   };
 
@@ -399,32 +394,30 @@ pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssu
       let name = addon.addon_name().unwrap_or_default();
 
       match addon.health() {
-        Some(health) => match health.issues() {
-          Some(issues) => issues
-            .iter()
-            .filter_map(|issue| {
-              issue.code.as_ref().map(|_| {
-                let code = issue.code().unwrap();
+        Some(health) => health
+          .issues()
+          .iter()
+          .filter_map(|issue| {
+            issue.code.as_ref().map(|_| {
+              let code = issue.code().unwrap();
 
-                let remediation = finding::Remediation::Required;
-                let finding = finding::Finding {
-                  code: finding::Code::EKS004,
-                  symbol: remediation.symbol(),
-                  remediation,
-                };
+              let remediation = finding::Remediation::Required;
+              let finding = finding::Finding {
+                code: finding::Code::EKS004,
+                symbol: remediation.symbol(),
+                remediation,
+              };
 
-                AddonHealthIssue {
-                  finding,
-                  name: name.to_owned(),
-                  code: code.as_str().to_string(),
-                  message: issue.message().unwrap_or_default().to_owned(),
-                  resource_ids: issue.resource_ids().unwrap_or_default().to_owned(),
-                }
-              })
+              AddonHealthIssue {
+                finding,
+                name: name.to_owned(),
+                code: code.as_str().to_string(),
+                message: issue.message().unwrap_or_default().to_owned(),
+                resource_ids: issue.resource_ids().to_owned(),
+              }
             })
-            .collect::<Vec<AddonHealthIssue>>(),
-          None => vec![],
-        },
+          })
+          .collect::<Vec<AddonHealthIssue>>(),
         None => vec![],
       }
     })
@@ -484,31 +477,29 @@ pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Re
       let name = nodegroup.nodegroup_name().unwrap_or_default();
 
       match nodegroup.health() {
-        Some(health) => match health.issues() {
-          Some(issues) => issues
-            .iter()
-            .filter_map(|issue| {
-              issue.code.as_ref().map(|_| {
-                let code = &issue.code().unwrap().to_owned();
+        Some(health) => health
+          .issues()
+          .iter()
+          .filter_map(|issue| {
+            issue.code.as_ref().map(|_| {
+              let code = &issue.code().unwrap().to_owned();
 
-                let remediation = finding::Remediation::Required;
-                let finding = finding::Finding {
-                  code: finding::Code::EKS003,
-                  symbol: remediation.symbol(),
-                  remediation,
-                };
+              let remediation = finding::Remediation::Required;
+              let finding = finding::Finding {
+                code: finding::Code::EKS003,
+                symbol: remediation.symbol(),
+                remediation,
+              };
 
-                NodegroupHealthIssue {
-                  finding,
-                  name: name.to_owned(),
-                  code: code.as_str().to_string(),
-                  message: issue.message().unwrap_or_default().to_owned(),
-                }
-              })
+              NodegroupHealthIssue {
+                finding,
+                name: name.to_owned(),
+                code: code.as_str().to_string(),
+                message: issue.message().unwrap_or_default().to_owned(),
+              }
             })
-            .collect::<Vec<NodegroupHealthIssue>>(),
-          None => vec![],
-        },
+          })
+          .collect::<Vec<NodegroupHealthIssue>>(),
         None => vec![],
       }
     })
@@ -588,12 +579,8 @@ pub(crate) async fn eks_managed_nodegroup_update(
 
       match nodegroup.resources() {
         Some(resources) => {
-          let asgs = match resources.auto_scaling_groups() {
-            Some(groups) => groups,
-            None => return Ok(vec![]),
-          };
-
-          let updates = asgs
+          let updates = resources
+            .auto_scaling_groups()
             .iter()
             .map(|asg| {
               let remediation = finding::Remediation::Recommended;

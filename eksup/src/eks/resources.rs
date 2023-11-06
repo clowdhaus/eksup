@@ -133,43 +133,31 @@ pub(crate) async fn get_addon_versions(
     .await?;
 
   // Since we are providing an addon name, we are only concerned with the first and only item
-  let addon = describe.addons().unwrap_or_default().get(0).unwrap();
-  let latest_version = match addon.addon_versions() {
-    Some(versions) => match versions.first() {
-      Some(version) => version.addon_version().unwrap_or_default(),
-      None => {
-        error!("No addon versions found for addon {name}");
-        exit(1)
-      }
-    },
-    None => exit(1),
+  let addon = describe.addons().first().unwrap();
+  let latest_version = match addon.addon_versions().first() {
+    Some(version) => version.addon_version().unwrap_or_default(),
+    None => {
+      error!("No addon versions found for addon {name}");
+      exit(1)
+    }
   };
 
   // The default version as specified by the EKS API for a given addon and Kubernetes version
-  let default_version = match addon.addon_versions() {
-    Some(versions) => versions
-      .iter()
-      .filter(|v| {
-        v.compatibilities()
-          .unwrap_or_default()
-          .iter()
-          .any(|c| c.default_version)
-      })
-      .map(|v| v.addon_version().unwrap_or_default())
-      .next()
-      .unwrap_or_default(),
-    None => "",
-  };
+  let default_version = addon
+    .addon_versions()
+    .iter()
+    .filter(|v| v.compatibilities().iter().any(|c| c.default_version))
+    .map(|v| v.addon_version().unwrap_or_default())
+    .next()
+    .unwrap_or_default();
 
   // Get the list of ALL supported version for this addon and Kubernetes version
   // The results maintain the oder of latest version to oldest
-  let supported_versions: HashSet<String> = match addon.addon_versions() {
-    Some(versions) => versions
-      .iter()
-      .map(|v| v.addon_version().unwrap_or_default().to_owned())
-      .collect(),
-    None => HashSet::new(),
-  };
+  let supported_versions: HashSet<String> = addon
+    .addon_versions()
+    .iter()
+    .map(|v| v.addon_version().unwrap_or_default().to_owned())
+    .collect();
 
   Ok(AddonVersion {
     latest: latest_version.to_owned(),
@@ -220,26 +208,22 @@ pub async fn get_self_managed_nodegroups(client: &AsgClient, cluster_name: &str)
     .build();
 
   let response = client.describe_auto_scaling_groups().filters(filter).send().await?;
-  let groups = response.auto_scaling_groups().map(|groups| groups.to_vec());
+  let groups = response.auto_scaling_groups().to_owned();
 
   // Filter out EKS managed node groups by the EKS MNG applied tag
-  match groups {
-    Some(groups) => {
-      let filtered = groups
-        .into_iter()
-        .filter(|group| {
-          group
-            .tags()
-            .unwrap_or_default()
-            .iter()
-            .all(|tag| tag.key().unwrap_or_default() != "eks:nodegroup-name")
-        })
-        .collect();
+  let filtered = groups.iter().filter(|group| {
+    group
+      .tags()
+      .iter()
+      .all(|tag| tag.key().unwrap_or_default() != "eks:nodegroup-name")
+  });
 
-      Ok(filtered)
-    }
-    None => Ok(vec![]),
+  let mut result: Vec<AutoScalingGroup> = Vec::new();
+  for f in filtered {
+    result.push(f.to_owned());
   }
+
+  Ok(result)
 }
 
 pub async fn get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Result<Vec<FargateProfile>> {
