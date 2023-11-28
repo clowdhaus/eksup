@@ -462,7 +462,7 @@ impl checks::K8sFindings for StdResource {
 
     match replicas {
       Some(replicas) => {
-        if replicas < 3 {
+        if replicas < 3 && replicas > 0 {
           let remediation = finding::Remediation::Required;
           let finding = finding::Finding {
             code: finding::Code::K8S002,

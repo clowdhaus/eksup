@@ -83,3 +83,51 @@ spec:
         - name: tmp
           hostPath:
             path: /tmp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ignored-dpl
+  namespace: deployment
+  labels:
+    app: ignored-dpl
+spec:
+  replicas: 0
+  minReadySeconds: 0
+  selector:
+    matchLabels:
+      app: ignored-dpl
+  template:
+    metadata:
+      labels:
+        app: ignored-dpl
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          whenUnsatisfiable: ScheduleAnyway
+          topologyKey: topology.kubernetes.io/zone
+          labelSelector:
+            matchLabels:
+              app: ignored-dpl
+      containers:
+        - name: goproxy
+          image: registry.k8s.io/goproxy:0.1
+          ports:
+          - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          hostPath:
+            path: /tmp
