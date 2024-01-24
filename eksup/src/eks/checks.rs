@@ -9,7 +9,7 @@ use itertools::Itertools;
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 use tabled::{
-  settings::{locator::ByColumnName, Disable, Margin, Style},
+  settings::{location::ByColumnName, Disable, Margin, Style},
   Table, Tabled,
 };
 

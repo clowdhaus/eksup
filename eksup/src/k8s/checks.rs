@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tabled::{
-  settings::{locator::ByColumnName, Disable, Margin, Style},
+  settings::{location::ByColumnName, Disable, Margin, Style},
   Table, Tabled,
 };
 
