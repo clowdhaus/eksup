@@ -6,7 +6,7 @@ use seq_macro::seq;
 use serde::{Deserialize, Serialize};
 
 /// Latest support version
-pub const LATEST: &str = "1.29";
+pub const LATEST: &str = "1.30";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Versions {
