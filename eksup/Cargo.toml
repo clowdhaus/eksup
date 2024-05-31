@@ -35,10 +35,10 @@ aws-types = "1.1"
 clap = { version = "4.5", features = ["derive", "string", "color", "unstable-styles"] }
 clap-verbosity-flag = "2.1"
 handlebars = { version = "5.1", features = ["rust-embed"] }
-itertools = "0.12"
+itertools = "0.13"
 # https://kube.rs/kubernetes-version/
-k8s-openapi = { version = "0.21.1", default-features = false, features = ["earliest"] }
-kube = { version = "0.90", default-features = false, features = [ "client", "derive", "rustls-tls" ] }
+k8s-openapi = { version = "0.22.0", default-features = false, features = ["earliest"] }
+kube = { version = "0.91", default-features = false, features = [ "client", "derive", "rustls-tls" ] }
 rust-embed = { version = "8.2", features = ["compression"] }
 schemars = "0.8"
 seq-macro = "0.3"
