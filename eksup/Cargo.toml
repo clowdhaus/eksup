@@ -50,3 +50,6 @@ tokio = { version = "1.36", default-features = false, features = ["macros", "rt-
 tracing = {version = "0.1", features = ["log-always"] }
 tracing-log = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin_include)"] }

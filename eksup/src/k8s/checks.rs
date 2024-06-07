@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -110,27 +110,13 @@ pub async fn version_skew(nodes: &[resources::Node], cluster_version: &str) -> R
       continue;
     }
 
-    // Prior to upgrade, the node version should not be more than 1 version behind
-    // the control plane version. If it is, the node must be upgraded before
+    // Prior to upgrade, the node version (kubelet) should not be more than 3 version behind
+    // the control plane version (api server). If it is, the node must be upgraded before
     // attempting the cluster upgrade
-    let mut remediation = match version_skew {
-      1 => finding::Remediation::Recommended,
+    let remediation = match version_skew {
+      1 | 2 => finding::Remediation::Recommended,
       _ => finding::Remediation::Required,
     };
-
-    if let Some(labels) = &node.labels {
-      if labels.contains_key("eks.amazonaws.com/nodegroup") {
-        // Nodes created by EKS managed nodegroups are required to match control plane
-        // before the control plane will permit an upgrade
-        remediation = finding::Remediation::Required;
-      }
-    }
-
-    if node.name.starts_with("fargate-") {
-      // Nodes created by EKS Fargate are required to match control plane
-      // before the control plane will permit an upgrade
-      remediation = finding::Remediation::Required;
-    }
 
     let finding = finding::Finding {
       code: finding::Code::K8S001,
@@ -452,8 +438,8 @@ impl Findings for Vec<PodSecurityPolicy> {
 pub struct KubeProxyVersionSkew {
   #[tabled(inline)]
   pub finding: finding::Finding,
-  #[tabled(rename = "KUBELET")]
-  pub kubelet_version: String,
+  #[tabled(rename = "API SERVER")]
+  pub api_server_version: String,
   #[tabled(rename = "KUBE PROXY")]
   pub kube_proxy_version: String,
   #[tabled(rename = "SKEW")]
@@ -461,8 +447,8 @@ pub struct KubeProxyVersionSkew {
 }
 
 pub async fn kube_proxy_version_skew(
-  nodes: &[resources::Node],
   resources: &[resources::StdResource],
+  cluster_version: &str,
 ) -> Result<Vec<KubeProxyVersionSkew>> {
   let kube_proxy = match resources
     .iter()
@@ -490,30 +476,31 @@ pub async fn kube_proxy_version_skew(
     .next()
     .context("Unable to find image version for kube-proxy")?;
 
-  let findings = nodes
-    .iter()
-    .map(|node| node.minor_version)
-    .collect::<HashSet<_>>()
-    .into_iter()
-    .filter(|node_ver| node_ver != &kproxy_minor_version)
-    .map(|node_ver| {
-      let remediation = finding::Remediation::Required;
-      let finding = finding::Finding {
-        code: finding::Code::K8S011,
-        symbol: remediation.symbol(),
-        remediation,
-      };
+  let control_plane_minor_version = version::parse_minor(cluster_version)?;
+  let version_skew = control_plane_minor_version - kproxy_minor_version;
+  if version_skew == 0 {
+    return Ok(vec![]);
+  }
 
-      KubeProxyVersionSkew {
-        finding,
-        kubelet_version: format!("v1.{node_ver}"),
-        kube_proxy_version: format!("v1.{kproxy_minor_version}"),
-        version_skew: format!("{}", kproxy_minor_version - node_ver),
-      }
-    })
-    .collect();
+  // Prior to upgrade, kube-proxy should not be more than 3 version behind
+  // the api server. If it is, kube-proxy must be upgraded before attempting the cluster upgrade
+  let remediation = match version_skew {
+    1 | 2 => finding::Remediation::Recommended,
+    _ => finding::Remediation::Required,
+  };
 
-  Ok(findings)
+  let finding = finding::Finding {
+    code: finding::Code::K8S011,
+    symbol: remediation.symbol(),
+    remediation,
+  };
+
+  Ok(vec![KubeProxyVersionSkew {
+    finding,
+    api_server_version: format!("v1.{control_plane_minor_version}"),
+    kube_proxy_version: format!("v1.{kproxy_minor_version}"),
+    version_skew: format!("{}", version_skew),
+  }])
 }
 
 impl Findings for Vec<KubeProxyVersionSkew> {
