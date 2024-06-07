@@ -142,13 +142,13 @@ Table below shows the checks that are applicable, or not, to the respective Kube
 
 The version skew between the control plane (API Server) and the data plane (kubelet) violates the Kubernetes version skew policy, or will violate the version skew policy after the control plane has been upgraded.
 
-The data plane nodes must be upgraded to at least within 1 minor version of the control plane version in order to stay within the version skew policy through the upgrade; it is recommended to upgrade the data plane nodes to the same version as the control plane.
+The data plane nodes must be upgraded to at least within 3 minor versions of the control plane version in order to stay within the version skew policy through the upgrade; it is recommended to upgrade the data plane nodes to the same version as the control plane.
 
 **⚠️ Remediation recommended**
 
 There is a version skew between the control plane (API Server) and the data plane (kubelet).
 
-While Kubernetes does support a version skew of n-2 between the API Server and kubelet, it is recommended to upgrade the data plane nodes to the same version as the control plane.
+While Kubernetes does support a version skew of n-3 between the API Server and kubelet, it is recommended to upgrade the data plane nodes to the same version as the control plane.
 
 [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/#supported-version-skew)
 
@@ -281,9 +281,8 @@ For clusters on Kubernetes <`v1.21`
 
 `kube-proxy` on an Amazon EKS cluster has the same [compatibility and skew policy as Kubernetes](https://kubernetes.io/releases/version-skew-policy/#kube-proxy)
 
-- It must be the same minor version as kubelet on your Amazon EC2 nodes
 - It cannot be newer than the minor version of your cluster's control plane
-- Its version on your Amazon EC2 nodes can't be more than two minor versions older than your control plane. For example, if your control plane is running Kubernetes `1.25`, then the kube-proxy minor version cannot be older than `1.23`
+- Its version cannot be more than three minor versions older than your control plane (API server). For example, if your control plane is running Kubernetes `1.25`, then the kube-proxy minor version cannot be older than `1.22`
 
 If you recently updated your cluster to a new Kubernetes minor version, then update your Amazon EC2 nodes (i.e. - `kubelet`) to the same minor version before updating `kube-proxy` to the same minor version as your nodes. The order of operations during an upgrade are as follows:
 

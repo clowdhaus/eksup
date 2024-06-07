@@ -37,7 +37,7 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.15"
+  version = "~> 20.13"
 
   cluster_name                   = local.name
   cluster_version                = "1.${local.minor_version}"

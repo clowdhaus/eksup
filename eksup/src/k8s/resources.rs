@@ -432,7 +432,8 @@ pub struct StdMetadata {
 /// we are inspecting for finding violations
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StdSpec {
-  /// Minimum number of seconds for which a newly created pod should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)
+  /// Minimum number of seconds for which a newly created pod should be ready without any of its container crashing,
+  /// for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)
   pub min_ready_seconds: Option<i32>,
 
   /// Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.
@@ -462,6 +463,10 @@ impl checks::K8sFindings for StdResource {
 
     match replicas {
       Some(replicas) => {
+        // CoreDNS defaults to 2 replicas
+        if self.metadata.name.contains("coredns") && replicas >= 2 {
+          return None;
+        }
         if replicas < 3 && replicas > 0 {
           let remediation = finding::Remediation::Required;
           let finding = finding::Finding {
