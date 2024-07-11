@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
     .finish();
   tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
-  match &cli.commands {
+  match cli.commands {
     Commands::Analyze(args) => analyze(args).await?,
     Commands::Create(args) => create(args).await?,
   }

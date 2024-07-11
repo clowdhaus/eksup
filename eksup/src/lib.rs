@@ -9,7 +9,7 @@ mod version;
 use std::{env, process, str};
 
 use anyhow::{Context, Result};
-use aws_config::meta::region::RegionProviderChain;
+use aws_config::default_provider::{credentials::DefaultCredentialsChain, region::DefaultRegionChain};
 use aws_types::region::Region;
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
@@ -72,6 +72,10 @@ pub struct Analysis {
   #[arg(short, long)]
   pub region: Option<String>,
 
+  /// The AWS profile to use to access the cluster
+  #[arg(short, long)]
+  pub profile: Option<String>,
+
   #[arg(short, long, value_enum, default_value_t)]
   pub format: output::Format,
 
@@ -108,6 +112,10 @@ pub struct Playbook {
   #[arg(short, long)]
   pub region: Option<String>,
 
+  /// The AWS profile to use to access the cluster
+  #[arg(short, long)]
+  pub profile: Option<String>,
+
   /// Name of the playbook saved locally
   #[arg(short, long)]
   pub filename: Option<String>,
@@ -116,8 +124,8 @@ pub struct Playbook {
   // pub ignore_recommended: bool,
 }
 
-pub async fn analyze(args: &Analysis) -> Result<()> {
-  let aws_config = get_config(&args.region.to_owned()).await?;
+pub async fn analyze(args: Analysis) -> Result<()> {
+  let aws_config = get_config(&args.region, &args.profile).await?;
   let eks_client = aws_sdk_eks::Client::new(&aws_config);
   let cluster = eks::get_cluster(&eks_client, &args.cluster).await?;
   let cluster_version = cluster.version().context("Cluster version not found")?;
@@ -136,22 +144,44 @@ pub async fn analyze(args: &Analysis) -> Result<()> {
 }
 
 /// Get the configuration to authn/authz with AWS that will be used across AWS clients
-async fn get_config(region: &Option<String>) -> Result<aws_config::SdkConfig> {
-  let aws_region = match region {
-    Some(region) => Some(Region::new(region.to_owned())),
-    None => env::var("AWS_REGION").ok().map(Region::new),
+async fn get_config(region: &Option<String>, profile: &Option<String>) -> Result<aws_config::SdkConfig> {
+  let region = match profile {
+    Some(ref profile) => {
+      DefaultRegionChain::builder()
+        .profile_name(profile)
+        .build()
+        .region()
+        .await
+    }
+    None => match region {
+      Some(region) => Some(Region::new(region.to_owned())),
+      None => env::var("AWS_REGION").ok().map(Region::new),
+    },
   };
 
-  let region_provider = RegionProviderChain::first_try(aws_region).or_default_provider();
+  let mut creds = DefaultCredentialsChain::builder().region(region.clone());
 
-  Ok(aws_config::from_env().region(region_provider).load().await)
+  match profile {
+    Some(profile) => {
+      creds = creds.profile_name(profile);
+    }
+    None => {}
+  }
+
+  let config = aws_config::from_env()
+    .credentials_provider(creds.build().await)
+    .region(region)
+    .load()
+    .await;
+
+  Ok(config)
 }
 
-pub async fn create(args: &Create) -> Result<()> {
-  match &args.command {
+pub async fn create(args: Create) -> Result<()> {
+  match args.command {
     CreateCommands::Playbook(playbook) => {
       // Query Kubernetes first so that we can get AWS details that require them
-      let aws_config = get_config(&playbook.region.to_owned()).await?;
+      let aws_config = get_config(&playbook.region, &playbook.profile).await?;
       let region = aws_config.region().unwrap().to_string();
 
       let eks_client = aws_sdk_eks::Client::new(&aws_config);

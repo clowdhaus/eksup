@@ -109,7 +109,7 @@ fn char_replace(text: String) -> String {
     .replace("&#x3D;", "=")
 }
 
-pub(crate) fn create(args: &Playbook, region: String, cluster: &Cluster, analysis: analysis::Results) -> Result<()> {
+pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis: analysis::Results) -> Result<()> {
   let mut handlebars = Handlebars::new();
   handlebars.register_embed_templates::<Templates>()?;
 
