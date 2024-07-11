@@ -6,14 +6,14 @@ on:
       - "v*.*.*"
 
 jobs:
-  create-release:
+  changelog:
     name: create-release
     permissions:
       contents: write
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.release.outputs.upload_url }}
       eksup_version: ${{ env.EKSUP_VERSION }}
+      release_body: ${{ steps.git-cliff.outputs.content }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,23 +28,18 @@ jobs:
           echo "version is: ${{ env.EKSUP_VERSION }}"
 
       - name: Generate a changelog
-        id: changelog
-        uses: orhun/git-cliff-action@v2
+        uses: orhun/git-cliff-action@v3
+        id: git-cliff
         with:
-          args: --latest --strip header -o CHANGELOG.md
-
-      - name: Check release
-        run: cat CHANGELOG.md
-
-      - name: Release
-        id: release
-        uses: softprops/action-gh-release@v1
-        with:
-          body_path: CHANGELOG.md
+          config: cliff.toml
+          args: -vv --latest --strip header
+        env:
+          OUTPUT: CHANGES.md
+          GITHUB_REPO: ${{ github.repository }}
 
   build-release:
     name: build-release
-    needs: ['create-release']
+    needs: ['changelog']
     permissions:
       contents: write
     runs-on: ${{ matrix.os }}
@@ -70,11 +65,11 @@ jobs:
           rust: nightly
           target: arm-unknown-linux-gnueabihf
         - build: macos
-          os: macos-12
+          os: macos-14
           rust: nightly
           target: x86_64-apple-darwin
         - build: macos-arm
-          os: macos-12
+          os: macos-14
           rust: nightly
           target: aarch64-apple-darwin
         - build: win-msvc
@@ -116,12 +111,12 @@ jobs:
         echo "target dir is: ${{ env.TARGET_DIR }}"
 
     - name: Build release binary
-      run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
+      run: ${{ env.CARGO }} build --package eksup --verbose --release ${{ env.TARGET_FLAGS }}
 
     - name: Build archive
       shell: bash
       run: |
-        STAGING="eksup-${{ needs.create-release.outputs.eksup_version }}-${{ matrix.target }}"
+        STAGING="eksup-${{ needs.changelog.outputs.eksup_version }}-${{ matrix.target }}"
         mkdir -p "${STAGING}"
 
         cp {README.md,LICENSE} "${STAGING}/"
@@ -136,12 +131,12 @@ jobs:
           echo "ASSET=${STAGING}.tar.gz" >> $GITHUB_ENV
         fi
 
-    - name: Upload release archive
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
       with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ${{ env.ASSET }}
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ${{ env.ASSET }}
         asset_name: ${{ env.ASSET }}
-        asset_content_type: application/octet-stream
+        tag: ${{ github.ref }}
+        overwrite: true
+        body: ${{ needs.changelog.outputs.release_body }}
