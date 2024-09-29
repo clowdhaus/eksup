@@ -351,63 +351,6 @@ async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
   Ok(cronjobs)
 }
 
-// // https://github.com/kube-rs/kube/issues/428
-// // https://github.com/kubernetes/apimachinery/blob/373a5f752d44989b9829888460844849878e1b6e/pkg/apis/meta/v1/helpers.go#L34
-// pub(crate) async fn get_pod_disruption_budgets(client: &Client) -> Result<Vec<PodDisruptionBudget>> {
-//   let api: Api<policy::v1beta1::PodDisruptionBudget> = Api::all(client.to_owned());
-//   let pdb_list = api.list(&Default::default()).await?;
-
-//   Ok(pdb_list.items)
-// }
-
-pub(crate) async fn get_podsecuritypolicies(
-  client: &Client,
-  target_version: &str,
-  current_version: &str,
-) -> Result<Vec<checks::PodSecurityPolicy>> {
-  let current_version = version::parse_minor(current_version)?;
-  if current_version >= 25 {
-    // Pod Security Policy support is removed starting in 1.25
-    return Ok(vec![]);
-  }
-
-  let api: Api<policy::v1beta1::PodSecurityPolicy> = Api::all(client.to_owned());
-  let psp_list = api
-    .list(&Default::default())
-    .await
-    .context("Failed to list PodSecurityPolicies")?;
-
-  let target_version = version::parse_minor(target_version)?;
-  let remediation = if target_version >= 25 {
-    finding::Remediation::Required
-  } else {
-    finding::Remediation::Recommended
-  };
-
-  let psps = psp_list
-    .items
-    .iter()
-    .map(|psp| {
-      let objmeta = psp.metadata.clone();
-
-      let resource = Resource {
-        name: objmeta.name.unwrap_or_default(),
-        namespace: objmeta.namespace.unwrap_or_default(),
-        kind: Kind::PodSecurityPolicy,
-      };
-
-      let finding = finding::Finding {
-        code: finding::Code::K8S009,
-        symbol: remediation.symbol(),
-        remediation: remediation.to_owned(),
-      };
-      checks::PodSecurityPolicy { finding, resource }
-    })
-    .collect();
-
-  Ok(psps)
-}
-
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct Resource {

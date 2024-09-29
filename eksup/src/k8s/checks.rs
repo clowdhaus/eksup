@@ -394,45 +394,6 @@ impl Findings for Vec<DockerSocket> {
   }
 }
 
-#[derive(Debug, Serialize, Deserialize, Tabled)]
-#[tabled(rename_all = "UpperCase")]
-pub struct PodSecurityPolicy {
-  #[tabled(inline)]
-  pub finding: finding::Finding,
-
-  #[tabled(inline)]
-  pub resource: Resource,
-}
-
-impl Findings for Vec<PodSecurityPolicy> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
-    if self.is_empty() {
-      return Ok(format!(
-        "{leading_whitespace}✅ - No PodSecurityPolicys were found within the cluster"
-      ));
-    }
-
-    let mut table = Table::new(self);
-    table
-      .with(Disable::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
-      .with(Style::markdown());
-
-    Ok(format!("{table}\n"))
-  }
-
-  fn to_stdout_table(&self) -> Result<String> {
-    if self.is_empty() {
-      return Ok("".to_owned());
-    }
-
-    let mut table = Table::new(self);
-    table.with(Style::sharp());
-
-    Ok(format!("{table}\n"))
-  }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct KubeProxyVersionSkew {

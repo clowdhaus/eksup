@@ -61,7 +61,6 @@ pub struct TemplateData {
   readiness_probe: String,
   termination_grace_period: String,
   docker_socket: String,
-  pod_security_policy: String,
   kube_proxy_version_skew: String,
 }
 
@@ -186,7 +185,6 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
     readiness_probe: kubernetes_findings.readiness_probe.to_markdown_table("\t")?,
     termination_grace_period: kubernetes_findings.termination_grace_period.to_markdown_table("\t")?,
     docker_socket: kubernetes_findings.docker_socket.to_markdown_table("\t")?,
-    pod_security_policy: kubernetes_findings.pod_security_policy.to_markdown_table("\t")?,
     kube_proxy_version_skew: kubernetes_findings.kube_proxy_version_skew.to_markdown_table("\t")?,
   };
 

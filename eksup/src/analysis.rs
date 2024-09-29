@@ -38,7 +38,6 @@ impl Results {
     output.push_str(&self.kubernetes.readiness_probe.to_stdout_table()?);
     output.push_str(&self.kubernetes.termination_grace_period.to_stdout_table()?);
     output.push_str(&self.kubernetes.docker_socket.to_stdout_table()?);
-    output.push_str(&self.kubernetes.pod_security_policy.to_stdout_table()?);
     output.push_str(&self.kubernetes.kube_proxy_version_skew.to_stdout_table()?);
 
     Ok(output)

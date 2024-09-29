@@ -194,9 +194,6 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
     #### Check [[K8S008]](https://clowdhaus.github.io/eksup/info/checks/#k8s008)
 {{ docker_socket }}
 
-    #### Check [[K8S009]](https://clowdhaus.github.io/eksup/info/checks/#k8s009)
-{{ pod_security_policy }}
-
     #### Check [[K8S0011]](https://clowdhaus.github.io/eksup/info/checks/#k8s011)
 {{ kube_proxy_version_skew }}
 

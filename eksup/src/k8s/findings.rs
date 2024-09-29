@@ -20,7 +20,6 @@ pub struct KubernetesFindings {
   pub pod_topology_distribution: Vec<checks::PodTopologyDistribution>,
   pub termination_grace_period: Vec<checks::TerminationGracePeriod>,
   pub docker_socket: Vec<checks::DockerSocket>,
-  pub pod_security_policy: Vec<checks::PodSecurityPolicy>,
   pub kube_proxy_version_skew: Vec<checks::KubeProxyVersionSkew>,
 }
 
@@ -45,7 +44,6 @@ pub async fn get_kubernetes_findings(
     .iter()
     .filter_map(|s| s.docker_socket(target_version))
     .collect();
-  let pod_security_policy = resources::get_podsecuritypolicies(client, target_version, cluster_version).await?;
   let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, cluster_version).await?;
 
   Ok(KubernetesFindings {
@@ -56,7 +54,6 @@ pub async fn get_kubernetes_findings(
     pod_topology_distribution,
     termination_grace_period,
     docker_socket,
-    pod_security_policy,
     kube_proxy_version_skew,
   })
 }
