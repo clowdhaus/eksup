@@ -161,12 +161,9 @@ async fn get_config(region: &Option<String>, profile: &Option<String>) -> Result
 
   let mut creds = DefaultCredentialsChain::builder().region(region.clone());
 
-  match profile {
-    Some(profile) => {
-      creds = creds.profile_name(profile);
-    }
-    None => {}
-  }
+  if let Some(profile) = profile {
+    creds = creds.profile_name(profile);
+  };
 
   let config = aws_config::from_env()
     .credentials_provider(creds.build().await)

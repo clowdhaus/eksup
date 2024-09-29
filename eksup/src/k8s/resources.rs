@@ -4,7 +4,6 @@ use anyhow::{Context, Result};
 use k8s_openapi::api::{
   apps, batch,
   core::{self, v1::PodTemplateSpec},
-  policy,
 };
 use kube::{api::Api, Client, CustomResource};
 use schemars::JsonSchema;

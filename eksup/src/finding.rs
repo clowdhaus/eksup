@@ -65,16 +65,13 @@ pub(crate) trait _Deprecation {
 /// Codes that represent the finding variants
 ///
 /// This is useful for a few reasons:
-/// 1. It would allow users to add codes to a 'ignore list' in the future, to ignore any
-/// reported findings of that code type (another level of granularity of what data is
-/// is most relevant to them)
-/// 2. It provides a "marker" that can be used to link to documentation for the finding,
-/// keeping the direct output concise while still providing the means for a full explanation
-/// and reasoning behind the finding in one location
-/// 3. It provides a strongly typed link between code and finding data allowing the code
-/// to uniquely represent a finding even if the finding data is generic (i.e. - as is the case
-/// in reporting available IPs as subnet findings, the data shape is generic by the finding
-/// is unique to different scenarios)
+/// 1. It would allow users to add codes to a 'ignore list' in the future, to ignore any reported findings of that code
+///    type (another level of granularity of what data is is most relevant to them)
+/// 2. It provides a "marker" that can be used to link to documentation for the finding, keeping the direct output
+///    concise while still providing the means for a full explanation and reasoning behind the finding in one location
+/// 3. It provides a strongly typed link between code and finding data allowing the code to uniquely represent a finding
+///    even if the finding data is generic (i.e. - as is the case in reporting available IPs as subnet findings, the
+///    data shape is generic by the finding is unique to different scenarios)
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Code {
   /// AWS finding codes not specific to EKS
