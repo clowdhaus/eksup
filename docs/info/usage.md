@@ -1,7 +1,7 @@
 ```
 A CLI to aid in upgrading Amazon EKS clusters
 
-Usage: eksup <COMMAND>
+Usage: eksup [OPTIONS] <COMMAND>
 
 Commands:
   analyze  Analyze an Amazon EKS cluster for potential upgrade issues
@@ -9,8 +9,10 @@ Commands:
   help     Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+  -V, --version     Print version
 ```
 
 ### Analyze
@@ -29,6 +31,12 @@ Options:
   -r, --region <REGION>
           The AWS region where the cluster is provisioned
 
+  -p, --profile <PROFILE>
+          The AWS profile to use to access the cluster
+
+  -v, --verbose...
+          Increase logging verbosity
+
   -f, --format <FORMAT>
           [default: text]
 
@@ -36,8 +44,14 @@ Options:
           - json: JSON format used for logging or writing to a *.json file
           - text: Text format used for writing to stdout
 
+  -q, --quiet...
+          Decrease logging verbosity
+
   -o, --output <OUTPUT>
           Write to file instead of stdout
+
+      --ignore-recommended
+          Exclude recommendations from the output
 
   -h, --help
           Print help (see a summary with '-h')
@@ -91,7 +105,10 @@ Usage: eksup create playbook [OPTIONS] --cluster <CLUSTER>
 Options:
   -c, --cluster <CLUSTER>    The name of the cluster to analyze
   -r, --region <REGION>      The AWS region where the cluster is provisioned
+  -p, --profile <PROFILE>    The AWS profile to use to access the cluster
+  -v, --verbose...           Increase logging verbosity
   -f, --filename <FILENAME>  Name of the playbook saved locally
+  -q, --quiet...             Decrease logging verbosity
   -h, --help                 Print help
   -V, --version              Print version
 ```
@@ -100,10 +117,4 @@ Create playbook and save locally:
 
 ```sh linenums="1"
 eksup create playbook --cluster <cluster> --region <region>
-```
-
-Create playbook and save locally, ignoring recommendations:
-
-```sh linenums="1"
-eksup create playbook --cluster <cluster> --region <region> --ignore-recommended
 ```
