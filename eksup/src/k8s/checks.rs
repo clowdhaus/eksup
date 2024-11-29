@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tabled::{
-  settings::{location::ByColumnName, Disable, Margin, Style},
+  settings::{location::ByColumnName, Margin, Remove, Style},
   Table, Tabled,
 };
 
@@ -74,13 +74,13 @@ impl Findings for Vec<VersionSkew> {
     let mut summary_tbl = Table::new(summary);
     summary_tbl
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
-      .with(Disable::column(ByColumnName::new("String")))
-      .with(Disable::column(ByColumnName::new("NAME")))
+      .with(Remove::column(ByColumnName::new("String")))
+      .with(Remove::column(ByColumnName::new("NAME")))
       .with(Style::markdown());
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -160,7 +160,7 @@ impl Findings for Vec<MinReplicas> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -200,7 +200,7 @@ impl Findings for Vec<MinReadySeconds> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -252,7 +252,7 @@ impl Findings for Vec<PodTopologyDistribution> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -293,7 +293,7 @@ impl Findings for Vec<Probe> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -334,7 +334,7 @@ impl Findings for Vec<TerminationGracePeriod> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -375,7 +375,7 @@ impl Findings for Vec<DockerSocket> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -474,7 +474,7 @@ impl Findings for Vec<KubeProxyVersionSkew> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 

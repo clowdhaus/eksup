@@ -9,7 +9,7 @@ use itertools::Itertools;
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 use tabled::{
-  settings::{location::ByColumnName, Disable, Margin, Style},
+  settings::{location::ByColumnName, Margin, Remove, Style},
   Table, Tabled,
 };
 
@@ -116,7 +116,7 @@ impl Findings for Vec<InsufficientSubnetIps> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -273,7 +273,7 @@ impl Findings for Vec<AddonVersionCompatibility> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -368,7 +368,7 @@ impl Findings for Vec<AddonHealthIssue> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -450,7 +450,7 @@ impl Findings for Vec<NodegroupHealthIssue> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -541,7 +541,7 @@ impl Findings for Vec<ManagedNodeGroupUpdate> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
@@ -637,7 +637,7 @@ impl Findings for Vec<AutoscalingGroupUpdate> {
 
     let mut table = Table::new(self);
     table
-      .with(Disable::column(ByColumnName::new("CHECK")))
+      .with(Remove::column(ByColumnName::new("CHECK")))
       .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
       .with(Style::markdown());
 
