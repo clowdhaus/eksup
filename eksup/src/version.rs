@@ -6,7 +6,7 @@ use seq_macro::seq;
 use serde::{Deserialize, Serialize};
 
 /// Latest support version
-pub const LATEST: &str = "1.31";
+pub const LATEST: &str = "1.32";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Versions {
@@ -14,7 +14,7 @@ pub struct Versions {
   pub target: String,
 }
 
-seq!(N in 26..=31 {
+seq!(N in 26..=32 {
     /// Kubernetes version(s) supported
     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
     pub enum KubernetesVersion {

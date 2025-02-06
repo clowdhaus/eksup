@@ -20,5 +20,8 @@
     release_url: https://kubernetes.io/blog/2024/08/13/kubernetes-v1-31-release/
 
 '1.32':
-    release_url: TBD
+    release_url: https://kubernetes.io/blog/2024/12/11/kubernetes-v1-32-release/
     deprecation_url: https://kubernetes.io/docs/reference/using-api/deprecation-guide/#v1-32
+
+'1.33':
+    release_url: TBD
