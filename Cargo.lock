@@ -210,9 +210,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-autoscaling"
-version = "1.72.0"
+version = "1.72.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea9b048da56d25298414543263d654e80cb26e8663937a7e9e73e9ef2a58e133"
+checksum = "7a7cf3655aeaf24639cd0393675228b528cd7c107e79a511ab4c2a82ec32d0b1"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -258,9 +258,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-eks"
-version = "1.82.0"
+version = "1.83.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcf9e14d61e9495c43006f42091c444dba9e59d4d368bdc756c2cc6dd90de4fe"
+checksum = "438965cf3c3ed87fbbe15180c8ba9f426163feec8e24f5ae4d76ccb3f715fc89"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -708,9 +708,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.36"
+version = "4.5.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2df961d8c8a0d08aa9945718ccf584145eee3f3aa06cddbeac12933781102e04"
+checksum = "eccb054f56cbd38340b380d4a8e69ef1f02f1af43db2f0cc817a4774d80ae071"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -728,9 +728,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.36"
+version = "4.5.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "132dbda40fb6753878316a489d5a1242a8ef2f0d9e47ba01c951ea8aa7d013a5"
+checksum = "efd9466fac8543255d3b1fcad4762c5e116ffe808c8a3043d4263cd4fd4862a2"
 dependencies = [
  "anstream",
  "anstyle",
