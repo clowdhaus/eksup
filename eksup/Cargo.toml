@@ -28,9 +28,9 @@ path = "src/main.rs"
 anstyle = "1.0"
 anyhow = "1.0"
 aws-config = { version="1.6", features = ["behavior-version-latest"] }
-aws-sdk-autoscaling = "1.76"
-aws-sdk-ec2 = "1.130"
-aws-sdk-eks = "1.87"
+aws-sdk-autoscaling = "1.78"
+aws-sdk-ec2 = "1.134"
+aws-sdk-eks = "1.89"
 aws-types = "1.1"
 clap = { version = "4.5", features = ["derive", "string", "color", "unstable-styles"] }
 clap-verbosity-flag = "3.0"
