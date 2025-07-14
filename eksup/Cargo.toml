@@ -29,7 +29,7 @@ anstyle = "1.0"
 anyhow = "1.0"
 aws-config = { version="1.8", features = ["behavior-version-latest"] }
 aws-sdk-autoscaling = "1.84"
-aws-sdk-ec2 = "1.144"
+aws-sdk-ec2 = "1.145"
 aws-sdk-eks = "1.95"
 aws-types = "1.1"
 clap = { version = "4.5", features = ["derive", "string", "color", "unstable-styles"] }
