@@ -57,9 +57,9 @@ pub trait Findings {
 /// TODO - not be shown findings that affect version <= 1.22
 pub(crate) trait _Deprecation {
   /// Returns the Kubernetes version the check was deprecated in
-  fn deprecated_in(&self) -> Option<version::KubernetesVersion>;
+  fn deprecated_in(&self) -> Option<version::_KubernetesVersion>;
   /// Returns the Kubernetes version the check will be removed in
-  fn removed_in(&self) -> Option<version::KubernetesVersion>;
+  fn removed_in(&self) -> Option<version::_KubernetesVersion>;
 }
 
 /// Codes that represent the finding variants

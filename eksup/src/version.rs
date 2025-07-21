@@ -6,32 +6,32 @@ use seq_macro::seq;
 use serde::{Deserialize, Serialize};
 
 /// Latest support version
-pub const LATEST: &str = "1.32";
+pub const LATEST: &str = "1.33";
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Versions {
+pub struct _Versions {
   pub current: String,
   pub target: String,
 }
 
-seq!(N in 26..=32 {
+seq!(N in 27..=33 {
     /// Kubernetes version(s) supported
     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-    pub enum KubernetesVersion {
+    pub enum _KubernetesVersion {
         #( V~N, )*
     }
 
     /// Formats the Kubernetes version as a string in the form of "1.X"
-    impl fmt::Display for KubernetesVersion {
+    impl fmt::Display for _KubernetesVersion {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match *self {
-                #( KubernetesVersion::V~N => write!(f, "1.{}", N), )*
+                #( _KubernetesVersion::V~N => write!(f, "1.{}", N), )*
             }
         }
     }
 
     /// Used by clap for acceptable values and converting from input to enum
-    impl ValueEnum for KubernetesVersion {
+    impl ValueEnum for _KubernetesVersion {
         fn value_variants<'a>() -> &'a [Self] {
             &[
                 #( Self::V~N, )*

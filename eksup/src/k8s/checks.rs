@@ -221,7 +221,7 @@ impl Findings for Vec<MinReadySeconds> {
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
-pub struct PodDisruptionBudget {
+pub struct _PodDisruptionBudget {
   #[tabled(inline)]
   pub finding: finding::Finding,
   #[tabled(inline)]
