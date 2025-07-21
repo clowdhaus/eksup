@@ -1,0 +1,8 @@
+# https://github.com/aws/aws-lc-rs/issues/532#issuecomment-2378274873
+[net]
+git-fetch-with-cli = true
+
+# https://github.com/aws/aws-lc-rs/issues/532#issuecomment-2378274873
+[build]
+jobs = 4
+
