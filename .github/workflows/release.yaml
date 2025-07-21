@@ -54,37 +54,28 @@ jobs:
       RUST_BACKTRACE: 1
     strategy:
       matrix:
-        build: [linux, linux-arm, macos, win-msvc, win32-msvc] # win-gnu,
+        build: [linux, linux-arm, macos, macos-arm, win-msvc]
         include:
         - build: linux
-          os: ubuntu-22.04
+          os: ubuntu-latest
           rust: nightly
-          target: x86_64-unknown-linux-musl
+          target: x86_64-unknown-linux-gnu
         - build: linux-arm
-          os: ubuntu-22.04
+          os: ubuntu-latest
           rust: nightly
-          target: arm-unknown-linux-gnueabihf
+          target: aarch64-unknown-linux-gnu
         - build: macos
-          os: macos-14
+          os: macos-15-large
           rust: nightly
           target: x86_64-apple-darwin
         - build: macos-arm
-          os: macos-14
+          os: macos-15
           rust: nightly
           target: aarch64-apple-darwin
         - build: win-msvc
-          os: windows-2022
+          os: windows-2025
           rust: nightly
           target: x86_64-pc-windows-msvc
-        # # https://github.com/actions/runner-images/issues/1143
-        # - build: win-gnu
-        #   os: windows-2022
-        #   rust: nightly-x86_64-gnu
-        #   target: x86_64-pc-windows-gnu
-        - build: win32-msvc
-          os: windows-2022
-          rust: nightly
-          target: i686-pc-windows-msvc
 
     steps:
     - name: Checkout repository
@@ -109,6 +100,9 @@ jobs:
         echo "cargo command is: ${{ env.CARGO }}"
         echo "target flag is: ${{ env.TARGET_FLAGS }}"
         echo "target dir is: ${{ env.TARGET_DIR }}"
+
+    # https://github.com/clowdhaus/eksup/actions/runs/16421734663/job/46401815937
+    - run: cargo install --force --locked bindgen-cli
 
     - name: Build release binary
       run: ${{ env.CARGO }} build --package eksup --verbose --release ${{ env.TARGET_FLAGS }}
