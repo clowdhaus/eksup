@@ -30,7 +30,7 @@ pub struct ClusterHealthIssue {
   pub finding: finding::Finding,
   pub code: String,
   pub message: String,
-  #[tabled(display_with = "tabled_vec_to_string")]
+  #[tabled(display = "tabled_vec_to_string")]
   pub resource_ids: Vec<String>,
 }
 
@@ -354,7 +354,7 @@ pub struct AddonHealthIssue {
   pub name: String,
   pub code: String,
   pub message: String,
-  #[tabled(display_with = "tabled_vec_to_string")]
+  #[tabled(display = "tabled_vec_to_string")]
   pub resource_ids: Vec<String>,
 }
 

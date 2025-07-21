@@ -460,7 +460,7 @@ pub async fn kube_proxy_version_skew(
     finding,
     api_server_version: format!("v1.{control_plane_minor_version}"),
     kube_proxy_version: format!("v1.{kproxy_minor_version}"),
-    version_skew: format!("{}", version_skew),
+    version_skew: format!("{version_skew}"),
   }])
 }
 
