@@ -155,7 +155,10 @@ async fn get_config(region: &Option<String>, profile: &Option<String>) -> Result
     }
     None => match region {
       Some(region) => Some(Region::new(region.to_owned())),
-      None => env::var("AWS_REGION").ok().map(Region::new),
+      None => match env::var("AWS_REGION") {
+        Ok(region) => Some(Region::new(region)),
+        Err(_) => env::var("AWS_DEFAULT_REGION").ok().map(Region::new),
+      },
     },
   };
 
