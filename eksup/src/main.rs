@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use eksup::{analyze, create, Cli, Commands};
+use eksup::{Cli, Commands, analyze, create};
 use tracing_log::AsTrace;
 use tracing_subscriber::FmtSubscriber;
 

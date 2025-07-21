@@ -5,7 +5,7 @@ use k8s_openapi::api::{
   apps, batch,
   core::{self, v1::PodTemplateSpec},
 };
-use kube::{api::Api, Client, CustomResource};
+use kube::{Client, CustomResource, api::Api};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;

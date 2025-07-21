@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use aws_sdk_eks::types::Cluster;
 use serde::{Deserialize, Serialize};
 

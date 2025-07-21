@@ -7,7 +7,7 @@ documentation = "https://github.com/clowdhaus/eksup"
 homepage = "https://github.com/clowdhaus/eksup"
 repository = "https://github.com/clowdhaus/eksup"
 license = "Apache-2.0"
-edition = "2021"
+edition = "2024"
 keywords = [
   "kubernetes",
   "eks",

@@ -2,15 +2,15 @@ use anyhow::{Context, Result};
 use aws_sdk_autoscaling::types::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{
-  types::{Addon, Cluster, Nodegroup},
   Client as EksClient,
+  types::{Addon, Cluster, Nodegroup},
 };
 use itertools::Itertools;
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 use tabled::{
-  settings::{location::ByColumnName, Margin, Remove, Style},
   Table, Tabled,
+  settings::{Margin, Remove, Style, location::ByColumnName},
 };
 
 use crate::{

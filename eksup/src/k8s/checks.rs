@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tabled::{
-  settings::{location::ByColumnName, Margin, Remove, Style},
   Table, Tabled,
+  settings::{Margin, Remove, Style, location::ByColumnName},
 };
 
 use crate::{

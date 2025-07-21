@@ -2,13 +2,13 @@ use std::{collections::HashSet, process::exit};
 
 use anyhow::{Context, Result};
 use aws_sdk_autoscaling::{
-  types::{AutoScalingGroup, Filter as AsgFilter},
   Client as AsgClient,
+  types::{AutoScalingGroup, Filter as AsgFilter},
 };
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{
-  types::{Addon, Cluster, FargateProfile, Nodegroup},
   Client as EksClient,
+  types::{Addon, Cluster, FargateProfile, Nodegroup},
 };
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
