@@ -38,7 +38,7 @@ handlebars = { version = "6.3", features = ["rust-embed"] }
 itertools = "0.14"
 # https://kube.rs/kubernetes-version/
 k8s-openapi = { version = "0.25.0", default-features = false, features = ["earliest"] }
-kube = { version = "1.1", default-features = false, features = [ "client", "derive", "rustls-tls" ] }
+kube = { version = "1.1", default-features = false, features = [ "client", "derive", "aws-lc-rs" ] }
 rust-embed = { version = "8.7", features = ["compression"] }
 schemars = "0.8.6"
 seq-macro = "0.3"
