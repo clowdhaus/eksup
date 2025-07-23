@@ -101,9 +101,6 @@ jobs:
         echo "target flag is: ${{ env.TARGET_FLAGS }}"
         echo "target dir is: ${{ env.TARGET_DIR }}"
 
-    # https://github.com/clowdhaus/eksup/actions/runs/16421734663/job/46401815937
-    - run: cargo install --force --locked bindgen-cli
-
     - name: Build release binary
       run: ${{ env.CARGO }} build --package eksup --verbose --release ${{ env.TARGET_FLAGS }}
 
