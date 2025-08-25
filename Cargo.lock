@@ -232,9 +232,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-ec2"
-version = "1.159.0"
+version = "1.160.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed753fc534bbb68760d5b2e3e46f81e5ccb9a96d8359b9ce793e123cb3073e8e"
+checksum = "4300d66be2c4e275d3a037576dacce6efaf9af24bfbd2460a848ea39299c979c"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -255,9 +255,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-eks"
-version = "1.102.0"
+version = "1.103.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d59bca16518ce2a9e1e47f7aea523ac8260609720a06e5833077611549fb3b6d"
+checksum = "0488873f9fb1492a7ee787601ae87f5b02c816a43ee96f886672b71b7bd49b27"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -714,9 +714,9 @@ dependencies = [
 
 [[package]]
 name = "clap-verbosity-flag"
-version = "3.0.3"
+version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eeab6a5cdfc795a05538422012f20a5496f050223c91be4e5420bfd13c641fb1"
+checksum = "9d92b1fab272fe943881b77cc6e920d6543e5b1bfadbd5ed81c7c5a755742394"
 dependencies = [
  "clap",
  "log",
@@ -2645,9 +2645,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.142"
+version = "1.0.143"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "030fedb782600dcbd6f02d479bf0d817ac3bb40d644745b769d6a96bc3afc5a7"
+checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
 dependencies = [
  "itoa",
  "memchr",
