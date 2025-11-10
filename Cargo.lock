@@ -135,9 +135,9 @@ dependencies = [
 
 [[package]]
 name = "aws-credential-types"
-version = "1.2.8"
+version = "1.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "faf26925f4a5b59eb76722b63c2892b1d70d06fa053c72e4a100ec308c1d47bc"
+checksum = "86590e57ea40121d47d3f2e131bfd873dea15d78dc2f4604f4734537ad9e56c4"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-runtime-api",
@@ -170,9 +170,9 @@ dependencies = [
 
 [[package]]
 name = "aws-runtime"
-version = "1.5.13"
+version = "1.5.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f2402da1a5e16868ba98725e5d73f26b8116eaa892e56f2cd0bf5eec7985f70"
+checksum = "8fe0fd441565b0b318c76e7206c8d1d0b0166b3e986cf30e890b61feb6192045"
 dependencies = [
  "aws-credential-types",
  "aws-sigv4",
@@ -194,9 +194,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-autoscaling"
-version = "1.99.0"
+version = "1.100.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fb57eb2034f48d73b2507945f832a8242dadf4348498f02f69e2ed109807f32"
+checksum = "df805be011799da98139c84be5d16a52ee6562d085d852cf306bf6eefdbc3a8b"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -217,9 +217,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-ec2"
-version = "1.178.0"
+version = "1.182.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "736114c8db0a9b7efcc5388fe2fd0953f44ff4e081d70a45dea93fd0aa254d4d"
+checksum = "6774b33b5e0cc6f66f73042a30011be1b40f9dda0ab549ed99b7c5ea447fe60e"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -240,9 +240,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-eks"
-version = "1.112.0"
+version = "1.113.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d58edcc2b96950e6458fb16a011d76faacbab7cf6521b21a6bc6c9d0afb519e9"
+checksum = "88c97966b6a6384c135abaebcfe0ff2c008753e2187f63df641e5845738a40f4"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -2374,9 +2374,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "1.0.5"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1317c3bf3e7df961da95b0a56a172a02abead31276215a0497241a7624b487ce"
+checksum = "9558e172d4e8533736ba97870c4b2cd63f84b382a3d6eb063da41b91cce17289"
 dependencies = [
  "dyn-clone",
  "ref-cast",
@@ -2387,9 +2387,9 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "1.0.5"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f760a6150d45dd66ec044983c124595ae76912e77ed0b44124cb3e415cce5d9"
+checksum = "301858a4023d78debd2353c7426dc486001bddc91ae31a76fb1f55132f7e2633"
 dependencies = [
  "proc-macro2",
  "quote",
