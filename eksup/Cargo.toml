@@ -37,8 +37,8 @@ clap-verbosity-flag = "3.0"
 handlebars = { version = "6.4", features = ["rust-embed"] }
 itertools = "0.14"
 # https://kube.rs/kubernetes-version/
-k8s-openapi = { version = "0.26.1", default-features = false, features = ["earliest"] }
-kube = { version = "2.0", default-features = false, features = [ "client", "derive", "aws-lc-rs", "rustls-tls" ] }
+k8s-openapi = { version = "0.27.0", default-features = false, features = ["earliest"] }
+kube = { version = "3.0", default-features = false, features = [ "client", "derive", "aws-lc-rs", "rustls-tls" ] }
 rust-embed = { version = "8.9", features = ["compression"] }
 schemars = "1.2.0"
 seq-macro = "0.3"
