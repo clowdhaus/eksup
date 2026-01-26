@@ -28,8 +28,8 @@ path = "src/main.rs"
 anstyle = "1.0"
 anyhow = "1.0"
 aws-config = { version="1.8", features = ["behavior-version-latest"] }
-aws-sdk-autoscaling = "1.105"
-aws-sdk-ec2 = "1.200"
+aws-sdk-autoscaling = "1.107"
+aws-sdk-ec2 = "1.202"
 aws-sdk-eks = "1.119"
 aws-types = "1.1"
 clap = { version = "4.5", features = ["derive", "string", "color", "unstable-styles"] }
