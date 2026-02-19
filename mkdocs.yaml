@@ -1,7 +1,7 @@
 site_author: ClowdHaus
 site_name: EKS Cluster Upgrade Guidance
 site_description: EKS Cluster Upgrade Guidance
-copyright: 'Copyright &copy; ClowdHaus 2023'
+copyright: 'Copyright &copy; ClowdHaus 2023-2026'
 repo_name: clowdhaus/eksup
 repo_url: https://github.com/clowdhaus/eksup
 edit_uri: "https://github.com/clowdhaus/eksup/tree/main/docs"
