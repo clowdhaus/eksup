@@ -105,114 +105,71 @@ pub(crate) use impl_findings;
 /// 3. It provides a strongly typed link between code and finding data allowing the code to uniquely represent a finding
 ///    even if the finding data is generic (i.e. - as is the case in reporting available IPs as subnet findings, the
 ///    data shape is generic by the finding is unique to different scenarios)
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Code {
-  /// AWS finding codes not specific to EKS
-  ///
-  /// Insufficient available subnet IPs for nodes
-  AWS001,
+macro_rules! define_codes {
+  ($( $variant:ident => {
+    desc: $desc:expr,
+    from: $from:expr,
+    until: $until:expr $(,)?
+  }),* $(,)?) => {
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub enum Code { $($variant,)* }
 
-  /// Insufficient available subnet IPs for pods (custom networking only)
-  AWS002,
+    impl std::fmt::Display for Code {
+      fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self { $(Code::$variant => write!(f, stringify!($variant)),)* }
+      }
+    }
 
-  /// Insufficient EC2 service limits
-  AWS003,
+    impl Code {
+      pub(crate) fn description(&self) -> &'static str {
+        match self { $(Code::$variant => $desc,)* }
+      }
 
-  /// Insufficient EBS GP2 service limits
-  AWS004,
+      /// Minimum target minor version where this check becomes relevant (inclusive).
+      /// `None` means always relevant.
+      pub(crate) fn applicable_from(&self) -> Option<i32> {
+        match self { $(Code::$variant => $from,)* }
+      }
 
-  /// Insufficient EBS GP3 service limits
-  AWS005,
-
-  /// EKS specific finding codes
-  ///
-  /// Insufficient available subnet IPs (5 min) for control plane ENIs
-  EKS001,
-
-  /// Health issue(s) reported by the EKS control plane
-  EKS002,
-
-  /// Health issue(s) reported by the EKS managed node group
-  EKS003,
-
-  /// Health issue(s) reported by the EKS addon
-  EKS004,
-
-  /// EKS addon is incompatible with the targeted Kubernetes version
-  EKS005,
-
-  /// EKS managed node group autoscaling group has pending update(s)
-  EKS006,
-
-  /// Self-managed node group autoscaling group has pending update(s)
-  EKS007,
-
-  /// AL2 AMI deprecation (deprecated in 1.32, removed in 1.33+)
-  EKS008,
-
-  /// Kubernetes finding codes not specific to EKS
-  ///
-  /// Kubernetes version skew detected between control plane and node
-  K8S001,
-
-  /// Insufficient number of `.spec.replicas`
-  K8S002,
-
-  /// Insufficient number of `.spec.minReadySeconds`
-  K8S003,
-
-  /// Missing `podDisruptionBudgets`
-  K8S004,
-
-  /// Pod distribution settings put availability at risk
-  K8S005,
-
-  /// `pod.spec.containers[*].readinessProbe` not set
-  K8S006,
-
-  /// `pod.spec.TerminationGracePeriodSeconds` is set to zero
-  K8S007,
-
-  /// Mounts `docker.sock` or `dockershim.sock`
-  K8S008,
-
-  /// Pod security policies present
-  K8S009,
-
-  /// EBS CSI driver not installed (v1.23+)
-  K8S010,
-
-  /// Kubernetes version skew detected between kube-proxy and kubelet
-  K8S011,
-
-  /// kube-proxy IPVS mode deprecated (deprecated in 1.35, removed in 1.36)
-  K8S012,
-
-  /// Ingress NGINX controller retirement (recommended for 1.35+)
-  K8S013,
+      /// Maximum target minor version where this check is relevant (inclusive).
+      /// `None` means still relevant for all future versions.
+      pub(crate) fn applicable_until(&self) -> Option<i32> {
+        match self { $(Code::$variant => $until,)* }
+      }
+    }
+  };
 }
 
-#[allow(dead_code)]
+define_codes! {
+  AWS001 => { desc: "Insufficient available subnet IPs for nodes",                   from: None,     until: None },
+  AWS002 => { desc: "Insufficient available subnet IPs for pods (custom networking)", from: None,     until: None },
+  AWS003 => { desc: "Insufficient EC2 service limits",                               from: None,     until: None },
+  AWS004 => { desc: "Insufficient EBS GP2 service limits",                           from: None,     until: None },
+  AWS005 => { desc: "Insufficient EBS GP3 service limits",                           from: None,     until: None },
+  EKS001 => { desc: "Insufficient available subnet IPs for control plane ENIs",      from: None,     until: None },
+  EKS002 => { desc: "Health issue(s) reported by the EKS control plane",             from: None,     until: None },
+  EKS003 => { desc: "Health issue(s) reported by the EKS managed node group",        from: None,     until: None },
+  EKS004 => { desc: "Health issue(s) reported by the EKS addon",                     from: None,     until: None },
+  EKS005 => { desc: "EKS addon incompatible with targeted Kubernetes version",       from: None,     until: None },
+  EKS006 => { desc: "EKS managed node group has pending launch template update(s)",  from: None,     until: None },
+  EKS007 => { desc: "Self-managed node group has pending launch template update(s)", from: None,     until: None },
+  EKS008 => { desc: "AL2 AMI deprecation (deprecated in 1.32, removed in 1.33+)",   from: Some(32), until: None },
+  K8S001 => { desc: "Kubernetes version skew between control plane and node",        from: None,     until: None },
+  K8S002 => { desc: "Insufficient number of .spec.replicas",                         from: None,     until: None },
+  K8S003 => { desc: "Insufficient .spec.minReadySeconds",                            from: None,     until: None },
+  K8S004 => { desc: "Missing PodDisruptionBudget",                                   from: None,     until: None },
+  K8S005 => { desc: "Pod distribution settings put availability at risk",            from: None,     until: None },
+  K8S006 => { desc: "Missing readinessProbe on containers",                          from: None,     until: None },
+  K8S007 => { desc: "TerminationGracePeriodSeconds is set to zero",                  from: None,     until: None },
+  K8S008 => { desc: "Mounts docker.sock or dockershim.sock",                         from: None,     until: None },
+  K8S009 => { desc: "Pod security policies present (removed in 1.25)",               from: None,     until: Some(24) },
+  K8S010 => { desc: "EBS CSI driver not installed",                                  from: None,     until: None },
+  K8S011 => { desc: "kube-proxy version skew with kubelet",                          from: None,     until: None },
+  K8S012 => { desc: "kube-proxy IPVS mode deprecated (1.35+, removed 1.36)",        from: Some(35), until: None },
+  K8S013 => { desc: "Ingress NGINX controller retirement (1.35+)",                   from: Some(35), until: None },
+}
+
 impl Code {
-  /// Minimum target minor version where this check becomes relevant (inclusive).
-  /// `None` means always relevant.
-  pub fn applicable_from(&self) -> Option<i32> {
-    match self {
-      Code::EKS008 => Some(32),
-      Code::K8S012 | Code::K8S013 => Some(35),
-      _ => None,
-    }
-  }
-
-  /// Maximum target minor version where this check is relevant (inclusive).
-  /// `None` means still relevant for all future versions.
-  pub fn applicable_until(&self) -> Option<i32> {
-    match self {
-      Code::K8S009 => Some(24),
-      _ => None,
-    }
-  }
-
   /// Whether the check applies for a given target minor version.
   pub fn is_applicable(&self, target_minor: i32) -> bool {
     if let Some(from) = self.applicable_from()
@@ -237,38 +194,12 @@ impl Code {
       None => false,
     }
   }
-}
 
-impl std::fmt::Display for Code {
-  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-    match *self {
-      Code::AWS001 => write!(f, "AWS001"),
-      Code::AWS002 => write!(f, "AWS002"),
-      Code::AWS003 => write!(f, "AWS003"),
-      Code::AWS004 => write!(f, "AWS004"),
-      Code::AWS005 => write!(f, "AWS005"),
-      Code::EKS001 => write!(f, "EKS001"),
-      Code::EKS002 => write!(f, "EKS002"),
-      Code::EKS003 => write!(f, "EKS003"),
-      Code::EKS004 => write!(f, "EKS004"),
-      Code::EKS005 => write!(f, "EKS005"),
-      Code::EKS006 => write!(f, "EKS006"),
-      Code::EKS007 => write!(f, "EKS007"),
-      Code::EKS008 => write!(f, "EKS008"),
-      Code::K8S001 => write!(f, "K8S001"),
-      Code::K8S002 => write!(f, "K8S002"),
-      Code::K8S003 => write!(f, "K8S003"),
-      Code::K8S004 => write!(f, "K8S004"),
-      Code::K8S005 => write!(f, "K8S005"),
-      Code::K8S006 => write!(f, "K8S006"),
-      Code::K8S007 => write!(f, "K8S007"),
-      Code::K8S008 => write!(f, "K8S008"),
-      Code::K8S009 => write!(f, "K8S009"),
-      Code::K8S010 => write!(f, "K8S010"),
-      Code::K8S011 => write!(f, "K8S011"),
-      Code::K8S012 => write!(f, "K8S012"),
-      Code::K8S013 => write!(f, "K8S013"),
-    }
+  pub(crate) fn url(&self) -> String {
+    format!(
+      "https://clowdhaus.github.io/eksup/info/checks/#{}",
+      self.to_string().to_lowercase()
+    )
   }
 }
 
@@ -314,5 +245,37 @@ mod tests {
     assert!(Code::K8S012.is_applicable(35));
     assert!(!Code::K8S013.is_applicable(34));
     assert!(Code::K8S013.is_applicable(35));
+  }
+
+  #[test]
+  fn code_display() {
+    assert_eq!(Code::AWS001.to_string(), "AWS001");
+    assert_eq!(Code::EKS008.to_string(), "EKS008");
+    assert_eq!(Code::K8S013.to_string(), "K8S013");
+  }
+
+  #[test]
+  fn code_description() {
+    assert_eq!(Code::AWS001.description(), "Insufficient available subnet IPs for nodes");
+    assert_eq!(Code::EKS008.description(), "AL2 AMI deprecation (deprecated in 1.32, removed in 1.33+)");
+    assert!(Code::K8S009.description().contains("Pod security policies"));
+  }
+
+  #[test]
+  fn code_url() {
+    assert_eq!(Code::AWS001.url(), "https://clowdhaus.github.io/eksup/info/checks/#aws001");
+    assert_eq!(Code::K8S013.url(), "https://clowdhaus.github.io/eksup/info/checks/#k8s013");
+  }
+
+  #[test]
+  fn remediation_display() {
+    assert_eq!(Remediation::Required.to_string(), "Required");
+    assert_eq!(Remediation::Recommended.to_string(), "Recommended");
+  }
+
+  #[test]
+  fn remediation_symbol() {
+    assert_eq!(Remediation::Required.symbol(), "❌");
+    assert_eq!(Remediation::Recommended.symbol(), "⚠️");
   }
 }
