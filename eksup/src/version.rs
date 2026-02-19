@@ -1,21 +1,40 @@
 use anyhow::{Context, Result, bail};
 
-/// Latest support version
-pub const LATEST: &str = "1.35";
+/// Minimum supported minor version — clusters below this cannot be analyzed
+pub const MINIMUM: i32 = 30;
 
-/// Get the Kubernetes version the cluster is intended to be upgraded to
+/// Latest supported minor version
+pub const LATEST: i32 = 35;
+
+/// Format a minor version number as a full version string (e.g. 30 → "1.30")
+pub(crate) fn format_version(minor: i32) -> String {
+  format!("1.{minor}")
+}
+
+/// Get the target minor version the cluster will be upgraded to
 ///
 /// Given the current Kubernetes version and the default behavior based on Kubernetes
 /// upgrade restrictions of one minor version upgrade at a time, return the
-/// next minor Kubernetes version
+/// next minor version number
 /// TODO: This will change in the future when the strategy allows for `BlueGreen` upgrades
-pub(crate) fn get_target_version(current_version: &str) -> Result<String> {
+pub(crate) fn get_target_version(current_version: &str) -> Result<i32> {
   let current_minor = parse_minor(current_version)?;
-  let latest_minor = parse_minor(LATEST)?;
-  if current_minor >= latest_minor {
-    bail!("Cluster is already on the latest supported version ({LATEST})");
+
+  if current_minor < MINIMUM {
+    bail!(
+      "Cluster version {current_version} is below the minimum supported version ({}). \
+       Please upgrade to at least {} before using this tool.",
+      format_version(MINIMUM),
+      format_version(MINIMUM),
+    );
   }
-  Ok(format!("1.{}", current_minor + 1))
+  if current_minor >= LATEST {
+    bail!(
+      "Cluster is already on the latest supported version ({})",
+      format_version(LATEST),
+    );
+  }
+  Ok(current_minor + 1)
 }
 
 /// Given a version, parse the minor version
@@ -90,14 +109,34 @@ mod tests {
   }
 
   #[test]
+  fn format_version_formats_correctly() {
+    assert_eq!(format_version(30), "1.30");
+    assert_eq!(format_version(35), "1.35");
+  }
+
+  #[test]
   fn get_target_version_increments_minor() {
-    let result = get_target_version("1.30").unwrap();
-    assert_eq!(result, "1.31");
+    let result = get_target_version(&format_version(MINIMUM)).unwrap();
+    assert_eq!(result, MINIMUM + 1);
   }
 
   #[test]
   fn get_target_version_errors_on_latest() {
-    let result = get_target_version(LATEST);
+    let result = get_target_version(&format_version(LATEST));
     assert!(result.is_err(), "should error when already on LATEST");
+  }
+
+  #[test]
+  fn get_target_version_errors_below_minimum() {
+    let result = get_target_version("1.29");
+    assert!(result.is_err(), "should error when below MINIMUM");
+    let msg = result.unwrap_err().to_string();
+    assert!(msg.contains("below the minimum supported version"), "error message: {msg}");
+  }
+
+  #[test]
+  fn get_target_version_at_minimum() {
+    let result = get_target_version(&format_version(MINIMUM));
+    assert!(result.is_ok(), "should succeed at MINIMUM");
   }
 }

@@ -291,9 +291,8 @@ finding::impl_findings!(KubeProxyIpvsMode, "✅ - `kube-proxy` is not using the 
 /// removed in 1.36
 pub fn kube_proxy_ipvs_mode(
   configmap: Option<&ConfigMap>,
-  target_version: &str,
+  target_minor: i32,
 ) -> Result<Vec<KubeProxyIpvsMode>> {
-  let target_minor = version::parse_minor(target_version)?;
   if target_minor < 35 {
     return Ok(vec![]);
   }
@@ -352,9 +351,8 @@ finding::impl_findings!(IngressNginxRetirement, "✅ - No Ingress NGINX controll
 /// which are no longer maintained as of 1.35+
 pub fn ingress_nginx_retirement(
   resources: &[resources::StdResource],
-  target_version: &str,
+  target_minor: i32,
 ) -> Result<Vec<IngressNginxRetirement>> {
-  let target_minor = version::parse_minor(target_version)?;
   if target_minor < 35 {
     return Ok(vec![]);
   }
@@ -410,9 +408,6 @@ pub trait K8sFindings {
   /// K8S003 - check if resources contain minReadySeconds > 0
   fn min_ready_seconds(&self) -> Option<MinReadySeconds>;
 
-  // /// K8S004 - check if resources have associated podDisruptionBudgets
-  // fn pod_disruption_budget(&self) -> Option<PodDisruptionBudget>;
-
   /// K8S005 - check if resources have podAntiAffinity or topologySpreadConstraints
   fn pod_topology_distribution(&self) -> Option<PodTopologyDistribution>;
 
@@ -423,7 +418,5 @@ pub trait K8sFindings {
   fn termination_grace_period(&self) -> Option<TerminationGracePeriod>;
 
   /// K8S008 - check if resources use the Docker socket
-  fn docker_socket(&self, target_version: &str) -> Result<Option<DockerSocket>>;
-
-  // K8S009 - pod security policies (separate from workload resources)
+  fn docker_socket(&self, target_minor: i32) -> Result<Option<DockerSocket>>;
 }

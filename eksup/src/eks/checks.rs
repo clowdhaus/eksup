@@ -224,7 +224,7 @@ pub(crate) async fn addon_version_compatibility(
   addons: &[Addon],
 ) -> Result<Vec<AddonVersionCompatibility>> {
   let mut addon_versions = Vec::new();
-  let target_k8s_version = format!("1.{}", version::parse_minor(cluster_version)? + 1);
+  let target_k8s_version = version::format_version(version::parse_minor(cluster_version)? + 1);
 
   for addon in addons {
     let name = addon.addon_name().unwrap_or_default().to_owned();
@@ -487,8 +487,7 @@ finding::impl_findings!(Al2AmiDeprecation, "✅ - No EKS managed nodegroups are 
 
 /// Check for EKS managed nodegroups using AL2 AMI types which are deprecated in 1.32 and
 /// no longer supported starting in 1.33
-pub(crate) fn al2_ami_deprecation(nodegroups: &[Nodegroup], target_version: &str) -> Result<Vec<Al2AmiDeprecation>> {
-  let target_minor = version::parse_minor(target_version)?;
+pub(crate) fn al2_ami_deprecation(nodegroups: &[Nodegroup], target_minor: i32) -> Result<Vec<Al2AmiDeprecation>> {
   if target_minor < 32 {
     return Ok(vec![]);
   }

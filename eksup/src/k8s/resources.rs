@@ -533,14 +533,7 @@ impl checks::K8sFindings for StdResource {
     }
   }
 
-  fn docker_socket(&self, target_version: &str) -> anyhow::Result<Option<checks::DockerSocket>> {
-    let target_version = version::parse_minor(target_version)?;
-    let remediation = if target_version >= 24 {
-      Remediation::Required
-    } else {
-      Remediation::Recommended
-    };
-
+  fn docker_socket(&self, _target_minor: i32) -> anyhow::Result<Option<checks::DockerSocket>> {
     let pod_template = match self.spec.template.as_ref() {
       Some(t) => t,
       None => return Ok(None),
@@ -551,7 +544,7 @@ impl checks::K8sFindings for StdResource {
         for volume_mount in container.volume_mounts.as_deref().unwrap_or_default() {
           if volume_mount.mount_path.contains("docker.sock") || volume_mount.mount_path.contains("dockershim.sock") {
             return Ok(Some(checks::DockerSocket {
-              finding: Finding::new(Code::K8S008, remediation),
+              finding: Finding::new(Code::K8S008, Remediation::Required),
               resource: self.get_resource(),
               docker_socket: true,
             }));

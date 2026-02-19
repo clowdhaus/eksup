@@ -118,7 +118,7 @@ pub async fn get_data_plane_findings(
   ec2_client: &Ec2Client,
   eks_client: &EksClient,
   cluster: &Cluster,
-  target_version: &str,
+  target_minor: i32,
 ) -> Result<DataPlaneFindings> {
   let cluster_name = cluster.name().unwrap_or_default();
 
@@ -127,7 +127,7 @@ pub async fn get_data_plane_findings(
   let fargate_profiles = resources::get_fargate_profiles(eks_client, cluster_name).await?;
 
   let eks_managed_nodegroup_health = checks::eks_managed_nodegroup_health(&eks_mngs)?;
-  let al2_ami_deprecation = checks::al2_ami_deprecation(&eks_mngs, target_version)?;
+  let al2_ami_deprecation = checks::al2_ami_deprecation(&eks_mngs, target_minor)?;
   let mut eks_managed_nodegroup_update = Vec::new();
   for eks_mng in &eks_mngs {
     let update = checks::eks_managed_nodegroup_update(ec2_client, eks_mng).await?;

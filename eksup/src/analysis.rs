@@ -67,13 +67,13 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
   };
 
   let cluster_version = cluster.version().context("Cluster version missing from API response")?;
-  let target_version = version::get_target_version(cluster_version)?;
+  let target_minor = version::get_target_version(cluster_version)?;
 
   let cluster_findings = eks::get_cluster_findings(cluster).await?;
   let subnet_findings = eks::get_subnet_findings(&ec2_client, &k8s_client, cluster).await?;
   let addon_findings = eks::get_addon_findings(&eks_client, cluster_name, cluster_version).await?;
-  let dataplane_findings = eks::get_data_plane_findings(&asg_client, &ec2_client, &eks_client, cluster, &target_version).await?;
-  let kubernetes_findings = k8s::get_kubernetes_findings(&k8s_client, cluster_version, &target_version).await?;
+  let dataplane_findings = eks::get_data_plane_findings(&asg_client, &ec2_client, &eks_client, cluster, target_minor).await?;
+  let kubernetes_findings = k8s::get_kubernetes_findings(&k8s_client, cluster_version, target_minor).await?;
 
   Ok(Results {
     cluster: cluster_findings,

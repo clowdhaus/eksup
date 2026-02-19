@@ -2,6 +2,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 
+use crate::version;
+
 #[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct Finding {
@@ -190,6 +192,53 @@ pub enum Code {
   K8S013,
 }
 
+#[allow(dead_code)]
+impl Code {
+  /// Minimum target minor version where this check becomes relevant (inclusive).
+  /// `None` means always relevant.
+  pub fn applicable_from(&self) -> Option<i32> {
+    match self {
+      Code::EKS008 => Some(32),
+      Code::K8S012 | Code::K8S013 => Some(35),
+      _ => None,
+    }
+  }
+
+  /// Maximum target minor version where this check is relevant (inclusive).
+  /// `None` means still relevant for all future versions.
+  pub fn applicable_until(&self) -> Option<i32> {
+    match self {
+      Code::K8S009 => Some(24),
+      _ => None,
+    }
+  }
+
+  /// Whether the check applies for a given target minor version.
+  pub fn is_applicable(&self, target_minor: i32) -> bool {
+    if let Some(from) = self.applicable_from()
+      && target_minor < from
+    {
+      return false;
+    }
+
+    if let Some(until) = self.applicable_until()
+      && target_minor > until
+    {
+      return false;
+    }
+
+    true
+  }
+
+  /// Whether the check is retired (`applicable_until` falls below `MINIMUM`).
+  pub fn is_retired(&self) -> bool {
+    match self.applicable_until() {
+      Some(until) => until < version::MINIMUM,
+      None => false,
+    }
+  }
+}
+
 impl std::fmt::Display for Code {
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     match *self {
@@ -220,5 +269,50 @@ impl std::fmt::Display for Code {
       Code::K8S012 => write!(f, "K8S012"),
       Code::K8S013 => write!(f, "K8S013"),
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn eks008_applicable_from_1_32() {
+    assert!(!Code::EKS008.is_applicable(31));
+    assert!(Code::EKS008.is_applicable(32));
+    assert!(Code::EKS008.is_applicable(35));
+  }
+
+  #[test]
+  fn k8s009_applicable_until_1_24() {
+    assert!(Code::K8S009.is_applicable(24));
+    assert!(!Code::K8S009.is_applicable(25));
+    assert!(!Code::K8S009.is_applicable(30));
+  }
+
+  #[test]
+  fn k8s009_is_retired() {
+    assert!(Code::K8S009.is_retired());
+  }
+
+  #[test]
+  fn always_relevant_codes_apply_to_any_version() {
+    let always = [
+      Code::AWS001, Code::AWS002, Code::EKS001, Code::K8S001,
+      Code::K8S002, Code::K8S008, Code::K8S011,
+    ];
+    for code in &always {
+      assert!(code.is_applicable(30), "{code} should be applicable at 1.30");
+      assert!(code.is_applicable(35), "{code} should be applicable at 1.35");
+      assert!(!code.is_retired(), "{code} should not be retired");
+    }
+  }
+
+  #[test]
+  fn k8s012_k8s013_applicable_from_1_35() {
+    assert!(!Code::K8S012.is_applicable(34));
+    assert!(Code::K8S012.is_applicable(35));
+    assert!(!Code::K8S013.is_applicable(34));
+    assert!(Code::K8S013.is_applicable(35));
   }
 }

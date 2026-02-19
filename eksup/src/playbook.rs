@@ -117,7 +117,8 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
 
   let cluster_name = cluster.name().context("Cluster name missing")?;
   let cluster_version = cluster.version().context("Cluster version missing")?;
-  let target_version = version::get_target_version(cluster_version)?;
+  let target_minor = version::get_target_version(cluster_version)?;
+  let target_version = version::format_version(target_minor);
   let default_playbook_name = format!("{cluster_name}_v{target_version}_upgrade.md");
 
   let release_data = get_release_data()?;

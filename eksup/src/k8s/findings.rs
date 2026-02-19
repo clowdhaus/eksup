@@ -28,7 +28,7 @@ pub struct KubernetesFindings {
 pub async fn get_kubernetes_findings(
   client: &K8sClient,
   cluster_version: &str,
-  target_version: &str,
+  target_minor: i32,
 ) -> Result<KubernetesFindings> {
   let resources = resources::get_resources(client).await?;
   let nodes = resources::get_nodes(client).await?;
@@ -45,11 +45,11 @@ pub async fn get_kubernetes_findings(
     resources.iter().filter_map(|s| s.termination_grace_period()).collect();
   let docker_socket: Vec<checks::DockerSocket> = resources
     .iter()
-    .filter_map(|s| s.docker_socket(target_version).ok().flatten())
+    .filter_map(|s| s.docker_socket(target_minor).ok().flatten())
     .collect();
   let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, cluster_version)?;
-  let kube_proxy_ipvs_mode = checks::kube_proxy_ipvs_mode(kube_proxy_config.as_ref(), target_version)?;
-  let ingress_nginx_retirement = checks::ingress_nginx_retirement(&resources, target_version)?;
+  let kube_proxy_ipvs_mode = checks::kube_proxy_ipvs_mode(kube_proxy_config.as_ref(), target_minor)?;
+  let ingress_nginx_retirement = checks::ingress_nginx_retirement(&resources, target_minor)?;
 
   Ok(KubernetesFindings {
     version_skew,
