@@ -49,5 +49,8 @@ tracing = {version = "0.1", features = ["log-always"] }
 tracing-log = "0.2"
 tracing-subscriber = "0.3"
 
+[dev-dependencies]
+insta = { version = "1", features = ["yaml"] }
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin_include)"] }
