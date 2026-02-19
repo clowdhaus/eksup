@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 use crate::{
   clients::K8sClients,
@@ -40,7 +41,13 @@ pub async fn get_kubernetes_findings(
     resources.iter().filter_map(|s| s.termination_grace_period()).collect();
   let docker_socket: Vec<checks::DockerSocket> = resources
     .iter()
-    .filter_map(|s| s.docker_socket().ok().flatten())
+    .filter_map(|s| match s.docker_socket() {
+      Ok(finding) => finding,
+      Err(e) => {
+        warn!("Failed to check docker socket for {}/{}: {e}", s.metadata.namespace, s.metadata.name);
+        None
+      }
+    })
     .collect();
   let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, control_plane_minor)?;
   let kube_proxy_ipvs_mode = checks::kube_proxy_ipvs_mode(kube_proxy_config.as_ref(), target_minor)?;

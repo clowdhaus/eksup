@@ -44,7 +44,8 @@ pub async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Resu
     .describe_subnets()
     .set_subnet_ids(Some(subnet_ids))
     .send()
-    .await?
+    .await
+    .context("Failed to describe subnets")?
     .subnets
     .context("Subnets not found")?;
 
@@ -74,7 +75,7 @@ pub async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Ad
     if let Some(token) = &next_token {
       req = req.next_token(token);
     }
-    let resp = req.send().await?;
+    let resp = req.send().await.context("Failed to list addons")?;
     addon_names.extend(resp.addons.unwrap_or_default());
     next_token = resp.next_token;
     if next_token.is_none() {
@@ -90,7 +91,8 @@ pub async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Ad
       .cluster_name(cluster_name)
       .addon_name(addon_name)
       .send()
-      .await?
+      .await
+      .context(format!("Failed to describe addon '{addon_name}'"))?
       .addon;
 
     if let Some(addon) = response {
@@ -129,7 +131,8 @@ pub async fn get_addon_versions(
     .addon_name(name)
     .kubernetes_version(kubernetes_version)
     .send()
-    .await?;
+    .await
+    .context(format!("Failed to describe addon versions for '{name}' on Kubernetes {kubernetes_version}"))?;
 
   // Since we are providing an addon name, we are only concerned with the first and only item
   let addon = describe.addons().first()
@@ -169,7 +172,7 @@ pub async fn get_eks_managed_nodegroups(client: &EksClient, cluster_name: &str) 
     if let Some(token) = &next_token {
       req = req.next_token(token);
     }
-    let resp = req.send().await?;
+    let resp = req.send().await.context("Failed to list node groups")?;
     nodegroup_names.extend(resp.nodegroups.unwrap_or_default());
     next_token = resp.next_token;
     if next_token.is_none() {
@@ -183,9 +186,10 @@ pub async fn get_eks_managed_nodegroups(client: &EksClient, cluster_name: &str) 
     let response = client
       .describe_nodegroup()
       .cluster_name(cluster_name)
-      .nodegroup_name(nodegroup_name)
+      .nodegroup_name(&nodegroup_name)
       .send()
-      .await?
+      .await
+      .context(format!("Failed to describe node group '{nodegroup_name}'"))?
       .nodegroup;
 
     if let Some(nodegroup) = response {
@@ -207,7 +211,8 @@ pub async fn get_self_managed_nodegroups(client: &AsgClient, cluster_name: &str)
     .set_values(Some(keys))
     .build();
 
-  let response = client.describe_auto_scaling_groups().filters(filter).send().await?;
+  let response = client.describe_auto_scaling_groups().filters(filter).send().await
+    .context(format!("Failed to describe Auto Scaling groups for cluster '{cluster_name}'"))?;
   let groups = response.auto_scaling_groups().to_owned();
 
   // Filter out EKS managed node groups by the EKS MNG applied tag
@@ -227,7 +232,7 @@ pub async fn get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Res
     if let Some(token) = &next_token {
       req = req.next_token(token);
     }
-    let resp = req.send().await?;
+    let resp = req.send().await.context("Failed to list Fargate profiles")?;
     profile_names.extend(resp.fargate_profile_names.unwrap_or_default());
     next_token = resp.next_token;
     if next_token.is_none() {
@@ -243,7 +248,8 @@ pub async fn get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Res
       .cluster_name(cluster_name)
       .fargate_profile_name(profile_name)
       .send()
-      .await?
+      .await
+      .context(format!("Failed to describe Fargate profile '{profile_name}'"))?
       .fargate_profile;
 
     if let Some(profile) = response {
@@ -276,7 +282,8 @@ pub async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchT
     .describe_launch_templates()
     .set_launch_template_ids(Some(vec![id.to_string()]))
     .send()
-    .await?;
+    .await
+    .context(format!("Failed to describe launch template '{id}'"))?;
 
   let lts = output.launch_templates
     .context(format!("No launch templates found for id '{id}'"))?;

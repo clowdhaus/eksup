@@ -88,9 +88,10 @@ impl RealK8sClients {
   pub async fn new(cluster_name: &str) -> Result<Self> {
     match kube::Client::try_default().await {
       Ok(client) => Ok(Self { client }),
-      Err(_) => {
+      Err(e) => {
         anyhow::bail!(
-          "Unable to connect to cluster. Ensure kubeconfig file is present and updated to connect to the cluster.\n\
+          "Unable to connect to cluster: {e}\n\n\
+          Ensure kubeconfig file is present and updated to connect to the cluster.\n\
           Try: aws eks update-kubeconfig --name {cluster_name}"
         );
       }

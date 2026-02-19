@@ -5,7 +5,7 @@ use k8s_openapi::api::{
   apps, batch,
   core::{self, v1::PodTemplateSpec},
 };
-use kube::{Client, CustomResource, api::Api};
+use kube::{Client, CustomResource, api::{Api, ListParams}};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
@@ -32,6 +32,30 @@ use crate::{finding::{Code, Finding, Remediation}, k8s::checks, version};
 pub struct EniConfigSpec {
   pub subnet: Option<String>,
   pub security_groups: Option<Vec<String>>,
+}
+
+/// Generic paginated list helper that fetches all items across pages
+async fn list_all<K>(api: &Api<K>, page_size: u32) -> Result<Vec<K>>
+where
+  K: kube::Resource + Clone + serde::de::DeserializeOwned + std::fmt::Debug + serde::Serialize,
+  <K as kube::Resource>::DynamicType: Default,
+{
+  let mut all_items = Vec::new();
+  let mut lp = ListParams::default().limit(page_size);
+
+  loop {
+    let list = api.list(&lp).await?;
+    all_items.extend(list.items);
+
+    match list.metadata.continue_ {
+      Some(ref token) if !token.is_empty() => {
+        lp = lp.continue_token(token);
+      }
+      _ => break,
+    }
+  }
+
+  Ok(all_items)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -69,7 +93,7 @@ pub struct Node {
 
 pub async fn get_nodes(client: &Client) -> Result<Vec<Node>> {
   let api: Api<core::v1::Node> = Api::all(client.to_owned());
-  let node_list = api.list(&Default::default()).await.context("Failed to list Nodes")?;
+  let node_list = list_all(&api, 500).await.context("Failed to list Nodes")?;
 
   Ok(
     node_list
@@ -109,10 +133,10 @@ pub async fn get_configmap(client: &Client, namespace: &str, name: &str) -> Resu
 /// available IPs in the subnet(s) when custom networking is enabled
 pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
   let api = Api::<ENIConfig>::all(client.to_owned());
-  let eniconfigs = match api.list(&Default::default()).await {
-    Ok(eniconfigs) => eniconfigs.items,
-    Err(_) => {
-      warn!("Failed to list ENIConfigs");
+  let eniconfigs = match list_all(&api, 500).await {
+    Ok(eniconfigs) => eniconfigs,
+    Err(e) => {
+      warn!("Failed to list ENIConfigs: {e}");
       vec![]
     }
   };
@@ -122,13 +146,9 @@ pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
 
 async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::Deployment> = Api::all(client.to_owned());
-  let deployment_list = api
-    .list(&Default::default())
-    .await
-    .context("Failed to list Deployments")?;
+  let deployment_list = list_all(&api, 500).await.context("Failed to list Deployments")?;
 
   let deployments = deployment_list
-    .items
     .iter()
     .map(|dplmnt| {
       let objmeta = dplmnt.metadata.clone();
@@ -162,13 +182,9 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::ReplicaSet> = Api::all(client.to_owned());
-  let replicaset_list = api
-    .list(&Default::default())
-    .await
-    .context("Failed to list ReplicaSets")?;
+  let replicaset_list = list_all(&api, 500).await.context("Failed to list ReplicaSets")?;
 
   let replicasets = replicaset_list
-    .items
     .iter()
     .filter_map(|repl| match repl.metadata.owner_references {
       None => {
@@ -205,13 +221,9 @@ async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::StatefulSet> = Api::all(client.to_owned());
-  let statefulset_list = api
-    .list(&Default::default())
-    .await
-    .context("Failed to list StatefulSets")?;
+  let statefulset_list = list_all(&api, 500).await.context("Failed to list StatefulSets")?;
 
   let statefulsets = statefulset_list
-    .items
     .iter()
     .map(|sset| {
       let objmeta = sset.metadata.clone();
@@ -245,13 +257,9 @@ async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::DaemonSet> = Api::all(client.to_owned());
-  let daemonset_list = api
-    .list(&Default::default())
-    .await
-    .context("Failed to list DaemonSets")?;
+  let daemonset_list = list_all(&api, 500).await.context("Failed to list DaemonSets")?;
 
   let daemonsets = daemonset_list
-    .items
     .iter()
     .map(|dset| {
       let objmeta = dset.metadata.clone();
@@ -285,10 +293,9 @@ async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::Job> = Api::all(client.to_owned());
-  let job_list = api.list(&Default::default()).await.context("Failed to list Jobs")?;
+  let job_list = list_all(&api, 500).await.context("Failed to list Jobs")?;
 
   let jobs = job_list
-    .items
     .iter()
     .filter_map(|job| match job.metadata.owner_references {
       None => {
@@ -325,10 +332,9 @@ async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::CronJob> = Api::all(client.to_owned());
-  let cronjob_list = api.list(&Default::default()).await.context("Failed to list CronJobs")?;
+  let cronjob_list = list_all(&api, 500).await.context("Failed to list CronJobs")?;
 
   let cronjobs = cronjob_list
-    .items
     .iter()
     .map(|cjob| {
       let objmeta = cjob.metadata.clone();
@@ -557,14 +563,19 @@ impl checks::K8sFindings for StdResource {
 }
 
 pub async fn get_resources(client: &Client) -> Result<Vec<StdResource>> {
-  let cronjobs = get_cronjobs(client).await?;
-  let daemonsets = get_daemonsets(client).await?;
-  let deployments = get_deployments(client).await?;
-  let jobs = get_jobs(client).await?;
-  let replicasets = get_replicasets(client).await?;
-  let statefulsets = get_statefulsets(client).await?;
+  let (cronjobs, daemonsets, deployments, jobs, replicasets, statefulsets) = tokio::try_join!(
+    get_cronjobs(client),
+    get_daemonsets(client),
+    get_deployments(client),
+    get_jobs(client),
+    get_replicasets(client),
+    get_statefulsets(client),
+  )?;
 
-  let mut resources = Vec::new();
+  let mut resources = Vec::with_capacity(
+    cronjobs.len() + daemonsets.len() + deployments.len()
+    + jobs.len() + replicasets.len() + statefulsets.len(),
+  );
   resources.extend(cronjobs);
   resources.extend(daemonsets);
   resources.extend(deployments);
