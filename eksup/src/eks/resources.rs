@@ -27,10 +27,10 @@ pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
 
 /// Container for the subnet IDs and their total available IPs
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct VpcSubnet {
-  pub(crate) id: String,
-  pub(crate) available_ips: i32,
-  pub(crate) availability_zone_id: String,
+pub struct VpcSubnet {
+  pub id: String,
+  pub available_ips: i32,
+  pub availability_zone_id: String,
 }
 
 /// Describe the subnets provided by ID
@@ -39,7 +39,7 @@ pub(crate) struct VpcSubnet {
 /// IP contention/exhaustion across the various subnets in use
 /// by the control plane ENIs, the nodes, and the pods (when custom
 /// networking is enabled)
-pub(crate) async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<Vec<VpcSubnet>> {
+pub async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) -> Result<Vec<VpcSubnet>> {
   let subnets = client
     .describe_subnets()
     .set_subnet_ids(Some(subnet_ids))
@@ -118,7 +118,7 @@ pub struct AddonVersion {
 ///
 /// Returns associated version details for a given addon that, primarily used
 /// for version compatibility checks and/or upgrade recommendations
-pub(crate) async fn get_addon_versions(
+pub async fn get_addon_versions(
   client: &EksClient,
   name: &str,
   kubernetes_version: &str,
@@ -271,7 +271,7 @@ pub struct LaunchTemplate {
   pub latest_version: String,
 }
 
-pub(crate) async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchTemplate> {
+pub async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchTemplate> {
   let output = client
     .describe_launch_templates()
     .set_launch_template_ids(Some(vec![id.to_string()]))

@@ -1,4 +1,5 @@
 mod analysis;
+pub mod clients;
 mod eks;
 mod finding;
 mod k8s;
