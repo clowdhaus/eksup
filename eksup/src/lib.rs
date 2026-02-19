@@ -1,15 +1,16 @@
-mod analysis;
+pub mod analysis;
 pub mod clients;
-mod eks;
-mod finding;
-mod k8s;
-mod output;
+pub mod eks;
+pub mod finding;
+pub mod k8s;
+pub mod output;
 mod playbook;
-mod version;
+pub mod version;
 
 use std::{env, str};
 
 use anyhow::{Context, Result};
+use clients::AwsClients;
 use aws_config::default_provider::{credentials::DefaultCredentialsChain, region::DefaultRegionChain};
 use aws_types::region::Region;
 use clap::{Args, Parser, Subcommand};
@@ -128,8 +129,8 @@ pub struct Playbook {
 
 pub async fn analyze(args: Analysis) -> Result<()> {
   let aws_config = get_config(&args.region, &args.profile).await?;
-  let eks_client = aws_sdk_eks::Client::new(&aws_config);
-  let cluster = eks::get_cluster(&eks_client, &args.cluster).await?;
+  let aws = clients::RealAwsClients::new(&aws_config);
+  let cluster = aws.get_cluster(&args.cluster).await?;
   let cluster_version = cluster.version().context("Cluster version not found")?;
 
   if version::check_version_supported(cluster_version)?.is_none() {
@@ -138,7 +139,8 @@ pub async fn analyze(args: Analysis) -> Result<()> {
     return Ok(());
   }
 
-  let mut results = analysis::analyze(&aws_config, &cluster).await?;
+  let k8s = clients::RealK8sClients::new(&args.cluster).await?;
+  let mut results = analysis::analyze(&aws, &k8s, &cluster).await?;
   if args.ignore_recommended {
     results.filter_recommended();
   }
@@ -184,12 +186,11 @@ async fn get_config(region: &Option<String>, profile: &Option<String>) -> Result
 pub async fn create(args: Create) -> Result<()> {
   match args.command {
     CreateCommands::Playbook(playbook) => {
-      // Query Kubernetes first so that we can get AWS details that require them
       let aws_config = get_config(&playbook.region, &playbook.profile).await?;
       let region = aws_config.region().context("AWS region not configured")?.to_string();
 
-      let eks_client = aws_sdk_eks::Client::new(&aws_config);
-      let cluster = eks::get_cluster(&eks_client, &playbook.cluster).await?;
+      let aws = clients::RealAwsClients::new(&aws_config);
+      let cluster = aws.get_cluster(&playbook.cluster).await?;
       let cluster_version = cluster.version().context("Cluster version not found")?;
 
       if version::check_version_supported(cluster_version)?.is_none() {
@@ -198,7 +199,8 @@ pub async fn create(args: Create) -> Result<()> {
         return Ok(());
       }
 
-      let mut results = analysis::analyze(&aws_config, &cluster).await?;
+      let k8s = clients::RealK8sClients::new(&playbook.cluster).await?;
+      let mut results = analysis::analyze(&aws, &k8s, &cluster).await?;
       if playbook.ignore_recommended {
         results.filter_recommended();
       }

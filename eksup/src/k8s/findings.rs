@@ -1,18 +1,13 @@
 use anyhow::Result;
-use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
-use crate::k8s::{
-  checks::{self, K8sFindings},
-  resources,
+use crate::{
+  clients::K8sClients,
+  k8s::checks::{self, K8sFindings},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct KubernetesFindings {
-  /// The skew/diff between the cluster control plane (API Server) and the nodes in the data plane (kubelet)
-  /// It is recommended that these versions are aligned prior to upgrading, and changes are required when
-  /// the skew policy could be violated post upgrade (i.e. if current skew is +2, the policy would be violated
-  /// as soon as the control plane is upgraded, resulting in +3, and therefore changes are required before upgrade)
   pub version_skew: Vec<checks::VersionSkew>,
   pub min_replicas: Vec<checks::MinReplicas>,
   pub min_ready_seconds: Vec<checks::MinReadySeconds>,
@@ -26,13 +21,13 @@ pub struct KubernetesFindings {
 }
 
 pub async fn get_kubernetes_findings(
-  client: &K8sClient,
+  k8s: &impl K8sClients,
   control_plane_minor: i32,
   target_minor: i32,
 ) -> Result<KubernetesFindings> {
-  let resources = resources::get_resources(client).await?;
-  let nodes = resources::get_nodes(client).await?;
-  let kube_proxy_config = resources::get_configmap(client, "kube-system", "kube-proxy-config").await?;
+  let resources = k8s.get_resources().await?;
+  let nodes = k8s.get_nodes().await?;
+  let kube_proxy_config = k8s.get_configmap("kube-system", "kube-proxy-config").await?;
 
   let version_skew = checks::version_skew(&nodes, control_plane_minor);
   let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();

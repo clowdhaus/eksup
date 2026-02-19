@@ -3,4 +3,3 @@ pub(crate) mod findings;
 pub(crate) mod resources;
 
 pub use findings::{KubernetesFindings, get_kubernetes_findings};
-pub use resources::get_eniconfigs;
