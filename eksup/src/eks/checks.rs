@@ -33,6 +33,8 @@ pub struct ClusterHealthIssue {
   pub resource_ids: Vec<String>,
 }
 
+// Manual impl (not using impl_findings! macro) because the markdown table
+// intentionally keeps the CHECK column visible, unlike all other finding types.
 impl Findings for Vec<ClusterHealthIssue> {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
     if self.is_empty() {
@@ -71,15 +73,11 @@ pub(crate) fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue
         .issues()
         .iter()
         .filter_map(|issue| {
-          issue.code.as_ref().map(|_| {
-            let code = &issue.code().unwrap().to_owned();
-
-            ClusterHealthIssue {
-              finding: Finding::new(Code::EKS002, Remediation::Required),
-              code: code.as_str().to_string(),
-              message: issue.message().unwrap_or_default().to_string(),
-              resource_ids: issue.resource_ids().to_owned(),
-            }
+          issue.code.as_ref().map(|code| ClusterHealthIssue {
+            finding: Finding::new(Code::EKS002, Remediation::Required),
+            code: code.as_str().to_string(),
+            message: issue.message().unwrap_or_default().to_string(),
+            resource_ids: issue.resource_ids().to_owned(),
           })
         })
         .collect(),
@@ -292,16 +290,12 @@ pub(crate) fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>> {
           .issues()
           .iter()
           .filter_map(|issue| {
-            issue.code.as_ref().map(|_| {
-              let code = issue.code().unwrap();
-
-              AddonHealthIssue {
-                finding: Finding::new(Code::EKS004, Remediation::Required),
-                name: name.to_owned(),
-                code: code.as_str().to_string(),
-                message: issue.message().unwrap_or_default().to_owned(),
-                resource_ids: issue.resource_ids().to_owned(),
-              }
+            issue.code.as_ref().map(|code| AddonHealthIssue {
+              finding: Finding::new(Code::EKS004, Remediation::Required),
+              name: name.to_owned(),
+              code: code.as_str().to_string(),
+              message: issue.message().unwrap_or_default().to_owned(),
+              resource_ids: issue.resource_ids().to_owned(),
             })
           })
           .collect::<Vec<AddonHealthIssue>>(),
@@ -341,15 +335,11 @@ pub(crate) fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Result<V
           .issues()
           .iter()
           .filter_map(|issue| {
-            issue.code.as_ref().map(|_| {
-              let code = &issue.code().unwrap().to_owned();
-
-              NodegroupHealthIssue {
-                finding: Finding::new(Code::EKS003, Remediation::Required),
-                name: name.to_owned(),
-                code: code.as_str().to_string(),
-                message: issue.message().unwrap_or_default().to_owned(),
-              }
+            issue.code.as_ref().map(|code| NodegroupHealthIssue {
+              finding: Finding::new(Code::EKS003, Remediation::Required),
+              name: name.to_owned(),
+              code: code.as_str().to_string(),
+              message: issue.message().unwrap_or_default().to_owned(),
             })
           })
           .collect::<Vec<NodegroupHealthIssue>>(),

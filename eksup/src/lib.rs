@@ -182,7 +182,7 @@ pub async fn create(args: Create) -> Result<()> {
     CreateCommands::Playbook(playbook) => {
       // Query Kubernetes first so that we can get AWS details that require them
       let aws_config = get_config(&playbook.region, &playbook.profile).await?;
-      let region = aws_config.region().unwrap().to_string();
+      let region = aws_config.region().context("AWS region not configured")?.to_string();
 
       let eks_client = aws_sdk_eks::Client::new(&aws_config);
       let cluster = eks::get_cluster(&eks_client, &playbook.cluster).await?;

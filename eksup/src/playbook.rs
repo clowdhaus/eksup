@@ -65,7 +65,7 @@ pub struct TemplateData {
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
-  let data_file = Templates::get("data.yaml").unwrap();
+  let data_file = Templates::get("data.yaml").context("Embedded data.yaml template not found")?;
   let contents = std::str::from_utf8(data_file.data.as_ref())?;
   let data: HashMap<Version, Release> = serde_yaml::from_str(contents)?;
 
