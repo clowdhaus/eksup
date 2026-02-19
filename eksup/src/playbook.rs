@@ -54,7 +54,6 @@ pub struct TemplateData {
   eks_managed_nodegroup_template: String,
   self_managed_nodegroup_template: String,
   fargate_profile_template: String,
-  // kubernetes_findings: k8s::KubernetesFindings,
   min_replicas: String,
   min_ready_seconds: String,
   pod_topology_distribution: String,
@@ -185,7 +184,6 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
     eks_managed_nodegroup_template,
     self_managed_nodegroup_template,
     fargate_profile_template,
-    // kubernetes_findings,
     version_skew: kubernetes_findings.version_skew.to_markdown_table("\t")?,
     min_replicas: kubernetes_findings.min_replicas.to_markdown_table("\t")?,
     min_ready_seconds: kubernetes_findings.min_ready_seconds.to_markdown_table("\t")?,
@@ -203,11 +201,7 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
     None => &default_playbook_name,
   };
 
-  // TODO = handlebars should be able to handle backticks and apostrophes
-  // Need to figure out why this isn't the case currently
-  // let mut output_file = File::create("playbook.md")?;
   let rendered = handlebars.render("playbook.md", &tmpl_data)?;
-  // handlebars.render_to_write("playbook.tmpl", &data, &mut output_file)?;
   let replaced = char_replace(rendered);
   fs::write(filename, replaced)?;
 

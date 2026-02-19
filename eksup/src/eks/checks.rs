@@ -233,13 +233,10 @@ pub(crate) async fn addon_version_compatibility(
     let current_kubernetes_version = resources::get_addon_versions(client, &name, cluster_version).await?;
     let target_kubernetes_version = resources::get_addon_versions(client, &name, &target_k8s_version).await?;
 
-    // TODO - why is this saying the if/else is the same?
-    #[allow(clippy::if_same_then_else)]
-    let remediation = if !target_kubernetes_version.supported_versions.contains(&version) {
-      // The target Kubernetes version of addons does not support the current addon version, must update
-      Some(Remediation::Required)
-    } else if !current_kubernetes_version.supported_versions.contains(&version) {
-      // The current Kubernetes version of addons does not support the current addon version, must update
+    let remediation = if !target_kubernetes_version.supported_versions.contains(&version)
+      || !current_kubernetes_version.supported_versions.contains(&version)
+    {
+      // The current addon version is not supported by either the target or current Kubernetes version
       Some(Remediation::Required)
     } else if current_kubernetes_version.latest != version {
       // The current Kubernetes version of addons supports the current addon version, but it is not the latest
@@ -368,10 +365,6 @@ pub struct ManagedNodeGroupUpdate {
   /// provided by users and not provided by EKS managed node group(s)
   #[tabled(inline)]
   pub launch_template: resources::LaunchTemplate,
-  // We do not consider launch configurations because you cannot determine if any
-  // updates are pending like with launch templates and because they are being deprecated
-  // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
-  // launch_configuration_name: Option<String>,
 }
 
 finding::impl_findings!(ManagedNodeGroupUpdate, "✅ - There are no pending updates for the EKS managed nodegroup(s)");
@@ -431,10 +424,6 @@ pub struct AutoscalingGroupUpdate {
   /// Launch template used by the autoscaling group
   #[tabled(inline)]
   pub launch_template: resources::LaunchTemplate,
-  // We do not consider launch configurations because you cannot determine if any
-  // updates are pending like with launch templates and because they are being deprecated
-  // https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html
-  // launch_configuration_name: Option<String>,
 }
 
 finding::impl_findings!(AutoscalingGroupUpdate, "✅ - There are no pending updates for the self-managed nodegroup(s)");
