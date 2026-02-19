@@ -67,15 +67,20 @@ pub(crate) async fn get_subnet_ips(client: &Ec2Client, subnet_ids: Vec<String>) 
 }
 
 pub async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Addon>> {
-  let addon_names = client
-    .list_addons()
-    .cluster_name(cluster_name)
-    // TODO - paginate this
-    .max_results(100)
-    .send()
-    .await?
-    .addons
-    .unwrap_or_default();
+  let mut addon_names = Vec::new();
+  let mut next_token: Option<String> = None;
+  loop {
+    let mut req = client.list_addons().cluster_name(cluster_name);
+    if let Some(token) = &next_token {
+      req = req.next_token(token);
+    }
+    let resp = req.send().await?;
+    addon_names.extend(resp.addons.unwrap_or_default());
+    next_token = resp.next_token;
+    if next_token.is_none() {
+      break;
+    }
+  }
 
   let mut addons = Vec::new();
 
@@ -157,15 +162,20 @@ pub(crate) async fn get_addon_versions(
 }
 
 pub async fn get_eks_managed_nodegroups(client: &EksClient, cluster_name: &str) -> Result<Vec<Nodegroup>> {
-  let nodegroup_names = client
-    .list_nodegroups()
-    .cluster_name(cluster_name)
-    // TODO - paginate this
-    .max_results(100)
-    .send()
-    .await?
-    .nodegroups
-    .unwrap_or_default();
+  let mut nodegroup_names = Vec::new();
+  let mut next_token: Option<String> = None;
+  loop {
+    let mut req = client.list_nodegroups().cluster_name(cluster_name);
+    if let Some(token) = &next_token {
+      req = req.next_token(token);
+    }
+    let resp = req.send().await?;
+    nodegroup_names.extend(resp.nodegroups.unwrap_or_default());
+    next_token = resp.next_token;
+    if next_token.is_none() {
+      break;
+    }
+  }
 
   let mut nodegroups = Vec::new();
 
@@ -210,15 +220,20 @@ pub async fn get_self_managed_nodegroups(client: &AsgClient, cluster_name: &str)
 }
 
 pub async fn get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Result<Vec<FargateProfile>> {
-  let profile_names = client
-    .list_fargate_profiles()
-    .cluster_name(cluster_name)
-    // TODO - paginate this
-    .max_results(100)
-    .send()
-    .await?
-    .fargate_profile_names
-    .unwrap_or_default();
+  let mut profile_names = Vec::new();
+  let mut next_token: Option<String> = None;
+  loop {
+    let mut req = client.list_fargate_profiles().cluster_name(cluster_name);
+    if let Some(token) = &next_token {
+      req = req.next_token(token);
+    }
+    let resp = req.send().await?;
+    profile_names.extend(resp.fargate_profile_names.unwrap_or_default());
+    next_token = resp.next_token;
+    if next_token.is_none() {
+      break;
+    }
+  }
 
   let mut profiles = Vec::new();
 
