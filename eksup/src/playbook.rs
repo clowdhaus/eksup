@@ -99,14 +99,13 @@ struct FargateProfileTemplateData {
 }
 
 /// Render the upgrade playbook markdown from analysis results without writing to disk
-pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results) -> Result<String> {
+pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, target_minor: i32) -> Result<String> {
   let mut handlebars = Handlebars::new();
   handlebars.register_escape_fn(handlebars::no_escape);
   handlebars.register_embed_templates::<Templates>()?;
 
   let cluster_name = cluster.name().context("Cluster name missing")?;
   let cluster_version = cluster.version().context("Cluster version missing")?;
-  let target_minor = version::get_target_version(cluster_version)?;
   let target_version = version::format_version(target_minor);
 
   let release_data = get_release_data()?;
@@ -189,14 +188,12 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results) -> R
   Ok(rendered)
 }
 
-pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis: analysis::Results) -> Result<()> {
+pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis: analysis::Results, target_minor: i32) -> Result<()> {
   let cluster_name = cluster.name().context("Cluster name missing")?;
-  let cluster_version = cluster.version().context("Cluster version missing")?;
-  let target_minor = version::get_target_version(cluster_version)?;
   let target_version = version::format_version(target_minor);
   let default_playbook_name = format!("{cluster_name}_v{target_version}_upgrade.md");
 
-  let rendered = render(&region, cluster, analysis)?;
+  let rendered = render(&region, cluster, analysis, target_minor)?;
 
   let filename = args.filename.as_deref().unwrap_or(&default_playbook_name);
   fs::write(filename, rendered)?;

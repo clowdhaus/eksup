@@ -85,6 +85,10 @@ pub struct Analysis {
   #[arg(short, long)]
   pub output: Option<String>,
 
+  /// Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1
+  #[arg(short = 't', long, alias = "target")]
+  pub target_version: Option<String>,
+
   /// Exclude recommendations from the output
   #[arg(long)]
   pub ignore_recommended: bool,
@@ -122,6 +126,10 @@ pub struct Playbook {
   #[arg(short, long)]
   pub filename: Option<String>,
 
+  /// Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1
+  #[arg(short = 't', long, alias = "target")]
+  pub target_version: Option<String>,
+
   /// Exclude recommendations from the output
   #[arg(long)]
   pub ignore_recommended: bool,
@@ -133,14 +141,20 @@ pub async fn analyze(args: Analysis) -> Result<()> {
   let cluster = aws.get_cluster(&args.cluster).await?;
   let cluster_version = cluster.version().context("Cluster version not found")?;
 
-  if version::check_version_supported(cluster_version)?.is_none() {
-    println!("Cluster is already at the latest supported version: {cluster_version}");
-    println!("Nothing to upgrade at this time");
-    return Ok(());
-  }
+  let target_minor = match &args.target_version {
+    Some(tv) => version::validate_target_version(tv, cluster_version)?,
+    None => match version::check_version_supported(cluster_version)? {
+      Some(target) => target,
+      None => {
+        println!("Cluster is already at the latest supported version: {cluster_version}");
+        println!("Nothing to upgrade at this time");
+        return Ok(());
+      }
+    },
+  };
 
   let k8s = clients::RealK8sClients::new(&args.cluster).await?;
-  let mut results = analysis::analyze(&aws, &k8s, &cluster).await?;
+  let mut results = analysis::analyze(&aws, &k8s, &cluster, target_minor).await?;
   if args.ignore_recommended {
     results.filter_recommended();
   }
@@ -193,18 +207,24 @@ pub async fn create(args: Create) -> Result<()> {
       let cluster = aws.get_cluster(&playbook.cluster).await?;
       let cluster_version = cluster.version().context("Cluster version not found")?;
 
-      if version::check_version_supported(cluster_version)?.is_none() {
-        println!("Cluster is already at the latest supported version: {cluster_version}");
-        println!("Nothing to upgrade at this time");
-        return Ok(());
-      }
+      let target_minor = match &playbook.target_version {
+        Some(tv) => version::validate_target_version(tv, cluster_version)?,
+        None => match version::check_version_supported(cluster_version)? {
+          Some(target) => target,
+          None => {
+            println!("Cluster is already at the latest supported version: {cluster_version}");
+            println!("Nothing to upgrade at this time");
+            return Ok(());
+          }
+        },
+      };
 
       let k8s = clients::RealK8sClients::new(&playbook.cluster).await?;
-      let mut results = analysis::analyze(&aws, &k8s, &cluster).await?;
+      let mut results = analysis::analyze(&aws, &k8s, &cluster, target_minor).await?;
       if playbook.ignore_recommended {
         results.filter_recommended();
       }
-      playbook::create(playbook, region, &cluster, results)?;
+      playbook::create(playbook, region, &cluster, results, target_minor)?;
     }
   }
 

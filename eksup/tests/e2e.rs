@@ -5,9 +5,11 @@ use common::{fixtures, mock_aws::MockAwsClients, mock_k8s::MockK8sClients};
 use eksup::analysis::Results;
 use eksup::eks::resources::VpcSubnet;
 
-/// Helper: run analysis and return Results
+/// Helper: run analysis and return Results (defaults to n+1 target)
 async fn run_analysis(aws: &MockAwsClients, k8s: &MockK8sClients) -> Results {
-  eksup::analysis::analyze(aws, k8s, &aws.cluster).await.unwrap()
+  let cluster_version = aws.cluster.version().unwrap();
+  let target_minor = eksup::version::get_target_version(cluster_version).unwrap();
+  eksup::analysis::analyze(aws, k8s, &aws.cluster, target_minor).await.unwrap()
 }
 
 /// Helper: render Results as text
@@ -175,10 +177,12 @@ async fn snapshot_filter_recommended_text() {
 // Playbook rendering
 // ============================================================================
 
-/// Helper: run analysis then render playbook markdown
+/// Helper: run analysis then render playbook markdown (defaults to n+1 target)
 async fn render_playbook(aws: &MockAwsClients, k8s: &MockK8sClients) -> String {
+  let cluster_version = aws.cluster.version().unwrap();
+  let target_minor = eksup::version::get_target_version(cluster_version).unwrap();
   let results = run_analysis(aws, k8s).await;
-  eksup::playbook::render("us-east-1", &aws.cluster, results).unwrap()
+  eksup::playbook::render("us-east-1", &aws.cluster, results, target_minor).unwrap()
 }
 
 /// Helper: build a MockAwsClients at a specific cluster version

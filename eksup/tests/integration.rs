@@ -150,7 +150,7 @@ async fn kubernetes_findings_workload_issues() {
 async fn analyze_healthy_cluster() {
   let aws = fixtures::healthy_aws();
   let k8s = fixtures::healthy_k8s();
-  let results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster).await.unwrap();
+  let results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster, 31).await.unwrap();
 
   assert!(results.cluster.cluster_health.is_empty());
   assert!(results.subnets.control_plane_ips.is_empty());
@@ -167,11 +167,27 @@ async fn analyze_filter_recommended() {
   };
   let aws = fixtures::healthy_aws();
 
-  let mut results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster).await.unwrap();
+  let mut results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster, 31).await.unwrap();
   let before_skew = results.kubernetes.version_skew.len();
   results.filter_recommended();
   // Version skew of 1 is Recommended, so it should be filtered out
   assert!(results.kubernetes.version_skew.len() < before_skew || before_skew == 0);
+}
+
+// ============================================================================
+// Explicit target version
+// ============================================================================
+
+#[tokio::test]
+async fn analyze_with_explicit_target() {
+  let aws = fixtures::healthy_aws(); // cluster version "1.30"
+  let k8s = fixtures::healthy_k8s();
+
+  // Jump from 1.30 → 1.33
+  let results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster, 33).await.unwrap();
+
+  assert!(results.cluster.cluster_health.is_empty());
+  assert!(results.subnets.control_plane_ips.is_empty());
 }
 
 // ============================================================================
@@ -188,6 +204,6 @@ async fn analyze_aws_error_propagates() {
     .version("1.30")
     .build();
 
-  let result = eksup::analysis::analyze(&MockAwsClientsError, &MockK8sClientsError, &cluster).await;
+  let result = eksup::analysis::analyze(&MockAwsClientsError, &MockK8sClientsError, &cluster, 31).await;
   assert!(result.is_err(), "should propagate AWS/K8s errors");
 }

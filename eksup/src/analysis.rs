@@ -71,11 +71,11 @@ pub async fn analyze(
   aws: &impl AwsClients,
   k8s: &impl K8sClients,
   cluster: &Cluster,
+  target_minor: i32,
 ) -> Result<Results> {
   let cluster_name = cluster.name().context("Cluster name missing from API response")?;
   let cluster_version = cluster.version().context("Cluster version missing from API response")?;
-  let target_minor = version::get_target_version(cluster_version)?;
-  let control_plane_minor = target_minor - 1;
+  let control_plane_minor = version::parse_minor(cluster_version)?;
 
   let cluster_findings = eks::get_cluster_findings(cluster)?;
 
