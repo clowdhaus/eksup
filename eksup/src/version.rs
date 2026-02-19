@@ -11,6 +11,25 @@ pub(crate) fn format_version(minor: i32) -> String {
   format!("1.{minor}")
 }
 
+/// Early validation for CLI entry points.
+/// Returns `Some(target_minor)` if upgrade is possible, `None` if already at latest.
+/// Bails for below-minimum.
+pub(crate) fn check_version_supported(cluster_version: &str) -> Result<Option<i32>> {
+  let current_minor = parse_minor(cluster_version)?;
+  if current_minor < MINIMUM {
+    bail!(
+      "Cluster version {cluster_version} is below the minimum supported version ({}). \
+       Please upgrade to at least {} before using this tool.",
+      format_version(MINIMUM),
+      format_version(MINIMUM),
+    );
+  }
+  if current_minor >= LATEST {
+    return Ok(None);
+  }
+  Ok(Some(current_minor + 1))
+}
+
 /// Get the target minor version the cluster will be upgraded to
 ///
 /// Given the current Kubernetes version and the default behavior based on Kubernetes

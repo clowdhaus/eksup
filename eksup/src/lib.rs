@@ -8,7 +8,7 @@ mod version;
 
 use std::{env, str};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use aws_config::default_provider::{credentials::DefaultCredentialsChain, region::DefaultRegionChain};
 use aws_types::region::Region;
 use clap::{Args, Parser, Subcommand};
@@ -131,24 +131,12 @@ pub async fn analyze(args: Analysis) -> Result<()> {
   let cluster = eks::get_cluster(&eks_client, &args.cluster).await?;
   let cluster_version = cluster.version().context("Cluster version not found")?;
 
-  let current_minor = version::parse_minor(cluster_version)?;
-
-  if current_minor < version::MINIMUM {
-    bail!(
-      "Cluster version {cluster_version} is below the minimum supported version ({}). \
-       Please upgrade to at least {} before using this tool.",
-      version::format_version(version::MINIMUM),
-      version::format_version(version::MINIMUM),
-    );
-  }
-
-  if current_minor >= version::LATEST {
+  if version::check_version_supported(cluster_version)?.is_none() {
     println!("Cluster is already at the latest supported version: {cluster_version}");
     println!("Nothing to upgrade at this time");
     return Ok(());
   }
 
-  // All checks and validations on input should happen above/before running the analysis
   let mut results = analysis::analyze(&aws_config, &cluster).await?;
   if args.ignore_recommended {
     results.filter_recommended();
@@ -203,18 +191,7 @@ pub async fn create(args: Create) -> Result<()> {
       let cluster = eks::get_cluster(&eks_client, &playbook.cluster).await?;
       let cluster_version = cluster.version().context("Cluster version not found")?;
 
-      let current_minor = version::parse_minor(cluster_version)?;
-
-      if current_minor < version::MINIMUM {
-        bail!(
-          "Cluster version {cluster_version} is below the minimum supported version ({}). \
-           Please upgrade to at least {} before using this tool.",
-          version::format_version(version::MINIMUM),
-          version::format_version(version::MINIMUM),
-        );
-      }
-
-      if current_minor >= version::LATEST {
+      if version::check_version_supported(cluster_version)?.is_none() {
         println!("Cluster is already at the latest supported version: {cluster_version}");
         println!("Nothing to upgrade at this time");
         return Ok(());
