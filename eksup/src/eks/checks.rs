@@ -1,11 +1,8 @@
-use anyhow::{Context, Result};
+use std::collections::HashMap;
+
+use anyhow::Result;
 use aws_sdk_autoscaling::types::AutoScalingGroup;
-use aws_sdk_ec2::Client as Ec2Client;
-use aws_sdk_eks::{
-  Client as EksClient,
-  types::{Addon, AmiTypes, Cluster, Nodegroup},
-};
-use kube::Client as K8sClient;
+use aws_sdk_eks::types::{Addon, AmiTypes, Cluster, Nodegroup};
 use serde::{Deserialize, Serialize};
 use tabled::{
   Table, Tabled,
@@ -15,9 +12,7 @@ use tabled::{
 use crate::{
   eks::resources,
   finding::{self, Code, Finding, Findings, Remediation},
-  k8s,
   output::tabled_vec_to_string,
-  version,
 };
 
 /// Cluster health issue data
@@ -98,16 +93,9 @@ pub struct InsufficientSubnetIps {
 
 finding::impl_findings!(InsufficientSubnetIps, "✅ - There is sufficient IP space in the subnets provided");
 
-pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster) -> Result<Vec<InsufficientSubnetIps>> {
-  let subnet_ids = match cluster.resources_vpc_config() {
-    Some(vpc_config) => vpc_config.subnet_ids().to_owned(),
-    None => return Ok(vec![]),
-  };
-
-  let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
-
+pub(crate) fn control_plane_ips(subnet_ips: &[resources::VpcSubnet]) -> Vec<InsufficientSubnetIps> {
   let mut az_ips: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
-  for subnet in &subnet_ips {
+  for subnet in subnet_ips {
     *az_ips.entry(subnet.availability_zone_id.clone()).or_default() += subnet.available_ips;
   }
   let availability_zone_ips: Vec<(String, i32)> = az_ips.into_iter().collect();
@@ -119,21 +107,19 @@ pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster)
     .count()
     >= 2
   {
-    return Ok(vec![]);
+    return vec![];
   }
 
   let finding = Finding::new(Code::EKS001, Remediation::Required);
 
-  Ok(
-    availability_zone_ips
-      .iter()
-      .map(|(az, ips)| InsufficientSubnetIps {
-        finding: finding.clone(),
-        id: az.clone(),
-        available_ips: *ips,
-      })
-      .collect(),
-  )
+  availability_zone_ips
+    .iter()
+    .map(|(az, ips)| InsufficientSubnetIps {
+      finding: finding.clone(),
+      id: az.clone(),
+      available_ips: *ips,
+    })
+    .collect()
 }
 
 /// Check if the subnets used by the pods will support an upgrade
@@ -141,27 +127,19 @@ pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster)
 /// This checks for the `ENIConfig` custom resource that is used to configure
 /// the AWS VPC CNI for custom networking. The subnet listed for each ENIConfig
 /// is queried for its relevant data used to report on the available IPs
-pub(crate) async fn pod_ips(
-  ec2_client: &Ec2Client,
-  k8s_client: &K8sClient,
+pub(crate) fn pod_ips(
+  subnet_ips: &[resources::VpcSubnet],
   required_ips: i32,
   recommended_ips: i32,
-) -> Result<Vec<InsufficientSubnetIps>> {
-  let eniconfigs = k8s::get_eniconfigs(k8s_client).await?;
-  if eniconfigs.is_empty() {
-    return Ok(vec![]);
+) -> Vec<InsufficientSubnetIps> {
+  if subnet_ips.is_empty() {
+    return vec![];
   }
 
-  let subnet_ids = eniconfigs
-    .iter()
-    .filter_map(|eniconfig| eniconfig.spec.subnet.clone())
-    .collect();
-
-  let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
   let available_ips: i32 = subnet_ips.iter().map(|subnet| subnet.available_ips).sum();
 
   if available_ips >= recommended_ips {
-    return Ok(vec![]);
+    return vec![];
   }
 
   let remediation = if available_ips < required_ips {
@@ -173,20 +151,18 @@ pub(crate) async fn pod_ips(
   let finding = Finding::new(Code::AWS002, remediation);
 
   let mut az_ips: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
-  for subnet in &subnet_ips {
+  for subnet in subnet_ips {
     *az_ips.entry(subnet.availability_zone_id.clone()).or_default() += subnet.available_ips;
   }
 
-  Ok(
-    az_ips
-      .into_iter()
-      .map(|(az, ips)| InsufficientSubnetIps {
-        finding: finding.clone(),
-        id: az,
-        available_ips: ips,
-      })
-      .collect(),
-  )
+  az_ips
+    .into_iter()
+    .map(|(az, ips)| InsufficientSubnetIps {
+      finding: finding.clone(),
+      id: az,
+      available_ips: ips,
+    })
+    .collect()
 }
 
 /// Details of the addon as viewed from an upgrade perspective
@@ -218,36 +194,38 @@ pub struct AddonVersionCompatibility {
 finding::impl_findings!(AddonVersionCompatibility, "✅ - There are no reported addon version compatibility issues.");
 
 /// Check for any version compatibility issues for the EKS addons enabled
-pub(crate) async fn addon_version_compatibility(
-  client: &EksClient,
-  cluster_version: &str,
-  target_minor: i32,
+pub(crate) fn addon_version_compatibility(
   addons: &[Addon],
-) -> Result<Vec<AddonVersionCompatibility>> {
-  let mut addon_versions = Vec::new();
-  let target_k8s_version = version::format_version(target_minor);
+  current_versions: &HashMap<String, resources::AddonVersion>,
+  target_versions: &HashMap<String, resources::AddonVersion>,
+) -> Vec<AddonVersionCompatibility> {
+  let mut addon_findings = Vec::new();
 
   for addon in addons {
     let name = addon.addon_name().unwrap_or_default().to_owned();
     let version = addon.addon_version().unwrap_or_default().to_owned();
 
-    let current_kubernetes_version = resources::get_addon_versions(client, &name, cluster_version).await?;
-    let target_kubernetes_version = resources::get_addon_versions(client, &name, &target_k8s_version).await?;
+    let current_kubernetes_version = match current_versions.get(&name) {
+      Some(v) => v.clone(),
+      None => continue,
+    };
+    let target_kubernetes_version = match target_versions.get(&name) {
+      Some(v) => v.clone(),
+      None => continue,
+    };
 
     let remediation = if !target_kubernetes_version.supported_versions.contains(&version)
       || !current_kubernetes_version.supported_versions.contains(&version)
     {
-      // The current addon version is not supported by either the target or current Kubernetes version
       Some(Remediation::Required)
     } else if current_kubernetes_version.latest != version {
-      // The current Kubernetes version of addons supports the current addon version, but it is not the latest
       Some(Remediation::Recommended)
     } else {
       None
     };
 
     if let Some(remediation) = remediation {
-      addon_versions.push(AddonVersionCompatibility {
+      addon_findings.push(AddonVersionCompatibility {
         finding: Finding::new(Code::EKS005, remediation),
         name,
         version,
@@ -257,7 +235,7 @@ pub(crate) async fn addon_version_compatibility(
     }
   }
 
-  Ok(addon_versions)
+  addon_findings
 }
 
 /// Addon health issue data
@@ -370,47 +348,32 @@ pub struct ManagedNodeGroupUpdate {
 
 finding::impl_findings!(ManagedNodeGroupUpdate, "✅ - There are no pending updates for the EKS managed nodegroup(s)");
 
-pub(crate) async fn eks_managed_nodegroup_update(
-  client: &Ec2Client,
+pub(crate) fn eks_managed_nodegroup_update(
   nodegroup: &Nodegroup,
-) -> Result<Vec<ManagedNodeGroupUpdate>> {
-  let launch_template_spec = nodegroup.launch_template();
+  launch_template: Option<&resources::LaunchTemplate>,
+) -> Vec<ManagedNodeGroupUpdate> {
+  let launch_template = match launch_template {
+    Some(lt) => lt,
+    None => return vec![],
+  };
 
-  // On EKS managed node groups, there are between 1 and 2 launch templates that influence the node group.
-  // If the user does not specify a launch template, EKS will provide its own template.
-  // If the user does specify a launch template, EKS will merge the values from that template with its own template.
-  // Therefore, the launch template shown on the autoscaling group is managed by EKS and reflective of showing
-  // whether there are pending changes or not (pending changes due to launch template changes). Instead, we will only
-  // check the launch template field of the EKS managed node group which is the user provided template, if there is one.
-  match launch_template_spec {
-    Some(launch_template_spec) => {
-      let launch_template_id = launch_template_spec.id()
-        .context("Launch template spec missing ID")?.to_owned();
-      let launch_template = resources::get_launch_template(client, &launch_template_id).await?;
-
-      match nodegroup.resources() {
-        Some(resources) => {
-          let updates = resources
-            .auto_scaling_groups()
-            .iter()
-            .map(|asg| {
-              ManagedNodeGroupUpdate {
-                finding: Finding::new(Code::EKS006, Remediation::Recommended),
-                name: nodegroup.nodegroup_name().unwrap_or_default().to_owned(),
-                autoscaling_group_name: asg.name().unwrap_or_default().to_owned(),
-                launch_template: launch_template.to_owned(),
-              }
-            })
-            // Only interested in those that are not using the latest version
-            .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
-            .collect();
-
-          Ok(updates)
-        }
-        None => Ok(vec![]),
-      }
+  match nodegroup.resources() {
+    Some(resources) => {
+      resources
+        .auto_scaling_groups()
+        .iter()
+        .map(|asg| {
+          ManagedNodeGroupUpdate {
+            finding: Finding::new(Code::EKS006, Remediation::Recommended),
+            name: nodegroup.nodegroup_name().unwrap_or_default().to_owned(),
+            autoscaling_group_name: asg.name().unwrap_or_default().to_owned(),
+            launch_template: launch_template.to_owned(),
+          }
+        })
+        .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
+        .collect()
     }
-    None => Ok(vec![]),
+    None => vec![],
   }
 }
 
@@ -439,27 +402,20 @@ finding::impl_findings!(AutoscalingGroupUpdate, "✅ - There are no pending upda
 /// deployed when the launch template is updated to version 6 for the Kubernetes version upgrade. Ideally,
 /// users should be on the latest version of the launch template prior to upgrading to avoid any surprises
 /// or unexpected changes.
-pub(crate) async fn self_managed_nodegroup_update(
-  client: &Ec2Client,
+pub(crate) fn self_managed_nodegroup_update(
   asg: &AutoScalingGroup,
-) -> Result<Option<AutoscalingGroupUpdate>> {
+  launch_template: &resources::LaunchTemplate,
+) -> Option<AutoscalingGroupUpdate> {
   let name = asg.auto_scaling_group_name().unwrap_or_default().to_owned();
-  let lt_spec = asg
-    .launch_template()
-    .context("Launch template not found, launch configuration is not supported")?;
-  let launch_template =
-    resources::get_launch_template(client, lt_spec.launch_template_id().unwrap_or_default()).await?;
 
-  // Only interested in those that are not using the latest version
   if launch_template.current_version != launch_template.latest_version {
-    let update = AutoscalingGroupUpdate {
+    Some(AutoscalingGroupUpdate {
       finding: Finding::new(Code::EKS007, Remediation::Recommended),
       name,
-      launch_template,
-    };
-    Ok(Some(update))
+      launch_template: launch_template.to_owned(),
+    })
   } else {
-    Ok(None)
+    None
   }
 }
 

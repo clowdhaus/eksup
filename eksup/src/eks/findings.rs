@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use aws_sdk_autoscaling::Client as AsgClient;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{Client as EksClient, types::Cluster};
@@ -6,6 +6,7 @@ use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 
 use crate::eks::{checks, resources};
+use crate::version;
 
 /// Findings related to the cluster itself, primarily the control plane
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,7 +16,7 @@ pub struct ClusterFindings {
 }
 
 /// Collects the cluster findings from the Amazon EKS API
-pub async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings> {
+pub fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings> {
   let cluster_health = checks::cluster_health(cluster)?;
 
   Ok(ClusterFindings { cluster_health })
@@ -32,24 +33,37 @@ pub struct SubnetFindings {
 }
 
 /// Collects findings related to networking and subnets
-///
-/// TBD - currently this checks if there are at least 5 available IPs for the control plane cross account ENIs
-/// and provides feedback on IPs available for pods when utilizing custom networking. However, it does not cover
-/// the IPs for the nodes or nodes and pods when custom networking is not involved. Should these IPs be reported
-/// as a whole (treat the data plane as a whole, reporting how many IPs are available), reported per compute
-/// construct (each MNG, ASG, Fargate profile takes n-number of subnets, should these groupings be reported
-/// individually since it will affect that construct but not necessarily the entire data plane), or a combination
-/// of those two?
 pub async fn get_subnet_findings(
   ec2_client: &Ec2Client,
   k8s_client: &K8sClient,
   cluster: &Cluster,
 ) -> Result<SubnetFindings> {
-  let control_plane_ips = checks::control_plane_ips(ec2_client, cluster).await?;
-  // 16 IPs required: minimum for a single node to schedule pods.
-  // 256 IPs recommended: comfortable headroom for rolling updates across multiple nodes.
-  // Future: make these thresholds configurable via CLI flags so users can tune for their environment.
-  let pod_ips = checks::pod_ips(ec2_client, k8s_client, 16, 256).await?;
+  // Fetch control plane subnet IPs
+  let control_plane_subnet_ids = match cluster.resources_vpc_config() {
+    Some(vpc_config) => vpc_config.subnet_ids().to_owned(),
+    None => vec![],
+  };
+  let control_plane_subnet_ips = if control_plane_subnet_ids.is_empty() {
+    vec![]
+  } else {
+    resources::get_subnet_ips(ec2_client, control_plane_subnet_ids).await?
+  };
+
+  // Fetch pod subnet IPs (custom networking via ENIConfig)
+  let eniconfigs = crate::k8s::get_eniconfigs(k8s_client).await?;
+  let pod_subnet_ids: Vec<String> = eniconfigs
+    .iter()
+    .filter_map(|eniconfig| eniconfig.spec.subnet.clone())
+    .collect();
+  let pod_subnet_ips = if pod_subnet_ids.is_empty() {
+    vec![]
+  } else {
+    resources::get_subnet_ips(ec2_client, pod_subnet_ids).await?
+  };
+
+  // Run pure checks
+  let control_plane_ips = checks::control_plane_ips(&control_plane_subnet_ips);
+  let pod_ips = checks::pod_ips(&pod_subnet_ips, 16, 256);
 
   Ok(SubnetFindings {
     control_plane_ips,
@@ -79,8 +93,20 @@ pub async fn get_addon_findings(
   target_minor: i32,
 ) -> Result<AddonFindings> {
   let addons = resources::get_addons(eks_client, cluster_name).await?;
+  let target_k8s_version = version::format_version(target_minor);
 
-  let version_compatibility = checks::addon_version_compatibility(eks_client, cluster_version, target_minor, &addons).await?;
+  // Pre-fetch all addon version data
+  let mut current_versions = std::collections::HashMap::new();
+  let mut target_versions = std::collections::HashMap::new();
+  for addon in &addons {
+    let name = addon.addon_name().unwrap_or_default().to_owned();
+    let current = resources::get_addon_versions(eks_client, &name, cluster_version).await?;
+    let target = resources::get_addon_versions(eks_client, &name, &target_k8s_version).await?;
+    current_versions.insert(name.clone(), current);
+    target_versions.insert(name, target);
+  }
+
+  let version_compatibility = checks::addon_version_compatibility(&addons, &current_versions, &target_versions);
   let health = checks::addon_health(&addons)?;
 
   Ok(AddonFindings {
@@ -130,30 +156,37 @@ pub async fn get_data_plane_findings(
 
   let eks_managed_nodegroup_health = checks::eks_managed_nodegroup_health(&eks_mngs)?;
   let al2_ami_deprecation = checks::al2_ami_deprecation(&eks_mngs, target_minor)?;
+
+  // Pre-fetch launch templates for EKS managed nodegroups, then run pure check
   let mut eks_managed_nodegroup_update = Vec::new();
   for eks_mng in &eks_mngs {
-    let update = checks::eks_managed_nodegroup_update(ec2_client, eks_mng).await?;
-    eks_managed_nodegroup_update.push(update);
+    let lt = match eks_mng.launch_template() {
+      Some(lt_spec) => {
+        let lt_id = lt_spec.id().context("Launch template spec missing ID")?;
+        Some(resources::get_launch_template(ec2_client, lt_id).await?)
+      }
+      None => None,
+    };
+    eks_managed_nodegroup_update.extend(checks::eks_managed_nodegroup_update(eks_mng, lt.as_ref()));
   }
 
+  // Pre-fetch launch templates for self-managed nodegroups, then run pure check
   let mut self_managed_nodegroup_update = Vec::new();
   for self_mng in &self_mngs {
-    let update = checks::self_managed_nodegroup_update(ec2_client, self_mng).await?;
-    self_managed_nodegroup_update.push(update);
+    let lt_spec = self_mng
+      .launch_template()
+      .context("Launch template not found, launch configuration is not supported")?;
+    let lt = resources::get_launch_template(ec2_client, lt_spec.launch_template_id().unwrap_or_default()).await?;
+    if let Some(update) = checks::self_managed_nodegroup_update(self_mng, &lt) {
+      self_managed_nodegroup_update.push(update);
+    }
   }
 
   Ok(DataPlaneFindings {
     eks_managed_nodegroup_health,
-    eks_managed_nodegroup_update: eks_managed_nodegroup_update
-      .into_iter()
-      .flatten()
-      .collect::<Vec<checks::ManagedNodeGroupUpdate>>(),
-    self_managed_nodegroup_update: self_managed_nodegroup_update
-      .into_iter()
-      .flatten()
-      .collect::<Vec<checks::AutoscalingGroupUpdate>>(),
+    eks_managed_nodegroup_update,
+    self_managed_nodegroup_update,
     al2_ami_deprecation,
-    // Pass through to avoid additional API calls
     eks_managed_nodegroups: eks_mngs
       .iter()
       .map(|mng| mng.nodegroup_name().unwrap_or_default().to_owned())

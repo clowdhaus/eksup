@@ -101,7 +101,7 @@ pub async fn get_addons(client: &EksClient, cluster_name: &str) -> Result<Vec<Ad
   Ok(addons)
 }
 
-#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct AddonVersion {
   /// Latest supported version of the addon
