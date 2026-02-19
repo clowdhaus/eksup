@@ -5,7 +5,7 @@ use k8s_openapi::api::core::v1::ConfigMap;
 
 use crate::{
   eks::resources::{self as eks_resources, AddonVersion, LaunchTemplate, VpcSubnet},
-  k8s::resources::{self as k8s_resources, ENIConfig, Node, StdResource},
+  k8s::resources::{self as k8s_resources, ENIConfig, Node, StdPdb, StdResource},
 };
 
 /// Trait abstracting all AWS API operations used by eksup
@@ -26,6 +26,7 @@ pub trait K8sClients {
   fn get_configmap(&self, namespace: &str, name: &str) -> impl std::future::Future<Output = Result<Option<ConfigMap>>> + Send;
   fn get_eniconfigs(&self) -> impl std::future::Future<Output = Result<Vec<ENIConfig>>> + Send;
   fn get_resources(&self) -> impl std::future::Future<Output = Result<Vec<StdResource>>> + Send;
+  fn get_pod_disruption_budgets(&self) -> impl std::future::Future<Output = Result<Vec<StdPdb>>> + Send;
 }
 
 /// Real AWS client implementation wrapping the SDK clients
@@ -114,5 +115,9 @@ impl K8sClients for RealK8sClients {
 
   async fn get_resources(&self) -> Result<Vec<StdResource>> {
     k8s_resources::get_resources(&self.client).await
+  }
+
+  async fn get_pod_disruption_budgets(&self) -> Result<Vec<StdPdb>> {
+    k8s_resources::get_pod_disruption_budgets(&self.client).await
   }
 }

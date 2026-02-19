@@ -63,6 +63,7 @@ pub struct TemplateData {
   kube_proxy_version_skew: String,
   kube_proxy_ipvs_mode: String,
   ingress_nginx_retirement: String,
+  pod_disruption_budgets: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
@@ -182,6 +183,7 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
     kube_proxy_version_skew: kubernetes_findings.kube_proxy_version_skew.to_markdown_table("\t")?,
     kube_proxy_ipvs_mode: kubernetes_findings.kube_proxy_ipvs_mode.to_markdown_table("\t")?,
     ingress_nginx_retirement: kubernetes_findings.ingress_nginx_retirement.to_markdown_table("\t")?,
+    pod_disruption_budgets: kubernetes_findings.pod_disruption_budgets.to_markdown_table("\t")?,
   };
 
   let rendered = handlebars.render("playbook.md", &tmpl_data)?;

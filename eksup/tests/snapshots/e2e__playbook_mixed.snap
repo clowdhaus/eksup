@@ -187,7 +187,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
 
     #### Check [[K8S004]](https://clowdhaus.github.io/eksup/info/checks/#k8s004)
-    Not yet implemented — check manually for missing `PodDisruptionBudgets`
+	✅ - All relevant Kubernetes workloads have a PodDisruptionBudget configured
 
     #### Check [[K8S005]](https://clowdhaus.github.io/eksup/info/checks/#k8s005)
 	|    | NAME | NAMESPACE | KIND       | ANTIAFFINITY | TOPOLOGYSPREADCONSTRAINTS |

@@ -4,7 +4,9 @@ use anyhow::{Context, Result};
 use k8s_openapi::api::{
   apps, batch,
   core::{self, v1::PodTemplateSpec},
+  policy::v1::PodDisruptionBudget,
 };
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube::{Client, CustomResource, api::{Api, ListParams}};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -588,6 +590,81 @@ pub async fn get_resources(client: &Client) -> Result<Vec<StdResource>> {
   resources.extend(statefulsets);
 
   Ok(resources)
+}
+
+/// Simplified PodDisruptionBudget for checking coverage
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StdPdb {
+  pub name: String,
+  pub namespace: String,
+  pub selector: Option<k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector>,
+  pub min_available: Option<IntOrString>,
+  pub max_unavailable: Option<IntOrString>,
+}
+
+pub async fn get_pod_disruption_budgets(client: &Client) -> Result<Vec<StdPdb>> {
+  let api: Api<PodDisruptionBudget> = Api::all(client.to_owned());
+  let pdb_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list PodDisruptionBudgets")?;
+
+  Ok(
+    pdb_list
+      .into_iter()
+      .map(|pdb| {
+        let name = pdb.metadata.name.unwrap_or_default();
+        let namespace = pdb.metadata.namespace.unwrap_or_default();
+        let (selector, min_available, max_unavailable) = match pdb.spec {
+          Some(spec) => (spec.selector, spec.min_available, spec.max_unavailable),
+          None => (None, None, None),
+        };
+        StdPdb { name, namespace, selector, min_available, max_unavailable }
+      })
+      .collect(),
+  )
+}
+
+/// Check if a LabelSelector matches a set of labels.
+/// Returns true if all matchLabels are present and all matchExpressions are satisfied.
+pub fn selector_matches(
+  selector: &k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
+  labels: &BTreeMap<String, String>,
+) -> bool {
+  if let Some(match_labels) = &selector.match_labels {
+    for (key, value) in match_labels {
+      if labels.get(key) != Some(value) {
+        return false;
+      }
+    }
+  }
+  if let Some(expressions) = &selector.match_expressions {
+    for expr in expressions {
+      let label_value = labels.get(&expr.key);
+      let values = expr.values.as_deref().unwrap_or_default();
+      match expr.operator.as_str() {
+        "In" => {
+          if !label_value.map_or(false, |v| values.contains(v)) {
+            return false;
+          }
+        }
+        "NotIn" => {
+          if label_value.map_or(false, |v| values.contains(v)) {
+            return false;
+          }
+        }
+        "Exists" => {
+          if label_value.is_none() {
+            return false;
+          }
+        }
+        "DoesNotExist" => {
+          if label_value.is_some() {
+            return false;
+          }
+        }
+        _ => {}
+      }
+    }
+  }
+  true
 }
 
 #[cfg(test)]

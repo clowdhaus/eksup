@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use k8s_openapi::api::core::v1::ConfigMap;
 
 use eksup::clients::K8sClients;
-use eksup::k8s::resources::{ENIConfig, Node, StdResource};
+use eksup::k8s::resources::{ENIConfig, Node, StdPdb, StdResource};
 
 /// Mock K8s client for testing
 #[derive(Clone, Default)]
@@ -11,6 +11,7 @@ pub struct MockK8sClients {
   pub configmap: Option<ConfigMap>,
   pub eniconfigs: Vec<ENIConfig>,
   pub resources: Vec<StdResource>,
+  pub pdbs: Vec<StdPdb>,
 }
 
 impl K8sClients for MockK8sClients {
@@ -29,6 +30,10 @@ impl K8sClients for MockK8sClients {
   async fn get_resources(&self) -> Result<Vec<StdResource>> {
     Ok(self.resources.clone())
   }
+
+  async fn get_pod_disruption_budgets(&self) -> Result<Vec<StdPdb>> {
+    Ok(self.pdbs.clone())
+  }
 }
 
 /// Mock that returns errors for all methods
@@ -39,4 +44,5 @@ impl K8sClients for MockK8sClientsError {
   async fn get_configmap(&self, _namespace: &str, _name: &str) -> Result<Option<ConfigMap>> { bail!("mock K8s error") }
   async fn get_eniconfigs(&self) -> Result<Vec<ENIConfig>> { bail!("mock K8s error") }
   async fn get_resources(&self) -> Result<Vec<StdResource>> { bail!("mock K8s error") }
+  async fn get_pod_disruption_budgets(&self) -> Result<Vec<StdPdb>> { bail!("mock K8s error") }
 }

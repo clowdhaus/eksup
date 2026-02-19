@@ -19,6 +19,7 @@ pub struct KubernetesFindings {
   pub kube_proxy_version_skew: Vec<checks::KubeProxyVersionSkew>,
   pub kube_proxy_ipvs_mode: Vec<checks::KubeProxyIpvsMode>,
   pub ingress_nginx_retirement: Vec<checks::IngressNginxRetirement>,
+  pub pod_disruption_budgets: Vec<checks::MissingPdb>,
 }
 
 pub async fn get_kubernetes_findings(
@@ -29,6 +30,7 @@ pub async fn get_kubernetes_findings(
   let resources = k8s.get_resources().await?;
   let nodes = k8s.get_nodes().await?;
   let kube_proxy_config = k8s.get_configmap("kube-system", "kube-proxy-config").await?;
+  let pdbs = k8s.get_pod_disruption_budgets().await?;
 
   let version_skew = checks::version_skew(&nodes, control_plane_minor);
   let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();
@@ -52,6 +54,7 @@ pub async fn get_kubernetes_findings(
   let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, control_plane_minor)?;
   let kube_proxy_ipvs_mode = checks::kube_proxy_ipvs_mode(kube_proxy_config.as_ref(), target_minor)?;
   let ingress_nginx_retirement = checks::ingress_nginx_retirement(&resources, target_minor)?;
+  let pod_disruption_budgets = checks::pod_disruption_budgets(&resources, &pdbs);
 
   Ok(KubernetesFindings {
     version_skew,
@@ -64,5 +67,6 @@ pub async fn get_kubernetes_findings(
     kube_proxy_version_skew,
     kube_proxy_ipvs_mode,
     ingress_nginx_retirement,
+    pod_disruption_budgets,
   })
 }

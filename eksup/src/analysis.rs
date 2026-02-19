@@ -36,6 +36,7 @@ impl Results {
     self.kubernetes.kube_proxy_version_skew.retain(|f| !f.finding.remediation.is_recommended());
     self.kubernetes.kube_proxy_ipvs_mode.retain(|f| !f.finding.remediation.is_recommended());
     self.kubernetes.ingress_nginx_retirement.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.pod_disruption_budgets.retain(|f| !f.finding.remediation.is_recommended());
   }
 
   /// Renders all findings as a formatted stdout table string
@@ -61,6 +62,7 @@ impl Results {
     output.push_str(&self.kubernetes.kube_proxy_version_skew.to_stdout_table()?);
     output.push_str(&self.kubernetes.kube_proxy_ipvs_mode.to_stdout_table()?);
     output.push_str(&self.kubernetes.ingress_nginx_retirement.to_stdout_table()?);
+    output.push_str(&self.kubernetes.pod_disruption_budgets.to_stdout_table()?);
 
     Ok(output)
   }

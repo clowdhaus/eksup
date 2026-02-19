@@ -171,7 +171,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 	✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0
 
     #### Check [[K8S004]](https://clowdhaus.github.io/eksup/info/checks/#k8s004)
-    Not yet implemented — check manually for missing `PodDisruptionBudgets`
+	✅ - All relevant Kubernetes workloads have a PodDisruptionBudget configured
 
     #### Check [[K8S005]](https://clowdhaus.github.io/eksup/info/checks/#k8s005)
 	✅ - All relevant Kubernetes workloads have either podAntiAffinity or topologySpreadConstraints set

@@ -142,6 +142,46 @@ async fn kubernetes_findings_workload_issues() {
   assert!(!result.readiness_probe.is_empty(), "missing probe should trigger finding");
 }
 
+#[tokio::test]
+async fn kubernetes_findings_missing_pdb() {
+  use std::collections::BTreeMap;
+  use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
+  use eksup::k8s::resources::{Kind, StdMetadata, StdResource, StdSpec};
+
+  let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
+  let deploy = StdResource {
+    metadata: StdMetadata {
+      name: "web".into(),
+      namespace: "default".into(),
+      kind: Kind::Deployment,
+      labels: BTreeMap::new(),
+      annotations: BTreeMap::new(),
+    },
+    spec: StdSpec {
+      min_ready_seconds: None,
+      replicas: Some(3),
+      template: Some(PodTemplateSpec {
+        metadata: Some(k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+          labels: Some(labels),
+          ..Default::default()
+        }),
+        spec: Some(PodSpec {
+          containers: vec![Container { name: "app".into(), ..Default::default() }],
+          ..Default::default()
+        }),
+      }),
+    },
+  };
+
+  let k8s = MockK8sClients {
+    resources: vec![deploy],
+    ..Default::default()
+  };
+
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31).await.unwrap();
+  assert!(!result.pod_disruption_budgets.is_empty(), "missing PDB should trigger finding");
+}
+
 // ============================================================================
 // Full analysis pipeline
 // ============================================================================

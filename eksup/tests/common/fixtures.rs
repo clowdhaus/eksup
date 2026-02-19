@@ -4,7 +4,7 @@ use aws_sdk_eks::types::{Cluster, ClusterHealth, VpcConfigResponse};
 use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
 
 use eksup::eks::resources::{AddonVersion, VpcSubnet};
-use eksup::k8s::resources::{Kind, Node, StdMetadata, StdResource, StdSpec};
+use eksup::k8s::resources::{Kind, Node, StdMetadata, StdPdb, StdResource, StdSpec};
 
 use super::mock_aws::MockAwsClients;
 use super::mock_k8s::MockK8sClients;
@@ -70,6 +70,28 @@ pub fn make_deployment(name: &str, namespace: &str, replicas: i32) -> StdResourc
         }),
       }),
     },
+  }
+}
+
+/// Creates a PDB that matches pods with the given labels
+pub fn make_pdb(
+  name: &str,
+  namespace: &str,
+  match_labels: BTreeMap<String, String>,
+  has_min_available: bool,
+  has_max_unavailable: bool,
+) -> StdPdb {
+  use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
+  use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
+  StdPdb {
+    name: name.into(),
+    namespace: namespace.into(),
+    selector: Some(LabelSelector {
+      match_labels: Some(match_labels),
+      ..Default::default()
+    }),
+    min_available: if has_min_available { Some(IntOrString::Int(1)) } else { None },
+    max_unavailable: if has_max_unavailable { Some(IntOrString::Int(1)) } else { None },
   }
 }
 

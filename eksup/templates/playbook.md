@@ -180,7 +180,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 {{ min_ready_seconds }}
 
     #### Check [[K8S004]](https://clowdhaus.github.io/eksup/info/checks/#k8s004)
-    Not yet implemented — check manually for missing `PodDisruptionBudgets`
+{{ pod_disruption_budgets }}
 
     #### Check [[K8S005]](https://clowdhaus.github.io/eksup/info/checks/#k8s005)
 {{ pod_topology_distribution }}

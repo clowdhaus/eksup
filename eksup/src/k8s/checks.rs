@@ -395,6 +395,103 @@ pub fn ingress_nginx_retirement(
   Ok(findings)
 }
 
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct MissingPdb {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  #[tabled(inline)]
+  pub resource: Resource,
+  #[tabled(rename = "HAS PDB")]
+  pub has_pdb: bool,
+  #[tabled(rename = "MIN AVAILABLE")]
+  pub has_min_available: bool,
+  #[tabled(rename = "MAX UNAVAILABLE")]
+  pub has_max_unavailable: bool,
+}
+
+finding::impl_findings!(MissingPdb, "✅ - All relevant Kubernetes workloads have a PodDisruptionBudget configured");
+
+/// K8S004 - Check if workloads have an associated PodDisruptionBudget with
+/// at least one of minAvailable or maxUnavailable configured
+pub fn pod_disruption_budgets(
+  resources: &[resources::StdResource],
+  pdbs: &[resources::StdPdb],
+) -> Vec<MissingPdb> {
+  let mut findings = Vec::new();
+
+  for resource in resources {
+    // Only check workload kinds that benefit from PDBs
+    if matches!(
+      resource.metadata.kind,
+      resources::Kind::DaemonSet | resources::Kind::Job | resources::Kind::CronJob
+    ) {
+      continue;
+    }
+
+    // Skip resources with 0 or 1 replicas (PDB not meaningful)
+    match resource.spec.replicas {
+      Some(r) if r <= 1 => continue,
+      None => continue,
+      _ => {}
+    }
+
+    // Get pod template labels for matching
+    let pod_labels = resource
+      .spec
+      .template
+      .as_ref()
+      .and_then(|t| t.metadata.as_ref())
+      .and_then(|m| m.labels.as_ref())
+      .cloned()
+      .unwrap_or_default();
+
+    // Find matching PDB in the same namespace
+    let matching_pdb = pdbs.iter().find(|pdb| {
+      pdb.namespace == resource.metadata.namespace
+        && pdb
+          .selector
+          .as_ref()
+          .map_or(false, |sel| resources::selector_matches(sel, &pod_labels))
+    });
+
+    match matching_pdb {
+      None => {
+        findings.push(MissingPdb {
+          finding: Finding::new(Code::K8S004, Remediation::Recommended),
+          resource: Resource {
+            name: resource.metadata.name.clone(),
+            namespace: resource.metadata.namespace.clone(),
+            kind: resource.metadata.kind.clone(),
+          },
+          has_pdb: false,
+          has_min_available: false,
+          has_max_unavailable: false,
+        });
+      }
+      Some(pdb) => {
+        let has_min = pdb.min_available.is_some();
+        let has_max = pdb.max_unavailable.is_some();
+        if !has_min && !has_max {
+          findings.push(MissingPdb {
+            finding: Finding::new(Code::K8S004, Remediation::Recommended),
+            resource: Resource {
+              name: resource.metadata.name.clone(),
+              namespace: resource.metadata.namespace.clone(),
+              kind: resource.metadata.kind.clone(),
+            },
+            has_pdb: true,
+            has_min_available: false,
+            has_max_unavailable: false,
+          });
+        }
+      }
+    }
+  }
+
+  findings
+}
+
 pub trait K8sFindings {
   fn get_resource(&self) -> Resource;
 
@@ -776,5 +873,131 @@ mod tests {
     assert_eq!(result.len(), 2);
     assert_eq!(result[0].resource.name, "ingress-nginx-controller");
     assert_eq!(result[1].resource.name, "ingress-nginx-controller-legacy");
+  }
+
+  // ===========================================================================
+  // pod_disruption_budgets
+  // ===========================================================================
+
+  use crate::k8s::resources::StdPdb;
+  use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
+  use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
+
+  fn make_pdb_fixture(
+    name: &str,
+    namespace: &str,
+    match_labels: BTreeMap<String, String>,
+    min_available: Option<IntOrString>,
+    max_unavailable: Option<IntOrString>,
+  ) -> StdPdb {
+    StdPdb {
+      name: name.to_string(),
+      namespace: namespace.to_string(),
+      selector: Some(LabelSelector {
+        match_labels: Some(match_labels),
+        ..Default::default()
+      }),
+      min_available,
+      max_unavailable,
+    }
+  }
+
+  fn make_deployment_with_labels(
+    name: &str,
+    namespace: &str,
+    replicas: i32,
+    labels: BTreeMap<String, String>,
+  ) -> resources::StdResource {
+    resources::StdResource {
+      metadata: resources::StdMetadata {
+        name: name.to_string(),
+        namespace: namespace.to_string(),
+        kind: resources::Kind::Deployment,
+        labels: BTreeMap::new(),
+        annotations: BTreeMap::new(),
+      },
+      spec: resources::StdSpec {
+        min_ready_seconds: None,
+        replicas: Some(replicas),
+        template: Some(PodTemplateSpec {
+          metadata: Some(k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+            labels: Some(labels),
+            ..Default::default()
+          }),
+          spec: Some(PodSpec {
+            containers: vec![Container {
+              name: "app".to_string(),
+              ..Default::default()
+            }],
+            ..Default::default()
+          }),
+        }),
+      },
+    }
+  }
+
+  #[test]
+  fn pdb_no_workloads() {
+    let result = pod_disruption_budgets(&[], &[]);
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn pdb_workload_with_matching_pdb() {
+    let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
+    let deploy = make_deployment_with_labels("web", "default", 3, labels.clone());
+    let pdb = make_pdb_fixture("web-pdb", "default", labels, Some(IntOrString::Int(1)), None);
+
+    let result = pod_disruption_budgets(&[deploy], &[pdb]);
+    assert!(result.is_empty(), "workload with valid PDB should produce no findings");
+  }
+
+  #[test]
+  fn pdb_workload_without_pdb() {
+    let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
+    let deploy = make_deployment_with_labels("web", "default", 3, labels);
+
+    let result = pod_disruption_budgets(&[deploy], &[]);
+    assert_eq!(result.len(), 1);
+    assert!(!result[0].has_pdb);
+  }
+
+  #[test]
+  fn pdb_workload_with_pdb_missing_both_fields() {
+    let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
+    let deploy = make_deployment_with_labels("web", "default", 3, labels.clone());
+    let pdb = make_pdb_fixture("web-pdb", "default", labels, None, None);
+
+    let result = pod_disruption_budgets(&[deploy], &[pdb]);
+    assert_eq!(result.len(), 1);
+    assert!(result[0].has_pdb);
+    assert!(!result[0].has_min_available);
+    assert!(!result[0].has_max_unavailable);
+  }
+
+  #[test]
+  fn pdb_single_replica_skipped() {
+    let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
+    let deploy = make_deployment_with_labels("web", "default", 1, labels);
+
+    let result = pod_disruption_budgets(&[deploy], &[]);
+    assert!(result.is_empty(), "single replica should be skipped");
+  }
+
+  #[test]
+  fn pdb_daemonset_skipped() {
+    let ds = make_daemonset_with_image("agent", "kube-system", "agent:v1");
+    let result = pod_disruption_budgets(&[ds], &[]);
+    assert!(result.is_empty(), "DaemonSet should be skipped");
+  }
+
+  #[test]
+  fn pdb_different_namespace_no_match() {
+    let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
+    let deploy = make_deployment_with_labels("web", "default", 3, labels.clone());
+    let pdb = make_pdb_fixture("web-pdb", "other-ns", labels, Some(IntOrString::Int(1)), None);
+
+    let result = pod_disruption_budgets(&[deploy], &[pdb]);
+    assert_eq!(result.len(), 1, "PDB in different namespace should not match");
   }
 }

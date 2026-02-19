@@ -33,6 +33,7 @@ expression: output
     "docker_socket": [],
     "kube_proxy_version_skew": [],
     "kube_proxy_ipvs_mode": [],
-    "ingress_nginx_retirement": []
+    "ingress_nginx_retirement": [],
+    "pod_disruption_budgets": []
   }
 }
