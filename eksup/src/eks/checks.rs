@@ -169,6 +169,52 @@ pub(crate) fn pod_ips(
     .collect()
 }
 
+/// Check available IPs in data plane subnets (nodegroup or Fargate profile subnets)
+///
+/// During an upgrade, the rolling-update/surge process requires additional IPs.
+/// If the subnets used by a nodegroup or Fargate profile are running low,
+/// the upgrade may fail or be unable to launch replacement nodes/pods.
+pub(crate) fn data_plane_ips(
+  subnet_ips: &[resources::VpcSubnet],
+  required_ips: i32,
+  recommended_ips: i32,
+) -> Vec<InsufficientSubnetIps> {
+  if subnet_ips.is_empty() {
+    return vec![];
+  }
+
+  let available_ips: i32 = subnet_ips.iter().map(|s| s.available_ips).sum();
+
+  if available_ips >= recommended_ips {
+    return vec![];
+  }
+
+  let remediation = if available_ips < required_ips {
+    Remediation::Required
+  } else {
+    Remediation::Recommended
+  };
+
+  let finding = Finding::new(Code::AWS001, remediation);
+
+  let mut az_ips: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
+  for subnet in subnet_ips {
+    *az_ips.entry(subnet.availability_zone_id.clone()).or_default() += subnet.available_ips;
+  }
+
+  let mut sorted_ips: Vec<(String, i32)> = az_ips.into_iter().collect();
+  sorted_ips.sort_by(|a, b| a.0.cmp(&b.0));
+
+  sorted_ips
+    .into_iter()
+    .map(|(az, ips)| InsufficientSubnetIps {
+      finding: finding.clone(),
+      id: az,
+      available_ips: ips,
+    })
+    .collect()
+}
+
 /// Details of the addon as viewed from an upgrade perspective
 ///
 /// Contains the associated version information to compare the current version
@@ -791,6 +837,44 @@ mod tests {
       VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
     ];
     let result = pod_ips(&subnets, 16, 256);
+    assert!(!result.is_empty());
+    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Required)));
+  }
+
+  // ---------- data_plane_ips ----------
+
+  #[test]
+  fn data_plane_ips_empty_subnets() {
+    let result = data_plane_ips(&[], 30, 100);
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn data_plane_ips_above_recommended() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1".into(), available_ips: 80, availability_zone_id: "use1-az1".into() },
+      VpcSubnet { id: "subnet-2".into(), available_ips: 80, availability_zone_id: "use1-az2".into() },
+    ];
+    let result = data_plane_ips(&subnets, 30, 100);
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn data_plane_ips_between_required_and_recommended() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1".into(), available_ips: 40, availability_zone_id: "use1-az1".into() },
+    ];
+    let result = data_plane_ips(&subnets, 30, 100);
+    assert!(!result.is_empty());
+    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Recommended)));
+  }
+
+  #[test]
+  fn data_plane_ips_below_required() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
+    ];
+    let result = data_plane_ips(&subnets, 30, 100);
     assert!(!result.is_empty());
     assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Required)));
   }

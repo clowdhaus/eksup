@@ -26,6 +26,7 @@ impl Results {
     self.data_plane.eks_managed_nodegroup_update.retain(|f| !f.finding.remediation.is_recommended());
     self.data_plane.self_managed_nodegroup_update.retain(|f| !f.finding.remediation.is_recommended());
     self.data_plane.al2_ami_deprecation.retain(|f| !f.finding.remediation.is_recommended());
+    self.data_plane.node_ips.retain(|f| !f.finding.remediation.is_recommended());
     self.kubernetes.version_skew.retain(|f| !f.finding.remediation.is_recommended());
     self.kubernetes.min_replicas.retain(|f| !f.finding.remediation.is_recommended());
     self.kubernetes.min_ready_seconds.retain(|f| !f.finding.remediation.is_recommended());
@@ -52,6 +53,7 @@ impl Results {
     output.push_str(&self.data_plane.eks_managed_nodegroup_update.to_stdout_table()?);
     output.push_str(&self.data_plane.self_managed_nodegroup_update.to_stdout_table()?);
     output.push_str(&self.data_plane.al2_ami_deprecation.to_stdout_table()?);
+    output.push_str(&self.data_plane.node_ips.to_stdout_table()?);
     output.push_str(&self.kubernetes.version_skew.to_stdout_table()?);
     output.push_str(&self.kubernetes.min_replicas.to_stdout_table()?);
     output.push_str(&self.kubernetes.min_ready_seconds.to_stdout_table()?);

@@ -107,6 +107,27 @@ async fn data_plane_findings_empty() {
   assert!(result.self_managed_nodegroup_update.is_empty());
 }
 
+#[tokio::test]
+async fn data_plane_findings_node_ips() {
+  use aws_sdk_eks::types::Nodegroup;
+
+  let mut aws = fixtures::healthy_aws();
+  aws.nodegroups = vec![
+    Nodegroup::builder()
+      .nodegroup_name("test-ng")
+      .subnets("subnet-1")
+      .subnets("subnet-2")
+      .build(),
+  ];
+  aws.subnet_ips = vec![
+    VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
+    VpcSubnet { id: "subnet-2".into(), available_ips: 10, availability_zone_id: "use1-az2".into() },
+  ];
+
+  let result = eksup::eks::get_data_plane_findings(&aws, &aws.cluster, 31).await.unwrap();
+  assert!(!result.node_ips.is_empty(), "low IP subnets should produce findings");
+}
+
 // ============================================================================
 // Kubernetes findings
 // ============================================================================

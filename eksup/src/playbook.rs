@@ -49,6 +49,7 @@ pub struct TemplateData {
   cluster_health: String,
   addon_health: String,
   addon_version_compatibility: String,
+  node_ips: String,
   data_plane_findings: eks::DataPlaneFindings,
   version_skew: String,
   eks_managed_nodegroup_template: String,
@@ -154,6 +155,8 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
   };
   let fargate_profile_template = handlebars.render("fargate-node.md", &fargate_tmpl_data)?;
 
+  let node_ips = data_plane_findings.node_ips.to_markdown_table("\t")?;
+
   let tmpl_data = TemplateData {
     region: region.to_owned(),
     cluster_name: cluster_name.to_owned(),
@@ -169,6 +172,7 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
     cluster_health: cluster_findings.cluster_health.to_markdown_table("\t")?,
     addon_health: addon_findings.health.to_markdown_table("\t")?,
     addon_version_compatibility: addon_findings.version_compatibility.to_markdown_table("\t")?,
+    node_ips,
     data_plane_findings,
     eks_managed_nodegroup_template,
     self_managed_nodegroup_template,

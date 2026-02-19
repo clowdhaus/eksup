@@ -99,6 +99,7 @@ pub struct DataPlaneFindings {
   pub eks_managed_nodegroup_update: Vec<checks::ManagedNodeGroupUpdate>,
   pub self_managed_nodegroup_update: Vec<checks::AutoscalingGroupUpdate>,
   pub al2_ami_deprecation: Vec<checks::Al2AmiDeprecation>,
+  pub node_ips: Vec<checks::InsufficientSubnetIps>,
   pub eks_managed_nodegroups: Vec<String>,
   pub self_managed_nodegroups: Vec<String>,
   pub fargate_profiles: Vec<String>,
@@ -117,6 +118,25 @@ pub async fn get_data_plane_findings(
 
   let eks_managed_nodegroup_health = checks::eks_managed_nodegroup_health(&eks_mngs)?;
   let al2_ami_deprecation = checks::al2_ami_deprecation(&eks_mngs, target_minor)?;
+
+  // Collect all data plane subnet IDs from nodegroups and Fargate profiles
+  let mut data_plane_subnet_ids: Vec<String> = Vec::new();
+  for mng in &eks_mngs {
+    data_plane_subnet_ids.extend(mng.subnets().iter().map(|s| s.to_string()));
+  }
+  for fp in &fargate_profiles {
+    data_plane_subnet_ids.extend(fp.subnets().iter().map(|s| s.to_string()));
+  }
+  data_plane_subnet_ids.sort();
+  data_plane_subnet_ids.dedup();
+
+  let data_plane_subnet_ips = if data_plane_subnet_ids.is_empty() {
+    vec![]
+  } else {
+    aws.get_subnet_ips(data_plane_subnet_ids).await?
+  };
+
+  let node_ips = checks::data_plane_ips(&data_plane_subnet_ips, 30, 100);
 
   let mut eks_managed_nodegroup_update = Vec::new();
   for eks_mng in &eks_mngs {
@@ -146,6 +166,7 @@ pub async fn get_data_plane_findings(
     eks_managed_nodegroup_update,
     self_managed_nodegroup_update,
     al2_ami_deprecation,
+    node_ips,
     eks_managed_nodegroups: eks_mngs
       .iter()
       .map(|mng| mng.nodegroup_name().unwrap_or_default().to_owned())

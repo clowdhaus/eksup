@@ -34,6 +34,7 @@ expression: output
     "eks_managed_nodegroup_update": [],
     "self_managed_nodegroup_update": [],
     "al2_ami_deprecation": [],
+    "node_ips": [],
     "eks_managed_nodegroups": [],
     "self_managed_nodegroups": [],
     "fargate_profiles": []
