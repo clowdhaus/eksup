@@ -15,6 +15,16 @@ pub struct Finding {
   pub remediation: Remediation,
 }
 
+impl Finding {
+  pub fn new(code: Code, remediation: Remediation) -> Self {
+    Self {
+      code,
+      symbol: remediation.symbol(),
+      remediation,
+    }
+  }
+}
+
 /// Determines whether remediation is required or recommended
 ///
 /// This allows for filtering of findings shown to user
@@ -51,6 +61,39 @@ pub trait Findings {
   fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String>;
   fn to_stdout_table(&self) -> Result<String>;
 }
+
+macro_rules! impl_findings {
+  ($type:ty, $empty_msg:expr) => {
+    impl Findings for Vec<$type> {
+      fn to_markdown_table(&self, leading_whitespace: &str) -> ::anyhow::Result<String> {
+        if self.is_empty() {
+          return Ok(format!("{leading_whitespace}{}", $empty_msg));
+        }
+
+        let mut table = ::tabled::Table::new(self);
+        table
+          .with(::tabled::settings::Remove::column(::tabled::settings::location::ByColumnName::new("CHECK")))
+          .with(::tabled::settings::Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
+          .with(::tabled::settings::Style::markdown());
+
+        Ok(format!("{table}\n"))
+      }
+
+      fn to_stdout_table(&self) -> ::anyhow::Result<String> {
+        if self.is_empty() {
+          return Ok(String::new());
+        }
+
+        let mut table = ::tabled::Table::new(self);
+        table.with(::tabled::settings::Style::sharp());
+
+        Ok(format!("{table}\n"))
+      }
+    }
+  };
+}
+
+pub(crate) use impl_findings;
 
 /// TODO - something is required to identify what Kubernetes resource findings are applicable
 /// TODO - to specific version. For example, if a user is already on version 1.23, then they should

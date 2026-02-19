@@ -8,7 +8,7 @@ use tabled::{
 };
 
 use crate::{
-  finding::{self, Findings},
+  finding::{self, Code, Finding, Findings, Remediation},
   k8s::resources::{self, Resource},
   version,
 };
@@ -114,18 +114,12 @@ pub fn version_skew(nodes: &[resources::Node], cluster_version: &str) -> Result<
     // the control plane version (api server). If it is, the node must be upgraded before
     // attempting the cluster upgrade
     let remediation = match version_skew {
-      1 | 2 => finding::Remediation::Recommended,
-      _ => finding::Remediation::Required,
-    };
-
-    let finding = finding::Finding {
-      code: finding::Code::K8S001,
-      symbol: remediation.symbol(),
-      remediation,
+      1 | 2 => Remediation::Recommended,
+      _ => Remediation::Required,
     };
 
     let node = VersionSkew {
-      finding,
+      finding: Finding::new(Code::K8S001, remediation),
       name: node.name.to_owned(),
       kubelet_version: node.kubelet_version.to_owned(),
       kubernetes_version: format!("v{}", version::normalize(&node.kubelet_version)?),
@@ -150,34 +144,7 @@ pub struct MinReplicas {
   pub replicas: i32,
 }
 
-impl Findings for Vec<MinReplicas> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
-    if self.is_empty() {
-      return Ok(format!(
-        "{leading_whitespace}✅ - All relevant Kubernetes workloads have at least 3 replicas specified"
-      ));
-    }
-
-    let mut table = Table::new(self);
-    table
-      .with(Remove::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
-      .with(Style::markdown());
-
-    Ok(format!("{table}\n"))
-  }
-
-  fn to_stdout_table(&self) -> Result<String> {
-    if self.is_empty() {
-      return Ok("".to_owned());
-    }
-
-    let mut table = Table::new(self);
-    table.with(Style::sharp());
-
-    Ok(format!("{table}\n"))
-  }
-}
+finding::impl_findings!(MinReplicas, "✅ - All relevant Kubernetes workloads have at least 3 replicas specified");
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -190,34 +157,7 @@ pub struct MinReadySeconds {
   pub seconds: i32,
 }
 
-impl Findings for Vec<MinReadySeconds> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
-    if self.is_empty() {
-      return Ok(format!(
-        "{leading_whitespace}✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0"
-      ));
-    }
-
-    let mut table = Table::new(self);
-    table
-      .with(Remove::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
-      .with(Style::markdown());
-
-    Ok(format!("{table}\n"))
-  }
-
-  fn to_stdout_table(&self) -> Result<String> {
-    if self.is_empty() {
-      return Ok("".to_owned());
-    }
-
-    let mut table = Table::new(self);
-    table.with(Style::sharp());
-
-    Ok(format!("{table}\n"))
-  }
-}
+finding::impl_findings!(MinReadySeconds, "✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0");
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -242,34 +182,7 @@ pub struct PodTopologyDistribution {
   pub topology_spread_constraints: bool,
 }
 
-impl Findings for Vec<PodTopologyDistribution> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
-    if self.is_empty() {
-      return Ok(format!(
-        "{leading_whitespace}✅ - All relevant Kubernetes workloads have either podAntiAffinity or topologySpreadConstraints set"
-      ));
-    }
-
-    let mut table = Table::new(self);
-    table
-      .with(Remove::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
-      .with(Style::markdown());
-
-    Ok(format!("{table}\n"))
-  }
-
-  fn to_stdout_table(&self) -> Result<String> {
-    if self.is_empty() {
-      return Ok("".to_owned());
-    }
-
-    let mut table = Table::new(self);
-    table.with(Style::sharp());
-
-    Ok(format!("{table}\n"))
-  }
-}
+finding::impl_findings!(PodTopologyDistribution, "✅ - All relevant Kubernetes workloads have either podAntiAffinity or topologySpreadConstraints set");
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -283,34 +196,7 @@ pub struct Probe {
   pub readiness_probe: bool,
 }
 
-impl Findings for Vec<Probe> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
-    if self.is_empty() {
-      return Ok(format!(
-        "{leading_whitespace}✅ - All relevant Kubernetes workloads have a readiness probe configured"
-      ));
-    }
-
-    let mut table = Table::new(self);
-    table
-      .with(Remove::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
-      .with(Style::markdown());
-
-    Ok(format!("{table}\n"))
-  }
-
-  fn to_stdout_table(&self) -> Result<String> {
-    if self.is_empty() {
-      return Ok("".to_owned());
-    }
-
-    let mut table = Table::new(self);
-    table.with(Style::sharp());
-
-    Ok(format!("{table}\n"))
-  }
-}
+finding::impl_findings!(Probe, "✅ - All relevant Kubernetes workloads have a readiness probe configured");
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -324,34 +210,7 @@ pub struct TerminationGracePeriod {
   pub termination_grace_period: i64,
 }
 
-impl Findings for Vec<TerminationGracePeriod> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
-    if self.is_empty() {
-      return Ok(format!(
-        "{leading_whitespace}✅ - No StatefulSet workloads have a terminationGracePeriodSeconds set to more than 0"
-      ));
-    }
-
-    let mut table = Table::new(self);
-    table
-      .with(Remove::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
-      .with(Style::markdown());
-
-    Ok(format!("{table}\n"))
-  }
-
-  fn to_stdout_table(&self) -> Result<String> {
-    if self.is_empty() {
-      return Ok("".to_owned());
-    }
-
-    let mut table = Table::new(self);
-    table.with(Style::sharp());
-
-    Ok(format!("{table}\n"))
-  }
-}
+finding::impl_findings!(TerminationGracePeriod, "✅ - No StatefulSet workloads have a terminationGracePeriodSeconds set to more than 0");
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -365,34 +224,7 @@ pub struct DockerSocket {
   pub docker_socket: bool,
 }
 
-impl Findings for Vec<DockerSocket> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
-    if self.is_empty() {
-      return Ok(format!(
-        "{leading_whitespace}✅ - No relevant Kubernetes workloads are found to be utilizing the Docker socket"
-      ));
-    }
-
-    let mut table = Table::new(self);
-    table
-      .with(Remove::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
-      .with(Style::markdown());
-
-    Ok(format!("{table}\n"))
-  }
-
-  fn to_stdout_table(&self) -> Result<String> {
-    if self.is_empty() {
-      return Ok("".to_owned());
-    }
-
-    let mut table = Table::new(self);
-    table.with(Style::sharp());
-
-    Ok(format!("{table}\n"))
-  }
-}
+finding::impl_findings!(DockerSocket, "✅ - No relevant Kubernetes workloads are found to be utilizing the Docker socket");
 
 #[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -439,52 +271,19 @@ pub fn kube_proxy_version_skew(
   // Prior to upgrade, kube-proxy should not be more than 3 version behind
   // the api server. If it is, kube-proxy must be upgraded before attempting the cluster upgrade
   let remediation = match version_skew {
-    1 | 2 => finding::Remediation::Recommended,
-    _ => finding::Remediation::Required,
-  };
-
-  let finding = finding::Finding {
-    code: finding::Code::K8S011,
-    symbol: remediation.symbol(),
-    remediation,
+    1 | 2 => Remediation::Recommended,
+    _ => Remediation::Required,
   };
 
   Ok(vec![KubeProxyVersionSkew {
-    finding,
+    finding: Finding::new(Code::K8S011, remediation),
     api_server_version: format!("v1.{control_plane_minor_version}"),
     kube_proxy_version: format!("v1.{kproxy_minor_version}"),
     version_skew: format!("{version_skew}"),
   }])
 }
 
-impl Findings for Vec<KubeProxyVersionSkew> {
-  fn to_markdown_table(&self, leading_whitespace: &str) -> Result<String> {
-    if self.is_empty() {
-      return Ok(format!(
-        "{leading_whitespace}✅ - `kube-proxy` version is aligned with the node/`kubelet` versions in use"
-      ));
-    }
-
-    let mut table = Table::new(self);
-    table
-      .with(Remove::column(ByColumnName::new("CHECK")))
-      .with(Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
-      .with(Style::markdown());
-
-    Ok(format!("{table}\n"))
-  }
-
-  fn to_stdout_table(&self) -> Result<String> {
-    if self.is_empty() {
-      return Ok("".to_owned());
-    }
-
-    let mut table = Table::new(self);
-    table.with(Style::sharp());
-
-    Ok(format!("{table}\n"))
-  }
-}
+finding::impl_findings!(KubeProxyVersionSkew, "✅ - `kube-proxy` version is aligned with the node/`kubelet` versions in use");
 
 pub trait K8sFindings {
   fn get_resource(&self) -> Resource;

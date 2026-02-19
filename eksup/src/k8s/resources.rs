@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 use tracing::warn;
 
-use crate::{finding, k8s::checks, version};
+use crate::{finding::{Code, Finding, Remediation}, k8s::checks, version};
 
 /// Custom resource definition for ENIConfig as specified in the AWS VPC CNI
 ///
@@ -410,14 +410,8 @@ impl checks::K8sFindings for StdResource {
           return None;
         }
         if replicas < 3 && replicas > 0 {
-          let remediation = finding::Remediation::Required;
-          let finding = finding::Finding {
-            code: finding::Code::K8S002,
-            symbol: remediation.symbol(),
-            remediation,
-          };
           Some(checks::MinReplicas {
-            finding,
+            finding: Finding::new(Code::K8S002, Remediation::Required),
             resource: self.get_resource(),
             replicas,
           })
@@ -437,15 +431,11 @@ impl checks::K8sFindings for StdResource {
     }
 
     let remediation = match resource.kind {
-      Kind::StatefulSet => finding::Remediation::Required,
-      _ => finding::Remediation::Recommended,
+      Kind::StatefulSet => Remediation::Required,
+      _ => Remediation::Recommended,
     };
 
-    let finding = finding::Finding {
-      code: finding::Code::K8S003,
-      symbol: remediation.symbol(),
-      remediation,
-    };
+    let finding = Finding::new(Code::K8S003, remediation);
 
     let seconds = self.spec.min_ready_seconds;
 
@@ -473,156 +463,93 @@ impl checks::K8sFindings for StdResource {
   }
 
   fn readiness_probe(&self) -> Option<checks::Probe> {
-    let pod_template = self.spec.template.to_owned();
-
     let resource = self.get_resource();
-    match resource.kind {
-      Kind::DaemonSet | Kind::Job | Kind::CronJob => return None,
-      _ => (),
+    if matches!(resource.kind, Kind::DaemonSet | Kind::Job | Kind::CronJob) {
+      return None;
     }
 
-    match pod_template {
-      Some(pod_template) => {
-        let containers = pod_template.spec.unwrap_or_default().containers;
+    let pod_template = self.spec.template.as_ref()?;
+    let containers = &pod_template.spec.as_ref()?.containers;
 
-        for container in containers {
-          if container.readiness_probe.is_none() {
-            let remediation = finding::Remediation::Required;
-            let finding = finding::Finding {
-              code: finding::Code::K8S006,
-              symbol: remediation.symbol(),
-              remediation,
-            };
-
-            // As soon as we find one container without a readiness probe, we return the finding
-            return Some(checks::Probe {
-              finding,
-              resource: self.get_resource(),
-              readiness_probe: container.readiness_probe.is_some(),
-            });
-          }
-        }
-        None
+    for container in containers {
+      if container.readiness_probe.is_none() {
+        return Some(checks::Probe {
+          finding: Finding::new(Code::K8S006, Remediation::Required),
+          resource: self.get_resource(),
+          readiness_probe: false,
+        });
       }
-      None => None,
     }
+    None
   }
 
   fn pod_topology_distribution(&self) -> Option<checks::PodTopologyDistribution> {
-    let pod_template = self.spec.template.to_owned();
-
     let resource = self.get_resource();
-    match resource.kind {
-      Kind::DaemonSet | Kind::Job | Kind::CronJob => return None,
-      _ => (),
+    if matches!(resource.kind, Kind::DaemonSet | Kind::Job | Kind::CronJob) {
+      return None;
     }
 
-    match pod_template {
-      Some(pod_template) => {
-        let pod_spec = pod_template.spec.unwrap_or_default();
-        if pod_spec.affinity.is_none() && pod_spec.topology_spread_constraints.is_none() {
-          let remediation = finding::Remediation::Required;
-          let finding = finding::Finding {
-            code: finding::Code::K8S005,
-            symbol: remediation.symbol(),
-            remediation,
-          };
-
-          // As soon as we find one container without a readiness probe, we return the finding
-          Some(checks::PodTopologyDistribution {
-            finding,
-            resource: self.get_resource(),
-            anti_affinity: pod_spec.affinity.is_some(),
-            topology_spread_constraints: pod_spec.topology_spread_constraints.is_some(),
-          })
-        } else {
-          None
-        }
-      }
-      None => None,
+    let pod_template = self.spec.template.as_ref()?;
+    let pod_spec = pod_template.spec.as_ref()?;
+    if pod_spec.affinity.is_none() && pod_spec.topology_spread_constraints.is_none() {
+      Some(checks::PodTopologyDistribution {
+        finding: Finding::new(Code::K8S005, Remediation::Required),
+        resource: self.get_resource(),
+        anti_affinity: false,
+        topology_spread_constraints: false,
+      })
+    } else {
+      None
     }
   }
 
   fn termination_grace_period(&self) -> Option<checks::TerminationGracePeriod> {
-    let pod_template = self.spec.template.to_owned();
-
-    let resource = self.get_resource();
-    match resource.kind {
-      // Only applies to StatefulSets
-      Kind::StatefulSet => (),
-      _ => return None,
+    if !matches!(self.metadata.kind, Kind::StatefulSet) {
+      return None;
     }
 
-    match pod_template {
-      Some(pod_template) => {
-        let pod_spec = pod_template.spec.unwrap_or_default();
-        let termination_grace_period = pod_spec.termination_grace_period_seconds;
+    let pod_template = self.spec.template.as_ref()?;
+    let pod_spec = pod_template.spec.as_ref()?;
+    let termination_grace_period = pod_spec.termination_grace_period_seconds?;
 
-        match termination_grace_period {
-          Some(termination_grace_period) => {
-            if termination_grace_period <= 0 {
-              let remediation = finding::Remediation::Required;
-              let finding = finding::Finding {
-                code: finding::Code::K8S007,
-                symbol: remediation.symbol(),
-                remediation,
-              };
-
-              Some(checks::TerminationGracePeriod {
-                finding,
-                resource: self.get_resource(),
-                termination_grace_period,
-              })
-            } else {
-              // Defaults to 30 seconds if not provided
-              None
-            }
-          }
-          None => None,
-        }
-      }
-      None => None,
+    if termination_grace_period <= 0 {
+      Some(checks::TerminationGracePeriod {
+        finding: Finding::new(Code::K8S007, Remediation::Required),
+        resource: self.get_resource(),
+        termination_grace_period,
+      })
+    } else {
+      None
     }
   }
 
   fn docker_socket(&self, target_version: &str) -> anyhow::Result<Option<checks::DockerSocket>> {
-    let pod_template = self.spec.template.as_ref();
-
     let target_version = version::parse_minor(target_version)?;
     let remediation = if target_version >= 24 {
-      finding::Remediation::Required
+      Remediation::Required
     } else {
-      finding::Remediation::Recommended
+      Remediation::Recommended
     };
 
-    match pod_template {
-      Some(pod_template) => {
-        let containers = &pod_template.spec.as_ref().map(|s| &s.containers);
+    let pod_template = match self.spec.template.as_ref() {
+      Some(t) => t,
+      None => return Ok(None),
+    };
 
-        if let Some(containers) = containers {
-          for container in *containers {
-            let volume_mounts = container.volume_mounts.as_deref().unwrap_or_default();
-            for volume_mount in volume_mounts {
-              if volume_mount.mount_path.contains("docker.sock") || volume_mount.mount_path.contains("dockershim.sock") {
-                let finding = finding::Finding {
-                  code: finding::Code::K8S008,
-                  symbol: remediation.symbol(),
-                  remediation,
-                };
-
-                return Ok(Some(checks::DockerSocket {
-                  finding,
-                  resource: self.get_resource(),
-                  docker_socket: true,
-                }));
-              }
-            }
+    if let Some(containers) = pod_template.spec.as_ref().map(|s| &s.containers) {
+      for container in containers {
+        for volume_mount in container.volume_mounts.as_deref().unwrap_or_default() {
+          if volume_mount.mount_path.contains("docker.sock") || volume_mount.mount_path.contains("dockershim.sock") {
+            return Ok(Some(checks::DockerSocket {
+              finding: Finding::new(Code::K8S008, remediation),
+              resource: self.get_resource(),
+              docker_socket: true,
+            }));
           }
         }
-        Ok(None)
       }
-      None => Ok(None),
     }
+    Ok(None)
   }
 }
 
