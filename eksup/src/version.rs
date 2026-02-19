@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 
 /// Latest support version
 pub const LATEST: &str = "1.35";
@@ -10,9 +10,12 @@ pub const LATEST: &str = "1.35";
 /// next minor Kubernetes version
 /// TODO: This will change in the future when the strategy allows for `BlueGreen` upgrades
 pub(crate) fn get_target_version(current_version: &str) -> Result<String> {
-  let current_minor_version = current_version.split('.').collect::<Vec<&str>>()[1].parse::<i32>()?;
-
-  Ok(format!("1.{}", current_minor_version + 1))
+  let current_minor = parse_minor(current_version)?;
+  let latest_minor = parse_minor(LATEST)?;
+  if current_minor >= latest_minor {
+    bail!("Cluster is already on the latest supported version ({LATEST})");
+  }
+  Ok(format!("1.{}", current_minor + 1))
 }
 
 /// Given a version, parse the minor version
@@ -46,28 +49,55 @@ mod tests {
   use super::*;
 
   #[test]
-  fn can_parse_minor() {
-    let input_expected = vec![
+  fn parse_minor_valid_versions() {
+    let cases = vec![
       ("v1.20.7-eks-123456", 20),
-      // TODO - add more test cases and failure cases
+      ("1.30", 30),
+      ("v1.30", 30),
+      ("v1.30.0-eks-12345", 30),
+      ("1.25.3", 25),
     ];
 
-    for (input, expected) in input_expected {
+    for (input, expected) in cases {
       let result = parse_minor(input).unwrap();
-      assert_eq!(result, expected);
+      assert_eq!(result, expected, "parse_minor({input})");
     }
   }
 
   #[test]
-  fn can_normalize() {
-    let input_expected = vec![
+  fn parse_minor_invalid_versions() {
+    assert!(parse_minor("125").is_err(), "should fail on '125' (no dot)");
+    assert!(parse_minor("").is_err(), "should fail on empty string");
+  }
+
+  #[test]
+  fn normalize_valid_versions() {
+    let cases = vec![
+      ("v1.30.0-eks-12345", "1.30"),
+      ("1.25", "1.25"),
       ("v1.20.7-eks-123456", "1.20"),
-      // TODO - add more test cases and failure cases
     ];
 
-    for (input, expected) in input_expected {
+    for (input, expected) in cases {
       let result = normalize(input).unwrap();
-      assert_eq!(result, expected);
+      assert_eq!(result, expected, "normalize({input})");
     }
+  }
+
+  #[test]
+  fn normalize_invalid_versions() {
+    assert!(normalize("nodots").is_err(), "should fail on 'nodots'");
+  }
+
+  #[test]
+  fn get_target_version_increments_minor() {
+    let result = get_target_version("1.30").unwrap();
+    assert_eq!(result, "1.31");
+  }
+
+  #[test]
+  fn get_target_version_errors_on_latest() {
+    let result = get_target_version(LATEST);
+    assert!(result.is_err(), "should error when already on LATEST");
   }
 }
