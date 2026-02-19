@@ -2,8 +2,6 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 
-use crate::version;
-
 #[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct Finding {
@@ -94,16 +92,6 @@ macro_rules! impl_findings {
 }
 
 pub(crate) use impl_findings;
-
-/// TODO - something is required to identify what Kubernetes resource findings are applicable
-/// TODO - to specific version. For example, if a user is already on version 1.23, then they should
-/// TODO - not be shown findings that affect version <= 1.22
-pub(crate) trait _Deprecation {
-  /// Returns the Kubernetes version the check was deprecated in
-  fn deprecated_in(&self) -> Option<version::_KubernetesVersion>;
-  /// Returns the Kubernetes version the check will be removed in
-  fn removed_in(&self) -> Option<version::_KubernetesVersion>;
-}
 
 /// Codes that represent the finding variants
 ///

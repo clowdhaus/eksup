@@ -38,7 +38,6 @@ pub struct EniConfigSpec {
 pub enum Kind {
   DaemonSet,
   Deployment,
-  PodSecurityPolicy,
   ReplicaSet,
   ReplicationController,
   StatefulSet,
@@ -51,7 +50,6 @@ impl std::fmt::Display for Kind {
     match *self {
       Kind::DaemonSet => write!(f, "DaemonSet"),
       Kind::Deployment => write!(f, "Deployment"),
-      Kind::PodSecurityPolicy => write!(f, "PodSecurityPolicy"),
       Kind::ReplicaSet => write!(f, "ReplicaSet"),
       Kind::ReplicationController => write!(f, "ReplicationController"),
       Kind::StatefulSet => write!(f, "StatefulSet"),

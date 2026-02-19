@@ -35,13 +35,11 @@ aws-types = "1.1"
 clap = { version = "4.5", features = ["derive", "string", "color", "unstable-styles"] }
 clap-verbosity-flag = "3.0"
 handlebars = { version = "6.4", features = ["rust-embed"] }
-itertools = "0.14"
 # https://kube.rs/kubernetes-version/
 k8s-openapi = { version = "0.27.0", default-features = false, features = ["earliest"] }
 kube = { version = "3.0", default-features = false, features = [ "client", "derive", "aws-lc-rs", "rustls-tls" ] }
 rust-embed = { version = "8.11", features = ["compression"] }
 schemars = "1.2.1"
-seq-macro = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
@@ -49,7 +47,7 @@ tabled = "0.20"
 tokio = { version = "1.49", default-features = false, features = ["macros", "rt-multi-thread"] }
 tracing = {version = "0.1", features = ["log-always"] }
 tracing-log = "0.2"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = "0.3"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin_include)"] }

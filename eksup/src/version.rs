@@ -1,50 +1,7 @@
-use std::fmt;
-
 use anyhow::{Context, Result};
-use clap::ValueEnum;
-use seq_macro::seq;
-use serde::{Deserialize, Serialize};
 
 /// Latest support version
 pub const LATEST: &str = "1.35";
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct _Versions {
-  pub current: String,
-  pub target: String,
-}
-
-seq!(N in 30..=35 {
-    /// Kubernetes version(s) supported
-    #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-    pub enum _KubernetesVersion {
-        #( V~N, )*
-    }
-
-    /// Formats the Kubernetes version as a string in the form of "1.X"
-    impl fmt::Display for _KubernetesVersion {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            match *self {
-                #( _KubernetesVersion::V~N => write!(f, "1.{}", N), )*
-            }
-        }
-    }
-
-    /// Used by clap for acceptable values and converting from input to enum
-    impl ValueEnum for _KubernetesVersion {
-        fn value_variants<'a>() -> &'a [Self] {
-            &[
-                #( Self::V~N, )*
-            ]
-        }
-
-        fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
-            match self {
-                #( Self::V~N => Some(clap::builder::PossibleValue::new(format!("1.{}", N))), )*
-            }
-        }
-    }
-});
 
 /// Get the Kubernetes version the cluster is intended to be upgraded to
 ///

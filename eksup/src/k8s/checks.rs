@@ -161,17 +161,6 @@ finding::impl_findings!(MinReadySeconds, "✅ - All relevant Kubernetes workload
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
-pub struct _PodDisruptionBudget {
-  #[tabled(inline)]
-  pub finding: finding::Finding,
-  #[tabled(inline)]
-  pub resource: Resource,
-  // Has pod associated pod disruption budget
-  // TODO - more relevant information than just present?
-}
-
-#[derive(Debug, Serialize, Deserialize, Tabled)]
-#[tabled(rename_all = "UpperCase")]
 pub struct PodTopologyDistribution {
   #[tabled(inline)]
   pub finding: finding::Finding,
