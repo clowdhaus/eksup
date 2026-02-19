@@ -98,7 +98,8 @@ struct FargateProfileTemplateData {
   target_version: String,
 }
 
-pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis: analysis::Results) -> Result<()> {
+/// Render the upgrade playbook markdown from analysis results without writing to disk
+pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results) -> Result<String> {
   let mut handlebars = Handlebars::new();
   handlebars.register_escape_fn(handlebars::no_escape);
   handlebars.register_embed_templates::<Templates>()?;
@@ -107,7 +108,6 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
   let cluster_version = cluster.version().context("Cluster version missing")?;
   let target_minor = version::get_target_version(cluster_version)?;
   let target_version = version::format_version(target_minor);
-  let default_playbook_name = format!("{cluster_name}_v{target_version}_upgrade.md");
 
   let release_data = get_release_data()?;
   let release = release_data.get(&target_version)
@@ -155,7 +155,7 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
   let fargate_profile_template = handlebars.render("fargate-node.md", &fargate_tmpl_data)?;
 
   let tmpl_data = TemplateData {
-    region,
+    region: region.to_owned(),
     cluster_name: cluster_name.to_owned(),
     current_version: cluster_version.to_owned(),
     target_version,
@@ -185,13 +185,20 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
     ingress_nginx_retirement: kubernetes_findings.ingress_nginx_retirement.to_markdown_table("\t")?,
   };
 
-  let filename = match &args.filename {
-    Some(filename) => filename,
-    None => &default_playbook_name,
-  };
-
   let rendered = handlebars.render("playbook.md", &tmpl_data)?;
-  fs::write(filename, rendered)?;
+  Ok(rendered)
+}
 
+pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis: analysis::Results) -> Result<()> {
+  let cluster_name = cluster.name().context("Cluster name missing")?;
+  let cluster_version = cluster.version().context("Cluster version missing")?;
+  let target_minor = version::get_target_version(cluster_version)?;
+  let target_version = version::format_version(target_minor);
+  let default_playbook_name = format!("{cluster_name}_v{target_version}_upgrade.md");
+
+  let rendered = render(&region, cluster, analysis)?;
+
+  let filename = args.filename.as_deref().unwrap_or(&default_playbook_name);
+  fs::write(filename, rendered)?;
   Ok(())
 }

@@ -4,7 +4,7 @@ pub mod eks;
 pub mod finding;
 pub mod k8s;
 pub mod output;
-mod playbook;
+pub mod playbook;
 pub mod version;
 
 use std::{env, str};
