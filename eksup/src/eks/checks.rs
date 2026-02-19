@@ -507,3 +507,241 @@ pub(crate) fn al2_ami_deprecation(nodegroups: &[Nodegroup], target_minor: i32) -
 
   Ok(findings)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use aws_sdk_eks::types::{
+    Addon, AddonHealth, AddonIssue, AddonIssueCode, AmiTypes, Cluster, ClusterHealth, ClusterIssue,
+    ClusterIssueCode, Issue, Nodegroup, NodegroupHealth, NodegroupIssueCode,
+  };
+
+  // ---------- cluster_health ----------
+
+  #[test]
+  fn cluster_health_no_issues() {
+    let cluster = Cluster::builder()
+      .health(ClusterHealth::builder().build())
+      .build();
+
+    let result = cluster_health(&cluster).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn cluster_health_none_health() {
+    // Cluster with no health field set at all
+    let cluster = Cluster::builder().build();
+
+    let result = cluster_health(&cluster).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn cluster_health_has_issues() {
+    let issue = ClusterIssue::builder()
+      .code(ClusterIssueCode::Ec2SubnetNotFound)
+      .message("Subnet not found")
+      .resource_ids("subnet-12345")
+      .build();
+
+    let cluster = Cluster::builder()
+      .health(ClusterHealth::builder().issues(issue).build())
+      .build();
+
+    let result = cluster_health(&cluster).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].code, "Ec2SubnetNotFound");
+    assert_eq!(result[0].message, "Subnet not found");
+    assert_eq!(result[0].resource_ids, vec!["subnet-12345"]);
+  }
+
+  // ---------- addon_health ----------
+
+  #[test]
+  fn addon_health_no_issues() {
+    let addon = Addon::builder()
+      .addon_name("vpc-cni")
+      .health(AddonHealth::builder().build())
+      .build();
+
+    let result = addon_health(&[addon]).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn addon_health_has_issues() {
+    let issue = AddonIssue::builder()
+      .code(AddonIssueCode::AccessDenied)
+      .message("Access denied")
+      .resource_ids("arn:aws:iam::123456789012:role/test")
+      .build();
+
+    let addon = Addon::builder()
+      .addon_name("vpc-cni")
+      .health(AddonHealth::builder().issues(issue).build())
+      .build();
+
+    let result = addon_health(&[addon]).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].name, "vpc-cni");
+    assert_eq!(result[0].code, "AccessDenied");
+    assert_eq!(result[0].message, "Access denied");
+    assert_eq!(
+      result[0].resource_ids,
+      vec!["arn:aws:iam::123456789012:role/test"]
+    );
+  }
+
+  #[test]
+  fn addon_health_none_health() {
+    let addon = Addon::builder().addon_name("coredns").build();
+
+    let result = addon_health(&[addon]).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn addon_health_empty_addons() {
+    let result = addon_health(&[]).unwrap();
+    assert!(result.is_empty());
+  }
+
+  // ---------- eks_managed_nodegroup_health ----------
+
+  #[test]
+  fn nodegroup_health_no_issues() {
+    let ng = Nodegroup::builder()
+      .nodegroup_name("test-ng")
+      .health(NodegroupHealth::builder().build())
+      .build();
+
+    let result = eks_managed_nodegroup_health(&[ng]).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn nodegroup_health_has_issues() {
+    let issue = Issue::builder()
+      .code(NodegroupIssueCode::AccessDenied)
+      .message("Access denied to node group")
+      .build();
+
+    let ng = Nodegroup::builder()
+      .nodegroup_name("test-ng")
+      .health(NodegroupHealth::builder().issues(issue).build())
+      .build();
+
+    let result = eks_managed_nodegroup_health(&[ng]).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].name, "test-ng");
+    assert_eq!(result[0].code, "AccessDenied");
+    assert_eq!(result[0].message, "Access denied to node group");
+  }
+
+  #[test]
+  fn nodegroup_health_none_health() {
+    let ng = Nodegroup::builder().nodegroup_name("test-ng").build();
+
+    let result = eks_managed_nodegroup_health(&[ng]).unwrap();
+    assert!(result.is_empty());
+  }
+
+  // ---------- al2_ami_deprecation ----------
+
+  #[test]
+  fn al2_ami_deprecation_target_below_32() {
+    let ng = Nodegroup::builder()
+      .nodegroup_name("test-ng")
+      .ami_type(AmiTypes::Al2X8664)
+      .build();
+
+    let result = al2_ami_deprecation(&[ng], 31).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn al2_ami_deprecation_target_32_recommended() {
+    let ng = Nodegroup::builder()
+      .nodegroup_name("test-ng")
+      .ami_type(AmiTypes::Al2X8664)
+      .build();
+
+    let result = al2_ami_deprecation(&[ng], 32).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].name, "test-ng");
+    assert_eq!(result[0].ami_type, "AL2_x86_64");
+    assert!(matches!(
+      result[0].finding.remediation,
+      Remediation::Recommended
+    ));
+  }
+
+  #[test]
+  fn al2_ami_deprecation_target_33_required() {
+    let ng = Nodegroup::builder()
+      .nodegroup_name("test-ng")
+      .ami_type(AmiTypes::Al2X8664)
+      .build();
+
+    let result = al2_ami_deprecation(&[ng], 33).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].name, "test-ng");
+    assert!(matches!(
+      result[0].finding.remediation,
+      Remediation::Required
+    ));
+  }
+
+  #[test]
+  fn al2_ami_deprecation_non_al2_ami_type() {
+    let ng = Nodegroup::builder()
+      .nodegroup_name("test-ng")
+      .ami_type(AmiTypes::Al2023X8664Standard)
+      .build();
+
+    let result = al2_ami_deprecation(&[ng], 33).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn al2_ami_deprecation_no_ami_type() {
+    let ng = Nodegroup::builder().nodegroup_name("test-ng").build();
+
+    let result = al2_ami_deprecation(&[ng], 33).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn al2_ami_deprecation_mixed_ami_types() {
+    let al2_ng = Nodegroup::builder()
+      .nodegroup_name("al2-ng")
+      .ami_type(AmiTypes::Al2X8664)
+      .build();
+
+    let al2_arm_ng = Nodegroup::builder()
+      .nodegroup_name("al2-arm-ng")
+      .ami_type(AmiTypes::Al2Arm64)
+      .build();
+
+    let al2023_ng = Nodegroup::builder()
+      .nodegroup_name("al2023-ng")
+      .ami_type(AmiTypes::Al2023X8664Standard)
+      .build();
+
+    let bottlerocket_ng = Nodegroup::builder()
+      .nodegroup_name("br-ng")
+      .ami_type(AmiTypes::BottlerocketX8664)
+      .build();
+
+    let result =
+      al2_ami_deprecation(&[al2_ng, al2_arm_ng, al2023_ng, bottlerocket_ng], 32).unwrap();
+    // Only the two AL2 nodegroups should produce findings
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0].name, "al2-ng");
+    assert_eq!(result[1].name, "al2-arm-ng");
+    assert!(result
+      .iter()
+      .all(|f| matches!(f.finding.remediation, Remediation::Recommended)));
+  }
+}

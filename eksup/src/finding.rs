@@ -124,6 +124,7 @@ macro_rules! define_codes {
       }
     }
 
+    #[allow(dead_code)]
     impl Code {
       pub(crate) fn description(&self) -> &'static str {
         match self { $(Code::$variant => $desc,)* }
@@ -173,6 +174,7 @@ define_codes! {
   K8S013 => { desc: "Ingress NGINX controller retirement (1.35+)",                   from: Some(35), until: None },
 }
 
+#[allow(dead_code)]
 impl Code {
   /// Whether the check applies for a given target minor version.
   pub fn is_applicable(&self, target_minor: i32) -> bool {
