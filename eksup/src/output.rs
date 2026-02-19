@@ -38,3 +38,25 @@ pub(crate) fn output(results: &analysis::Results, format: &Format, filename: &Op
 
   Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn tabled_vec_to_string_empty() {
+    assert_eq!(tabled_vec_to_string(&[]), "");
+  }
+
+  #[test]
+  fn tabled_vec_to_string_single() {
+    let v = vec!["one".to_string()];
+    assert_eq!(tabled_vec_to_string(&v), "one");
+  }
+
+  #[test]
+  fn tabled_vec_to_string_multiple() {
+    let v = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    assert_eq!(tabled_vec_to_string(&v), "a, b, c");
+  }
+}

@@ -574,3 +574,489 @@ pub async fn get_resources(client: &Client) -> Result<Vec<StdResource>> {
 
   Ok(resources)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::finding::Remediation;
+  use crate::k8s::checks::K8sFindings;
+  use k8s_openapi::api::core::v1::{
+    Affinity, Container, HTTPGetAction, PodAffinityTerm, PodAntiAffinity, PodSpec, PodTemplateSpec,
+    Probe as K8sProbe, TopologySpreadConstraint, VolumeMount,
+  };
+  use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
+
+  fn make_resource(
+    kind: Kind,
+    name: &str,
+    replicas: Option<i32>,
+    min_ready_seconds: Option<i32>,
+    template: Option<PodTemplateSpec>,
+  ) -> StdResource {
+    StdResource {
+      metadata: StdMetadata {
+        name: name.to_string(),
+        namespace: "default".to_string(),
+        kind,
+        labels: BTreeMap::new(),
+        annotations: BTreeMap::new(),
+      },
+      spec: StdSpec {
+        min_ready_seconds,
+        replicas,
+        template,
+      },
+    }
+  }
+
+  fn basic_template() -> PodTemplateSpec {
+    PodTemplateSpec {
+      metadata: None,
+      spec: Some(PodSpec {
+        containers: vec![Container {
+          name: "app".to_string(),
+          ..Default::default()
+        }],
+        ..Default::default()
+      }),
+    }
+  }
+
+  fn template_with_anti_affinity() -> PodTemplateSpec {
+    PodTemplateSpec {
+      metadata: None,
+      spec: Some(PodSpec {
+        containers: vec![Container {
+          name: "app".to_string(),
+          ..Default::default()
+        }],
+        affinity: Some(Affinity {
+          pod_anti_affinity: Some(PodAntiAffinity {
+            required_during_scheduling_ignored_during_execution: Some(vec![PodAffinityTerm {
+              label_selector: Some(LabelSelector::default()),
+              topology_key: "kubernetes.io/hostname".to_string(),
+              ..Default::default()
+            }]),
+            ..Default::default()
+          }),
+          ..Default::default()
+        }),
+        ..Default::default()
+      }),
+    }
+  }
+
+  fn template_with_spread() -> PodTemplateSpec {
+    PodTemplateSpec {
+      metadata: None,
+      spec: Some(PodSpec {
+        containers: vec![Container {
+          name: "app".to_string(),
+          ..Default::default()
+        }],
+        topology_spread_constraints: Some(vec![TopologySpreadConstraint {
+          max_skew: 1,
+          topology_key: "kubernetes.io/hostname".to_string(),
+          when_unsatisfiable: "DoNotSchedule".to_string(),
+          ..Default::default()
+        }]),
+        ..Default::default()
+      }),
+    }
+  }
+
+  fn template_with_grace_period(seconds: i64) -> PodTemplateSpec {
+    PodTemplateSpec {
+      metadata: None,
+      spec: Some(PodSpec {
+        containers: vec![Container {
+          name: "app".to_string(),
+          ..Default::default()
+        }],
+        termination_grace_period_seconds: Some(seconds),
+        ..Default::default()
+      }),
+    }
+  }
+
+  // ── min_replicas ──────────────────────────────────────────────────────
+
+  #[test]
+  fn min_replicas_below_3() {
+    let r = make_resource(Kind::Deployment, "web", Some(2), None, Some(basic_template()));
+    let result = r.min_replicas();
+    assert!(result.is_some());
+    let finding = result.unwrap();
+    assert_eq!(finding.replicas, 2);
+    assert!(matches!(finding.finding.remediation, Remediation::Required));
+  }
+
+  #[test]
+  fn min_replicas_at_3() {
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(basic_template()));
+    assert!(r.min_replicas().is_none());
+  }
+
+  #[test]
+  fn min_replicas_statefulset_1() {
+    let r = make_resource(Kind::StatefulSet, "db", Some(1), None, Some(basic_template()));
+    let result = r.min_replicas();
+    assert!(result.is_some());
+    assert_eq!(result.unwrap().replicas, 1);
+  }
+
+  #[test]
+  fn min_replicas_replicaset_0() {
+    let r = make_resource(Kind::ReplicaSet, "old", Some(0), None, Some(basic_template()));
+    assert!(r.min_replicas().is_none());
+  }
+
+  #[test]
+  fn min_replicas_job_skipped() {
+    let r = make_resource(Kind::Job, "batch", None, None, Some(basic_template()));
+    assert!(r.min_replicas().is_none());
+  }
+
+  #[test]
+  fn min_replicas_none() {
+    let r = make_resource(Kind::Deployment, "web", None, None, Some(basic_template()));
+    assert!(r.min_replicas().is_none());
+  }
+
+  // ── min_ready_seconds ─────────────────────────────────────────────────
+
+  #[test]
+  fn min_ready_seconds_zero() {
+    let r = make_resource(Kind::Deployment, "web", Some(3), Some(0), Some(basic_template()));
+    let result = r.min_ready_seconds();
+    assert!(result.is_some());
+    assert_eq!(result.unwrap().seconds, 0);
+  }
+
+  #[test]
+  fn min_ready_seconds_positive() {
+    let r = make_resource(Kind::Deployment, "web", Some(3), Some(5), Some(basic_template()));
+    assert!(r.min_ready_seconds().is_none());
+  }
+
+  #[test]
+  fn min_ready_seconds_none() {
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(basic_template()));
+    let result = r.min_ready_seconds();
+    assert!(result.is_some());
+    assert_eq!(result.unwrap().seconds, 0);
+  }
+
+  #[test]
+  fn min_ready_seconds_deployment_recommended() {
+    let r = make_resource(Kind::Deployment, "web", Some(3), Some(0), Some(basic_template()));
+    let result = r.min_ready_seconds().unwrap();
+    assert!(matches!(result.finding.remediation, Remediation::Recommended));
+  }
+
+  #[test]
+  fn min_ready_seconds_statefulset_required() {
+    let r = make_resource(Kind::StatefulSet, "db", Some(3), Some(0), Some(basic_template()));
+    let result = r.min_ready_seconds().unwrap();
+    assert!(matches!(result.finding.remediation, Remediation::Required));
+  }
+
+  // ── pod_topology_distribution ─────────────────────────────────────────
+
+  #[test]
+  fn topology_neither() {
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(basic_template()));
+    let result = r.pod_topology_distribution();
+    assert!(result.is_some());
+    let ptd = result.unwrap();
+    assert!(!ptd.anti_affinity);
+    assert!(!ptd.topology_spread_constraints);
+  }
+
+  #[test]
+  fn topology_anti_affinity() {
+    let r = make_resource(
+      Kind::Deployment,
+      "web",
+      Some(3),
+      None,
+      Some(template_with_anti_affinity()),
+    );
+    assert!(r.pod_topology_distribution().is_none());
+  }
+
+  #[test]
+  fn topology_spread() {
+    let r = make_resource(
+      Kind::Deployment,
+      "web",
+      Some(3),
+      None,
+      Some(template_with_spread()),
+    );
+    assert!(r.pod_topology_distribution().is_none());
+  }
+
+  #[test]
+  fn topology_both() {
+    let mut tmpl = template_with_anti_affinity();
+    if let Some(ref mut spec) = tmpl.spec {
+      spec.topology_spread_constraints = Some(vec![TopologySpreadConstraint {
+        max_skew: 1,
+        topology_key: "kubernetes.io/hostname".to_string(),
+        when_unsatisfiable: "DoNotSchedule".to_string(),
+        ..Default::default()
+      }]);
+    }
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(tmpl));
+    assert!(r.pod_topology_distribution().is_none());
+  }
+
+  #[test]
+  fn topology_daemonset_skipped() {
+    let r = make_resource(Kind::DaemonSet, "agent", None, None, Some(basic_template()));
+    assert!(r.pod_topology_distribution().is_none());
+  }
+
+  #[test]
+  fn topology_job_skipped() {
+    let r = make_resource(Kind::Job, "batch", None, None, Some(basic_template()));
+    assert!(r.pod_topology_distribution().is_none());
+  }
+
+  // ── readiness_probe ───────────────────────────────────────────────────
+
+  #[test]
+  fn readiness_probe_missing() {
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(basic_template()));
+    let result = r.readiness_probe();
+    assert!(result.is_some());
+    assert!(!result.unwrap().readiness_probe);
+  }
+
+  #[test]
+  fn readiness_probe_present() {
+    let tmpl = PodTemplateSpec {
+      metadata: None,
+      spec: Some(PodSpec {
+        containers: vec![Container {
+          name: "app".to_string(),
+          readiness_probe: Some(K8sProbe {
+            http_get: Some(HTTPGetAction {
+              path: Some("/healthz".to_string()),
+              port: k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8080),
+              ..Default::default()
+            }),
+            ..Default::default()
+          }),
+          ..Default::default()
+        }],
+        ..Default::default()
+      }),
+    };
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(tmpl));
+    assert!(r.readiness_probe().is_none());
+  }
+
+  #[test]
+  fn readiness_probe_partial() {
+    let tmpl = PodTemplateSpec {
+      metadata: None,
+      spec: Some(PodSpec {
+        containers: vec![
+          Container {
+            name: "app".to_string(),
+            readiness_probe: Some(K8sProbe {
+              http_get: Some(HTTPGetAction {
+                path: Some("/healthz".to_string()),
+                port: k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8080),
+                ..Default::default()
+              }),
+              ..Default::default()
+            }),
+            ..Default::default()
+          },
+          Container {
+            name: "sidecar".to_string(),
+            ..Default::default()
+          },
+        ],
+        ..Default::default()
+      }),
+    };
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(tmpl));
+    assert!(r.readiness_probe().is_some());
+  }
+
+  #[test]
+  fn readiness_probe_daemonset_skipped() {
+    let r = make_resource(Kind::DaemonSet, "agent", None, None, Some(basic_template()));
+    assert!(r.readiness_probe().is_none());
+  }
+
+  #[test]
+  fn readiness_probe_job_skipped() {
+    let r = make_resource(Kind::Job, "batch", None, None, Some(basic_template()));
+    assert!(r.readiness_probe().is_none());
+  }
+
+  // ── termination_grace_period ──────────────────────────────────────────
+
+  #[test]
+  fn termination_grace_period_zero() {
+    let r = make_resource(
+      Kind::StatefulSet,
+      "db",
+      Some(3),
+      None,
+      Some(template_with_grace_period(0)),
+    );
+    let result = r.termination_grace_period();
+    assert!(result.is_some());
+    assert_eq!(result.unwrap().termination_grace_period, 0);
+  }
+
+  #[test]
+  fn termination_grace_period_positive() {
+    let r = make_resource(
+      Kind::StatefulSet,
+      "db",
+      Some(3),
+      None,
+      Some(template_with_grace_period(30)),
+    );
+    assert!(r.termination_grace_period().is_none());
+  }
+
+  #[test]
+  fn termination_grace_period_none() {
+    let r = make_resource(Kind::StatefulSet, "db", Some(3), None, Some(basic_template()));
+    assert!(r.termination_grace_period().is_none());
+  }
+
+  #[test]
+  fn termination_grace_period_deployment_skipped() {
+    let r = make_resource(
+      Kind::Deployment,
+      "web",
+      Some(3),
+      None,
+      Some(template_with_grace_period(0)),
+    );
+    assert!(r.termination_grace_period().is_none());
+  }
+
+  // ── docker_socket ─────────────────────────────────────────────────────
+
+  #[test]
+  fn docker_socket_not_mounted() {
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(basic_template()));
+    assert!(r.docker_socket().unwrap().is_none());
+  }
+
+  #[test]
+  fn docker_socket_docker_sock() {
+    let tmpl = PodTemplateSpec {
+      metadata: None,
+      spec: Some(PodSpec {
+        containers: vec![Container {
+          name: "app".to_string(),
+          volume_mounts: Some(vec![VolumeMount {
+            name: "docker".to_string(),
+            mount_path: "/var/run/docker.sock".to_string(),
+            ..Default::default()
+          }]),
+          ..Default::default()
+        }],
+        ..Default::default()
+      }),
+    };
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(tmpl));
+    let result = r.docker_socket().unwrap();
+    assert!(result.is_some());
+    assert!(result.unwrap().docker_socket);
+  }
+
+  #[test]
+  fn docker_socket_dockershim_sock() {
+    let tmpl = PodTemplateSpec {
+      metadata: None,
+      spec: Some(PodSpec {
+        containers: vec![Container {
+          name: "app".to_string(),
+          volume_mounts: Some(vec![VolumeMount {
+            name: "dockershim".to_string(),
+            mount_path: "/var/run/dockershim.sock".to_string(),
+            ..Default::default()
+          }]),
+          ..Default::default()
+        }],
+        ..Default::default()
+      }),
+    };
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(tmpl));
+    let result = r.docker_socket().unwrap();
+    assert!(result.is_some());
+    assert!(result.unwrap().docker_socket);
+  }
+
+  #[test]
+  fn docker_socket_other_mount() {
+    let tmpl = PodTemplateSpec {
+      metadata: None,
+      spec: Some(PodSpec {
+        containers: vec![Container {
+          name: "app".to_string(),
+          volume_mounts: Some(vec![VolumeMount {
+            name: "logs".to_string(),
+            mount_path: "/var/log".to_string(),
+            ..Default::default()
+          }]),
+          ..Default::default()
+        }],
+        ..Default::default()
+      }),
+    };
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(tmpl));
+    assert!(r.docker_socket().unwrap().is_none());
+  }
+
+  #[test]
+  fn docker_socket_no_template() {
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, None);
+    assert!(r.docker_socket().unwrap().is_none());
+  }
+
+  // ── node ──────────────────────────────────────────────────────────────
+
+  #[test]
+  fn node_struct_construction() {
+    let node = Node {
+      name: "ip-10-0-1-42".to_string(),
+      labels: Some(BTreeMap::from([(
+        "node.kubernetes.io/instance-type".to_string(),
+        "m5.xlarge".to_string(),
+      )])),
+      kubelet_version: "v1.28.3".to_string(),
+      minor_version: 28,
+    };
+    assert_eq!(node.name, "ip-10-0-1-42");
+    assert!(node
+      .labels
+      .as_ref()
+      .unwrap()
+      .contains_key("node.kubernetes.io/instance-type"));
+    assert_eq!(node.kubelet_version, "v1.28.3");
+  }
+
+  #[test]
+  fn node_minor_version() {
+    let node = Node {
+      name: "worker-1".to_string(),
+      labels: None,
+      kubelet_version: "v1.30.0".to_string(),
+      minor_version: 30,
+    };
+    assert_eq!(node.minor_version, 30);
+  }
+}

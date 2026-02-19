@@ -416,3 +416,365 @@ pub trait K8sFindings {
   /// K8S008 - check if resources use the Docker socket
   fn docker_socket(&self) -> Result<Option<DockerSocket>>;
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::collections::BTreeMap;
+  use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  fn make_node(name: &str, minor_version: i32) -> resources::Node {
+    resources::Node {
+      name: name.to_string(),
+      labels: None,
+      kubelet_version: format!("v1.{minor_version}.0"),
+      minor_version,
+    }
+  }
+
+  fn make_kube_proxy_daemonset(image: &str) -> resources::StdResource {
+    resources::StdResource {
+      metadata: resources::StdMetadata {
+        name: "kube-proxy".to_string(),
+        namespace: "kube-system".to_string(),
+        kind: resources::Kind::DaemonSet,
+        labels: BTreeMap::new(),
+        annotations: BTreeMap::new(),
+      },
+      spec: resources::StdSpec {
+        min_ready_seconds: None,
+        replicas: None,
+        template: Some(PodTemplateSpec {
+          metadata: None,
+          spec: Some(PodSpec {
+            containers: vec![Container {
+              name: "kube-proxy".to_string(),
+              image: Some(image.to_string()),
+              ..Container::default()
+            }],
+            ..PodSpec::default()
+          }),
+        }),
+      },
+    }
+  }
+
+  fn make_configmap(yaml_str: &str) -> ConfigMap {
+    ConfigMap {
+      data: Some(BTreeMap::from([("config".to_string(), yaml_str.to_string())])),
+      ..ConfigMap::default()
+    }
+  }
+
+  fn make_deployment_with_image(name: &str, namespace: &str, image: &str) -> resources::StdResource {
+    resources::StdResource {
+      metadata: resources::StdMetadata {
+        name: name.to_string(),
+        namespace: namespace.to_string(),
+        kind: resources::Kind::Deployment,
+        labels: BTreeMap::new(),
+        annotations: BTreeMap::new(),
+      },
+      spec: resources::StdSpec {
+        min_ready_seconds: None,
+        replicas: Some(1),
+        template: Some(PodTemplateSpec {
+          metadata: None,
+          spec: Some(PodSpec {
+            containers: vec![Container {
+              name: "controller".to_string(),
+              image: Some(image.to_string()),
+              ..Container::default()
+            }],
+            ..PodSpec::default()
+          }),
+        }),
+      },
+    }
+  }
+
+  fn make_daemonset_with_image(name: &str, namespace: &str, image: &str) -> resources::StdResource {
+    resources::StdResource {
+      metadata: resources::StdMetadata {
+        name: name.to_string(),
+        namespace: namespace.to_string(),
+        kind: resources::Kind::DaemonSet,
+        labels: BTreeMap::new(),
+        annotations: BTreeMap::new(),
+      },
+      spec: resources::StdSpec {
+        min_ready_seconds: None,
+        replicas: None,
+        template: Some(PodTemplateSpec {
+          metadata: None,
+          spec: Some(PodSpec {
+            containers: vec![Container {
+              name: "controller".to_string(),
+              image: Some(image.to_string()),
+              ..Container::default()
+            }],
+            ..PodSpec::default()
+          }),
+        }),
+      },
+    }
+  }
+
+  // ===========================================================================
+  // version_skew
+  // ===========================================================================
+
+  #[test]
+  fn version_skew_empty_nodes() {
+    let result = version_skew(&[], 30);
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn version_skew_no_skew_same_version() {
+    let nodes = vec![make_node("node-1", 30)];
+    let result = version_skew(&nodes, 30);
+    assert!(result.is_empty(), "node at same version should produce no findings");
+  }
+
+  #[test]
+  fn version_skew_node_ahead_of_control_plane() {
+    let nodes = vec![make_node("node-1", 31)];
+    let result = version_skew(&nodes, 30);
+    assert!(result.is_empty(), "node ahead of control plane should be skipped");
+  }
+
+  #[test]
+  fn version_skew_1_recommended() {
+    let nodes = vec![make_node("node-1", 29)];
+    let result = version_skew(&nodes, 30);
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
+    assert_eq!(result[0].version_skew, "+1");
+  }
+
+  #[test]
+  fn version_skew_2_recommended() {
+    let nodes = vec![make_node("node-1", 28)];
+    let result = version_skew(&nodes, 30);
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
+    assert_eq!(result[0].version_skew, "+2");
+  }
+
+  #[test]
+  fn version_skew_3_plus_required() {
+    let nodes = vec![make_node("node-1", 27)];
+    let result = version_skew(&nodes, 30);
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Required));
+    assert_eq!(result[0].version_skew, "+3");
+  }
+
+  #[test]
+  fn version_skew_multiple_mixed_nodes() {
+    let nodes = vec![
+      make_node("same", 30),      // skew 0 -> skipped
+      make_node("ahead", 31),     // ahead -> skipped
+      make_node("behind-1", 29),  // skew 1 -> Recommended
+      make_node("behind-3", 27),  // skew 3 -> Required
+      make_node("behind-4", 26),  // skew 4 -> Required
+    ];
+    let result = version_skew(&nodes, 30);
+    assert_eq!(result.len(), 3);
+
+    // behind-1
+    assert_eq!(result[0].name, "behind-1");
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
+    assert_eq!(result[0].version_skew, "+1");
+
+    // behind-3
+    assert_eq!(result[1].name, "behind-3");
+    assert!(matches!(result[1].finding.remediation, Remediation::Required));
+    assert_eq!(result[1].version_skew, "+3");
+
+    // behind-4
+    assert_eq!(result[2].name, "behind-4");
+    assert!(matches!(result[2].finding.remediation, Remediation::Required));
+    assert_eq!(result[2].version_skew, "+4");
+  }
+
+  // ===========================================================================
+  // kube_proxy_version_skew
+  // ===========================================================================
+
+  #[test]
+  fn kube_proxy_version_skew_no_daemonset() {
+    let resources: Vec<resources::StdResource> = vec![];
+    let result = kube_proxy_version_skew(&resources, 30).unwrap();
+    assert!(result.is_empty(), "no kube-proxy daemonset should return empty");
+  }
+
+  #[test]
+  fn kube_proxy_version_skew_no_skew() {
+    let ds = make_kube_proxy_daemonset(
+      "602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.30.0-eksbuild.3",
+    );
+    let result = kube_proxy_version_skew(&[ds], 30).unwrap();
+    assert!(result.is_empty(), "same version should produce no findings");
+  }
+
+  #[test]
+  fn kube_proxy_version_skew_1_recommended() {
+    let ds = make_kube_proxy_daemonset(
+      "602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.29.0-eksbuild.3",
+    );
+    let result = kube_proxy_version_skew(&[ds], 30).unwrap();
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
+    assert_eq!(result[0].version_skew, "1");
+  }
+
+  #[test]
+  fn kube_proxy_version_skew_3_required() {
+    let ds = make_kube_proxy_daemonset(
+      "602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.27.0-eksbuild.3",
+    );
+    let result = kube_proxy_version_skew(&[ds], 30).unwrap();
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Required));
+    assert_eq!(result[0].version_skew, "3");
+  }
+
+  #[test]
+  fn kube_proxy_version_skew_node_ahead() {
+    let ds = make_kube_proxy_daemonset(
+      "602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.31.0-eksbuild.3",
+    );
+    let result = kube_proxy_version_skew(&[ds], 30).unwrap();
+    assert!(result.is_empty(), "kube-proxy ahead of control plane should return empty");
+  }
+
+  // ===========================================================================
+  // kube_proxy_ipvs_mode
+  // ===========================================================================
+
+  #[test]
+  fn kube_proxy_ipvs_mode_none_configmap() {
+    let result = kube_proxy_ipvs_mode(None, 35).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn kube_proxy_ipvs_mode_no_config_key() {
+    let cm = ConfigMap {
+      data: Some(BTreeMap::from([("other-key".to_string(), "value".to_string())])),
+      ..ConfigMap::default()
+    };
+    let result = kube_proxy_ipvs_mode(Some(&cm), 35).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn kube_proxy_ipvs_mode_iptables() {
+    let cm = make_configmap("mode: iptables");
+    let result = kube_proxy_ipvs_mode(Some(&cm), 35).unwrap();
+    assert!(result.is_empty(), "iptables mode should produce no findings");
+  }
+
+  #[test]
+  fn kube_proxy_ipvs_mode_ipvs_target_35_recommended() {
+    let cm = make_configmap("mode: ipvs");
+    let result = kube_proxy_ipvs_mode(Some(&cm), 35).unwrap();
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
+    assert_eq!(result[0].current_mode, "ipvs");
+  }
+
+  #[test]
+  fn kube_proxy_ipvs_mode_ipvs_target_36_required() {
+    let cm = make_configmap("mode: ipvs");
+    let result = kube_proxy_ipvs_mode(Some(&cm), 36).unwrap();
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Required));
+    assert_eq!(result[0].current_mode, "ipvs");
+  }
+
+  // ===========================================================================
+  // ingress_nginx_retirement
+  // ===========================================================================
+
+  #[test]
+  fn ingress_nginx_retirement_empty_resources() {
+    let result = ingress_nginx_retirement(&[], 35).unwrap();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn ingress_nginx_retirement_no_nginx_images() {
+    let deploy = make_deployment_with_image("my-app", "default", "nginx:1.25");
+    let result = ingress_nginx_retirement(&[deploy], 35).unwrap();
+    assert!(result.is_empty(), "plain nginx image should not trigger findings");
+  }
+
+  #[test]
+  fn ingress_nginx_retirement_registry_k8s_io_image() {
+    let deploy = make_deployment_with_image(
+      "ingress-nginx-controller",
+      "ingress-nginx",
+      "registry.k8s.io/ingress-nginx/controller:v1.9.0",
+    );
+    let result = ingress_nginx_retirement(&[deploy], 35).unwrap();
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
+    assert_eq!(result[0].image, "registry.k8s.io/ingress-nginx/controller:v1.9.0");
+    assert_eq!(result[0].resource.name, "ingress-nginx-controller");
+  }
+
+  #[test]
+  fn ingress_nginx_retirement_k8s_gcr_io_image() {
+    let deploy = make_deployment_with_image(
+      "ingress-nginx-controller",
+      "ingress-nginx",
+      "k8s.gcr.io/ingress-nginx/controller:v1.5.1",
+    );
+    let result = ingress_nginx_retirement(&[deploy], 35).unwrap();
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
+    assert_eq!(result[0].image, "k8s.gcr.io/ingress-nginx/controller:v1.5.1");
+  }
+
+  #[test]
+  fn ingress_nginx_retirement_target_below_35() {
+    let deploy = make_deployment_with_image(
+      "ingress-nginx-controller",
+      "ingress-nginx",
+      "registry.k8s.io/ingress-nginx/controller:v1.9.0",
+    );
+    let result = ingress_nginx_retirement(&[deploy], 34).unwrap();
+    assert!(result.is_empty(), "target below 35 should produce no findings");
+  }
+
+  #[test]
+  fn ingress_nginx_retirement_multiple_findings() {
+    let deploy1 = make_deployment_with_image(
+      "ingress-nginx-controller",
+      "ingress-nginx",
+      "registry.k8s.io/ingress-nginx/controller:v1.9.0",
+    );
+    let deploy2 = make_daemonset_with_image(
+      "ingress-nginx-controller-legacy",
+      "legacy-ns",
+      "k8s.gcr.io/ingress-nginx/controller:v1.5.1",
+    );
+    // A non-matching resource that should be ignored
+    let deploy3 = make_deployment_with_image(
+      "my-app",
+      "default",
+      "my-registry.io/my-app:v2.0",
+    );
+    let result = ingress_nginx_retirement(&[deploy1, deploy2, deploy3], 35).unwrap();
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0].resource.name, "ingress-nginx-controller");
+    assert_eq!(result[1].resource.name, "ingress-nginx-controller-legacy");
+  }
+}

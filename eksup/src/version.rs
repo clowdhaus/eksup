@@ -126,4 +126,48 @@ mod tests {
     let result = get_target_version(&format_version(MINIMUM));
     assert!(result.is_ok(), "should succeed at MINIMUM");
   }
+
+  #[test]
+  fn check_version_supported_below_minimum() {
+    let result = check_version_supported("1.29");
+    assert!(result.is_err());
+    let msg = result.unwrap_err().to_string();
+    assert!(msg.contains("below the minimum"), "error message: {msg}");
+  }
+
+  #[test]
+  fn check_version_supported_at_latest() {
+    let result = check_version_supported(&format_version(LATEST)).unwrap();
+    assert!(result.is_none(), "should return None at latest");
+  }
+
+  #[test]
+  fn check_version_supported_upgradeable() {
+    let result = check_version_supported(&format_version(MINIMUM)).unwrap();
+    assert_eq!(result, Some(MINIMUM + 1));
+  }
+
+  #[test]
+  fn check_version_supported_one_below_latest() {
+    let result = check_version_supported(&format_version(LATEST - 1)).unwrap();
+    assert_eq!(result, Some(LATEST));
+  }
+
+  #[test]
+  fn check_version_supported_above_latest() {
+    let result = check_version_supported(&format_version(LATEST + 1)).unwrap();
+    assert!(result.is_none(), "should return None above latest");
+  }
+
+  #[test]
+  fn format_version_edge_cases() {
+    assert_eq!(format_version(0), "1.0");
+    assert_eq!(format_version(99), "1.99");
+  }
+
+  #[test]
+  fn parse_minor_with_v_prefix() {
+    assert_eq!(parse_minor("v1.30").unwrap(), 30);
+    assert_eq!(parse_minor("v1.30.0-eks-12345").unwrap(), 30);
+  }
 }
