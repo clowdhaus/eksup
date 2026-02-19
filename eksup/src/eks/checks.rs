@@ -700,4 +700,257 @@ mod tests {
       .iter()
       .all(|f| matches!(f.finding.remediation, Remediation::Recommended)));
   }
+
+  use crate::eks::resources::VpcSubnet;
+
+  // ---------- control_plane_ips ----------
+
+  #[test]
+  fn control_plane_ips_empty_subnets() {
+    let result = control_plane_ips(&[]);
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn control_plane_ips_two_azs_sufficient() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
+      VpcSubnet { id: "subnet-2".into(), available_ips: 8, availability_zone_id: "use1-az2".into() },
+    ];
+    let result = control_plane_ips(&subnets);
+    assert!(result.is_empty(), "2 AZs with >= 5 IPs should produce no findings");
+  }
+
+  #[test]
+  fn control_plane_ips_one_az_insufficient() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
+      VpcSubnet { id: "subnet-2".into(), available_ips: 3, availability_zone_id: "use1-az2".into() },
+    ];
+    let result = control_plane_ips(&subnets);
+    assert!(!result.is_empty(), "only 1 AZ with >= 5 IPs should produce findings");
+    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Required)));
+  }
+
+  #[test]
+  fn control_plane_ips_boundary_exactly_5() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1".into(), available_ips: 5, availability_zone_id: "use1-az1".into() },
+      VpcSubnet { id: "subnet-2".into(), available_ips: 5, availability_zone_id: "use1-az2".into() },
+    ];
+    let result = control_plane_ips(&subnets);
+    assert!(result.is_empty(), "exactly 5 IPs in 2 AZs should pass");
+  }
+
+  #[test]
+  fn control_plane_ips_aggregates_across_subnets_in_same_az() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1a".into(), available_ips: 3, availability_zone_id: "use1-az1".into() },
+      VpcSubnet { id: "subnet-1b".into(), available_ips: 3, availability_zone_id: "use1-az1".into() },
+      VpcSubnet { id: "subnet-2".into(), available_ips: 6, availability_zone_id: "use1-az2".into() },
+    ];
+    let result = control_plane_ips(&subnets);
+    assert!(result.is_empty(), "3+3=6 in az1 and 6 in az2 should pass");
+  }
+
+  // ---------- pod_ips ----------
+
+  #[test]
+  fn pod_ips_empty_subnets() {
+    let result = pod_ips(&[], 16, 256);
+    assert!(result.is_empty(), "no subnets means no custom networking, no findings");
+  }
+
+  #[test]
+  fn pod_ips_above_recommended() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1".into(), available_ips: 200, availability_zone_id: "use1-az1".into() },
+      VpcSubnet { id: "subnet-2".into(), available_ips: 100, availability_zone_id: "use1-az2".into() },
+    ];
+    let result = pod_ips(&subnets, 16, 256);
+    assert!(result.is_empty(), "300 IPs >= 256 recommended threshold");
+  }
+
+  #[test]
+  fn pod_ips_between_required_and_recommended() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1".into(), available_ips: 100, availability_zone_id: "use1-az1".into() },
+    ];
+    let result = pod_ips(&subnets, 16, 256);
+    assert!(!result.is_empty());
+    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Recommended)));
+  }
+
+  #[test]
+  fn pod_ips_below_required() {
+    let subnets = vec![
+      VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
+    ];
+    let result = pod_ips(&subnets, 16, 256);
+    assert!(!result.is_empty());
+    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Required)));
+  }
+
+  // ---------- addon_version_compatibility ----------
+
+  use std::collections::{HashMap as StdHashMap, HashSet};
+  use crate::eks::resources::AddonVersion;
+
+  #[test]
+  fn addon_version_compat_all_supported() {
+    let addon = Addon::builder()
+      .addon_name("vpc-cni")
+      .addon_version("v1.15.0")
+      .build();
+
+    let current = StdHashMap::from([("vpc-cni".into(), AddonVersion {
+      latest: "v1.15.0".into(),
+      default: "v1.14.0".into(),
+      supported_versions: HashSet::from(["v1.15.0".into(), "v1.14.0".into()]),
+    })]);
+    let target = StdHashMap::from([("vpc-cni".into(), AddonVersion {
+      latest: "v1.16.0".into(),
+      default: "v1.15.0".into(),
+      supported_versions: HashSet::from(["v1.16.0".into(), "v1.15.0".into()]),
+    })]);
+
+    let result = addon_version_compatibility(&[addon], &current, &target);
+    assert!(result.is_empty(), "version supported in both should produce no findings");
+  }
+
+  #[test]
+  fn addon_version_compat_not_latest_recommended() {
+    let addon = Addon::builder()
+      .addon_name("vpc-cni")
+      .addon_version("v1.14.0")
+      .build();
+
+    let current = StdHashMap::from([("vpc-cni".into(), AddonVersion {
+      latest: "v1.15.0".into(),
+      default: "v1.14.0".into(),
+      supported_versions: HashSet::from(["v1.15.0".into(), "v1.14.0".into()]),
+    })]);
+    let target = StdHashMap::from([("vpc-cni".into(), AddonVersion {
+      latest: "v1.16.0".into(),
+      default: "v1.15.0".into(),
+      supported_versions: HashSet::from(["v1.16.0".into(), "v1.15.0".into(), "v1.14.0".into()]),
+    })]);
+
+    let result = addon_version_compatibility(&[addon], &current, &target);
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
+  }
+
+  #[test]
+  fn addon_version_compat_unsupported_on_target_required() {
+    let addon = Addon::builder()
+      .addon_name("vpc-cni")
+      .addon_version("v1.12.0")
+      .build();
+
+    let current = StdHashMap::from([("vpc-cni".into(), AddonVersion {
+      latest: "v1.15.0".into(),
+      default: "v1.14.0".into(),
+      supported_versions: HashSet::from(["v1.15.0".into(), "v1.14.0".into(), "v1.12.0".into()]),
+    })]);
+    let target = StdHashMap::from([("vpc-cni".into(), AddonVersion {
+      latest: "v1.16.0".into(),
+      default: "v1.15.0".into(),
+      supported_versions: HashSet::from(["v1.16.0".into(), "v1.15.0".into()]),
+    })]);
+
+    let result = addon_version_compatibility(&[addon], &current, &target);
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Required));
+  }
+
+  // ---------- eks_managed_nodegroup_update ----------
+
+  use aws_sdk_eks::types::{AutoScalingGroup as EksAutoScalingGroup, NodegroupResources};
+  use crate::eks::resources::LaunchTemplate;
+
+  #[test]
+  fn mng_update_no_launch_template() {
+    let ng = Nodegroup::builder().nodegroup_name("test").build();
+    let result = eks_managed_nodegroup_update(&ng, None);
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn mng_update_current_equals_latest() {
+    let ng = Nodegroup::builder()
+      .nodegroup_name("test")
+      .resources(
+        NodegroupResources::builder()
+          .auto_scaling_groups(
+            EksAutoScalingGroup::builder().name("asg-1").build()
+          )
+          .build()
+      )
+      .build();
+    let lt = LaunchTemplate {
+      name: "lt-1".into(),
+      id: "lt-abc".into(),
+      current_version: "3".into(),
+      latest_version: "3".into(),
+    };
+    let result = eks_managed_nodegroup_update(&ng, Some(&lt));
+    assert!(result.is_empty(), "current == latest should produce no findings");
+  }
+
+  #[test]
+  fn mng_update_current_behind_latest() {
+    let ng = Nodegroup::builder()
+      .nodegroup_name("test")
+      .resources(
+        NodegroupResources::builder()
+          .auto_scaling_groups(
+            EksAutoScalingGroup::builder().name("asg-1").build()
+          )
+          .build()
+      )
+      .build();
+    let lt = LaunchTemplate {
+      name: "lt-1".into(),
+      id: "lt-abc".into(),
+      current_version: "2".into(),
+      latest_version: "5".into(),
+    };
+    let result = eks_managed_nodegroup_update(&ng, Some(&lt));
+    assert_eq!(result.len(), 1);
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
+  }
+
+  // ---------- self_managed_nodegroup_update ----------
+
+  #[test]
+  fn smng_update_current_equals_latest() {
+    let asg = AutoScalingGroup::builder()
+      .auto_scaling_group_name("asg-1")
+      .build();
+    let lt = LaunchTemplate {
+      name: "lt-1".into(),
+      id: "lt-abc".into(),
+      current_version: "3".into(),
+      latest_version: "3".into(),
+    };
+    let result = self_managed_nodegroup_update(&asg, &lt);
+    assert!(result.is_none());
+  }
+
+  #[test]
+  fn smng_update_current_behind_latest() {
+    let asg = AutoScalingGroup::builder()
+      .auto_scaling_group_name("asg-1")
+      .build();
+    let lt = LaunchTemplate {
+      name: "lt-1".into(),
+      id: "lt-abc".into(),
+      current_version: "1".into(),
+      latest_version: "3".into(),
+    };
+    let result = self_managed_nodegroup_update(&asg, &lt);
+    assert!(result.is_some());
+    assert!(matches!(result.unwrap().finding.remediation, Remediation::Recommended));
+  }
 }
