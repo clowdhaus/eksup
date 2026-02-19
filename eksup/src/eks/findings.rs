@@ -46,8 +46,9 @@ pub async fn get_subnet_findings(
   cluster: &Cluster,
 ) -> Result<SubnetFindings> {
   let control_plane_ips = checks::control_plane_ips(ec2_client, cluster).await?;
-  // TODO - The required and recommended number of IPs need to be configurable to allow users who have better
-  // TODO - context on their environment as to what should be required and recommended
+  // 16 IPs required: minimum for a single node to schedule pods.
+  // 256 IPs recommended: comfortable headroom for rolling updates across multiple nodes.
+  // Future: make these thresholds configurable via CLI flags so users can tune for their environment.
   let pod_ips = checks::pod_ips(ec2_client, k8s_client, 16, 256).await?;
 
   Ok(SubnetFindings {
