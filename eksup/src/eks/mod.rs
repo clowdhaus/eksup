@@ -1,6 +1,6 @@
-pub(crate) mod checks;
-pub(crate) mod findings;
-pub(crate) mod resources;
+pub mod checks;
+pub mod findings;
+pub mod resources;
 
 pub use findings::{
   AddonFindings, ClusterFindings, DataPlaneFindings, SubnetFindings, get_addon_findings, get_cluster_findings,

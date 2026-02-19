@@ -59,7 +59,7 @@ impl std::fmt::Display for Kind {
   }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Node {
   pub name: String,
   pub labels: Option<BTreeMap<String, String>>,
@@ -371,7 +371,7 @@ pub struct Resource {
   pub kind: Kind,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StdMetadata {
   pub name: String,
   pub namespace: String,
@@ -382,7 +382,7 @@ pub struct StdMetadata {
 
 /// This is a generalized spec used across all resource types that
 /// we are inspecting for finding violations
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StdSpec {
   /// Minimum number of seconds for which a newly created pod should be ready without any of its container crashing,
   /// for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)
@@ -395,7 +395,7 @@ pub struct StdSpec {
   pub template: Option<PodTemplateSpec>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StdResource {
   pub metadata: StdMetadata,
   pub spec: StdSpec,
