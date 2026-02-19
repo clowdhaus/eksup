@@ -151,16 +151,16 @@ pub async fn analyze(args: Analysis) -> Result<()> {
 
 /// Get the configuration to authn/authz with AWS that will be used across AWS clients
 async fn get_config(region: &Option<String>, profile: &Option<String>) -> Result<aws_config::SdkConfig> {
-  let region = match profile {
-    Some(profile) => {
-      DefaultRegionChain::builder()
-        .profile_name(profile)
-        .build()
-        .region()
-        .await
-    }
-    None => match region {
-      Some(region) => Some(Region::new(region.to_owned())),
+  let region = match region {
+    Some(region) => Some(Region::new(region.to_owned())),
+    None => match profile {
+      Some(profile) => {
+        DefaultRegionChain::builder()
+          .profile_name(profile)
+          .build()
+          .region()
+          .await
+      }
       None => match env::var("AWS_REGION") {
         Ok(region) => Some(Region::new(region)),
         Err(_) => env::var("AWS_DEFAULT_REGION").ok().map(Region::new),
