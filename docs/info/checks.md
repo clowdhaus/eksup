@@ -1,5 +1,7 @@
 # Checks
 
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [BCP 14](https://www.rfc-editor.org/info/bcp14) [[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119)] [[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174)] when, and only when, they appear in all capitals, as shown here.
+
 If a check fails, it is reported as a finding. Each check will have a remediation type - either recommended or required. A recommended remediation is one that is recommended to be performed, but is not required to be performed.
 
 - ⚠️ Recommended: A finding that users are encouraged to evaluate the recommendation and determine if it is applicable and whether or not to act upon that recommendation. Not remediating the finding does not prevent the upgrade from occurring.
@@ -17,7 +19,7 @@ Checks that are not specific to Amazon EKS or Kubernetes
 
 **⚠️ Remediation recommended**
 
-There is a sufficient quantity of IPs available for the nodes to support the upgrade.
+There MUST be a sufficient quantity of IPs available for the nodes to support the upgrade.
 
 If custom networking is enabled, the results represent the number of IPs available in the subnets used by the EC2 instances. Otherwise, the results represent the number of IPs available in the subnets used by both the EC2 instances and the pods.
 
@@ -25,7 +27,7 @@ If custom networking is enabled, the results represent the number of IPs availab
 
 **⚠️ Remediation recommended**
 
-There is a sufficient quantity of IPs available for the **pods** to support the upgrade.
+There MUST be a sufficient quantity of IPs available for the **pods** to support the upgrade.
 
 This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves.
 
@@ -54,19 +56,19 @@ Checks that are specific to Amazon EKS
 
 **❌ Remediation required**
 
-There are at least 2 subnets in different availability zones, each with at least 5 available IPs for the control plane to upgrade.
+There MUST be at least 2 subnets in different availability zones, each with at least 5 available IPs for the control plane to upgrade.
 
 #### EKS002
 
 **❌ Remediation required**
 
-Control plane does not have any reported health issues.
+Control plane MUST NOT have any reported health issues.
 
 #### EKS003
 
 **❌ Remediation required**
 
-EKS managed nodegroup does not have any reported health issues.
+EKS managed nodegroup MUST NOT have any reported health issues.
 
 This does not include self-managed nodegroups or Fargate profiles; those are not currently supported by the AWS API to report health issues.
 
@@ -74,29 +76,29 @@ This does not include self-managed nodegroups or Fargate profiles; those are not
 
 **❌ Remediation required**
 
-EKS addon does not have any reported health issues.
+EKS addon MUST NOT have any reported health issues.
 
 #### EKS005
 
 **❌ Remediation required**
 
-EKS addon version is within the supported range.
+EKS addon version MUST be within the supported range.
 
-The addon must be updated to a version that is supported by the target Kubernetes version prior to upgrading.
+The addon MUST be updated to a version that is supported by the target Kubernetes version prior to upgrading.
 
 **⚠️ Remediation recommended**
 
 The target Kubernetes version default addon version is newer than the current addon version.
 
-For example, if the default addon version of CoreDNS for Kubernetes `v1.24` is `v1.8.7-eksbuild.3` and the current addon version is `v1.8.4-eksbuild.2`, while the current version is supported on Kubernetes `v1.24`, its recommended to update the addon to `v1.8.7-eksbuild.3` during the upgrade.
+For example, if the default addon version of CoreDNS for Kubernetes `v1.24` is `v1.8.7-eksbuild.3` and the current addon version is `v1.8.4-eksbuild.2`, while the current version is supported on Kubernetes `v1.24`, it is RECOMMENDED to update the addon to `v1.8.7-eksbuild.3` during the upgrade.
 
 #### EKS006
 
 **⚠️ Remediation recommended**
 
-EKS managed nodegroup are using the latest launch template version and there are no pending updates for the nodegroup.
+EKS managed nodegroups SHOULD use the latest launch template version and there SHOULD NOT be any pending updates for the nodegroup.
 
-Users are encourage to evaluate if remediation is warranted or not and whether to update to the latest launch template version prior to upgrading. If there are pending updates, this could potentially introduce additional changes to the nodegroup during the upgrade.
+Users are encouraged to evaluate if remediation is warranted or not and whether to update to the latest launch template version prior to upgrading. If there are pending updates, this could potentially introduce additional changes to the nodegroup during the upgrade.
 
 <!-- TODO - add the CLI command to diff the launch template versions
 diff <(aws ec2 describe-launch-template-versions A ...) <(aws ec2 describe-launch-template-versions B ...) -->
@@ -106,9 +108,9 @@ diff <(aws ec2 describe-launch-template-versions A ...) <(aws ec2 describe-launc
 
 **⚠️ Remediation recommended**
 
-Self-managed nodegroup are using the latest launch template version and there are no pending updates for the nodegroup.
+Self-managed nodegroups SHOULD use the latest launch template version and there SHOULD NOT be any pending updates for the nodegroup.
 
-Users are encourage to evaluate if remediation is warranted or not and whether to update to the latest launch template version prior to upgrading. If there are pending updates, this could potentially introduce additional changes to the nodegroup during the upgrade.
+Users are encouraged to evaluate if remediation is warranted or not and whether to update to the latest launch template version prior to upgrading. If there are pending updates, this could potentially introduce additional changes to the nodegroup during the upgrade.
 
 <!-- TODO - add the CLI command to diff the launch template versions
 diff <(aws ec2 describe-launch-template-versions A ...) <(aws ec2 describe-launch-template-versions B ...) -->
@@ -116,15 +118,15 @@ diff <(aws ec2 describe-launch-template-versions A ...) <(aws ec2 describe-launc
 
 #### EKS008
 
-EKS managed nodegroups should not use AL2 (Amazon Linux 2) AMI types. AL2 AMIs are deprecated starting in Kubernetes 1.32 and are no longer supported in 1.33+. Users should migrate to AL2023 or Bottlerocket AMI types.
+EKS managed nodegroups MUST NOT use AL2 (Amazon Linux 2) AMI types. AL2 AMIs are deprecated starting in Kubernetes 1.32 and are no longer supported in 1.33+. Users MUST migrate to AL2023 or Bottlerocket AMI types.
 
 **❌ Remediation required**
 
-For clusters upgrading to Kubernetes `v1.33` or later — AL2 AMI types are no longer supported.
+For clusters upgrading to Kubernetes `v1.33` or later — AL2 AMI types MUST NOT be used as they are no longer supported.
 
 **⚠️ Remediation recommended**
 
-For clusters upgrading to Kubernetes `v1.32` — AL2 AMI types are deprecated and migration is recommended before they become unsupported.
+For clusters upgrading to Kubernetes `v1.32` — AL2 AMI types are deprecated and migration SHOULD be completed before they become unsupported.
 
 [Amazon Linux 2 end of standard support](https://docs.aws.amazon.com/linux/al2/ug/eol-faq.html)
 
@@ -156,15 +158,15 @@ Table below shows the checks that are applicable, or not, to the respective Kube
 
 **❌ Remediation required**
 
-The version skew between the control plane (API Server) and the data plane (kubelet) violates the Kubernetes version skew policy, or will violate the version skew policy after the control plane has been upgraded.
+The version skew between the control plane (API Server) and the data plane (kubelet) MUST NOT violate the Kubernetes version skew policy, either currently or after the control plane has been upgraded.
 
-The data plane nodes must be upgraded to at least within 3 minor versions of the control plane version in order to stay within the version skew policy through the upgrade; it is recommended to upgrade the data plane nodes to the same version as the control plane.
+The data plane nodes MUST be upgraded to at least within 3 minor versions of the control plane version in order to stay within the version skew policy through the upgrade; it is RECOMMENDED to upgrade the data plane nodes to the same version as the control plane.
 
 **⚠️ Remediation recommended**
 
 There is a version skew between the control plane (API Server) and the data plane (kubelet).
 
-While Kubernetes does support a version skew of n-3 between the API Server and kubelet, it is recommended to upgrade the data plane nodes to the same version as the control plane.
+While Kubernetes does support a version skew of n-3 between the API Server and kubelet, the data plane nodes SHOULD be upgraded to the same version as the control plane.
 
 [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/#supported-version-skew)
 
@@ -172,7 +174,7 @@ While Kubernetes does support a version skew of n-3 between the API Server and k
 
 **❌ Remediation required**
 
-There are at least 3 replicas specified for the resource.
+There MUST be at least 3 replicas specified for the resource.
 
 ```yaml
 
@@ -181,7 +183,7 @@ spec:
   replicas: 3 # >= 3
 ```
 
-Multiple replicas, along with the use of `PodDisruptionBudget`, are required to ensure high availability during the upgrade.
+Multiple replicas, along with the use of `PodDisruptionBudget`, are REQUIRED to ensure high availability during the upgrade.
 
 [EKS Best Practices - Reliability](https://aws.github.io/aws-eks-best-practices/reliability/docs/application/#run-multiple-replicas)
 
@@ -189,13 +191,13 @@ Multiple replicas, along with the use of `PodDisruptionBudget`, are required to 
 
 **❌ Remediation required**
 
-`minReadySeconds` has been set to a value greater than 0 seconds for `StatefulSet`
+`minReadySeconds` MUST be set to a value greater than 0 seconds for `StatefulSet`
 
 You can read more about why this is necessary for `StatefulSet` [here](https://kubernetes.io/blog/2021/08/27/minreadyseconds-statefulsets/)
 
 **⚠️ Remediation recommended**
 
-`minReadySeconds` has been set to a value greater than 0 seconds for `Deployment`, `ReplicaSet`, `ReplicationController`
+`minReadySeconds` SHOULD be set to a value greater than 0 seconds for `Deployment`, `ReplicaSet`, `ReplicationController`
 
 #### K8S004
 
@@ -203,7 +205,7 @@ You can read more about why this is necessary for `StatefulSet` [here](https://k
 
 **❌ Remediation required**
 
-At least one `podDisruptionBudget` covers the workload, and at least one of `minAvailable` or `maxUnavailable` is set
+At least one `podDisruptionBudget` MUST cover the workload, and at least one of `minAvailable` or `maxUnavailable` MUST be set.
 
 The Kubernetes eviction API is the preferred method for draining nodes for replacement during an upgrade. The eviction API respects `PodDisruptionBudget` and will not evict pods that would violate the `PodDisruptionBudget` to ensure application availability, when specified.
 
@@ -211,7 +213,7 @@ The Kubernetes eviction API is the preferred method for draining nodes for repla
 
 **❌ Remediation required**
 
-Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` is set to avoid multiple pods from the same workload from being scheduled on the same node.
+Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` MUST be set to avoid multiple pods from the same workload from being scheduled on the same node.
 
 `topologySpreadConstraints` are preferred over affinity, especially for larger clusters:
 
@@ -227,13 +229,13 @@ Either `.spec.affinity.podAntiAffinity` or `.spec.topologySpreadConstraints` is 
 
 **❌ Remediation required**
 
-A `readinessProbe` must be set to ensure traffic is not routed to pods before they are ready following their re-deployment from a node replacement.
+A `readinessProbe` MUST be set to ensure traffic is not routed to pods before they are ready following their re-deployment from a node replacement.
 
 #### K8S007
 
 **❌ Remediation required**
 
-The `StatefulSet` should not specify a `TerminationGracePeriodSeconds` of 0
+The `StatefulSet` MUST NOT specify a `TerminationGracePeriodSeconds` of 0.
 
   - [Deployment and Scaling Guarantees](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#deployment-and-scaling-guarantees)
 
@@ -243,15 +245,15 @@ The `StatefulSet` should not specify a `TerminationGracePeriodSeconds` of 0
 
 #### K8S008
 
-Pod volumes should not mount the `docker.sock` file with the removal of the Dockershim starting in Kubernetes `v1.24`
+Pod volumes MUST NOT mount the `docker.sock` file with the removal of the Dockershim starting in Kubernetes `v1.24`.
 
 **❌ Remediation required**
 
-For clusters on Kubernetes `v1.23`
+For clusters on Kubernetes `v1.23` — Pod volumes MUST NOT mount the `docker.sock` file.
 
 **⚠️ Remediation recommended**
 
-For clusters on Kubernetes <`v1.22`
+For clusters on Kubernetes <`v1.22` — Pod volumes SHOULD NOT mount the `docker.sock` file.
 
 [Dockershim Removal FAQ](https://kubernetes.io/blog/2022/02/17/dockershim-faq/)
 
@@ -259,15 +261,15 @@ For clusters on Kubernetes <`v1.22`
 
 #### K8S009
 
-The pod security policy resource has been removed started in Kubernetes `v1.25`
+The pod security policy resource has been removed starting in Kubernetes `v1.25`. Clusters MUST NOT rely on `PodSecurityPolicy` resources.
 
 **❌ Remediation required**
 
-For clusters on Kubernetes `v1.24`
+For clusters on Kubernetes `v1.24` — `PodSecurityPolicy` resources MUST be migrated.
 
 **⚠️ Remediation recommended**
 
-For clusters on Kubernetes <`v1.23`
+For clusters on Kubernetes <`v1.23` — `PodSecurityPolicy` resources SHOULD be migrated.
 
 [Migrate from PodSecurityPolicy to the Built-In PodSecurity Admission Controller](https://kubernetes.io/docs/tasks/configure-pod-container/migrate-from-psp/)
 
@@ -295,10 +297,10 @@ For clusters on Kubernetes <`v1.21`
 
 **❌ Remediation required**
 
-`kube-proxy` on an Amazon EKS cluster has the same [compatibility and skew policy as Kubernetes](https://kubernetes.io/releases/version-skew-policy/#kube-proxy)
+`kube-proxy` on an Amazon EKS cluster MUST follow the same [compatibility and skew policy as Kubernetes](https://kubernetes.io/releases/version-skew-policy/#kube-proxy):
 
-- It cannot be newer than the minor version of your cluster's control plane
-- Its version cannot be more than three minor versions older than your control plane (API server). For example, if your control plane is running Kubernetes `1.25`, then the kube-proxy minor version cannot be older than `1.22`
+- It MUST NOT be newer than the minor version of your cluster's control plane.
+- Its version MUST NOT be more than three minor versions older than your control plane (API server). For example, if your control plane is running Kubernetes `1.25`, then the kube-proxy minor version MUST NOT be older than `1.22`.
 
 If you recently updated your cluster to a new Kubernetes minor version, then update your Amazon EC2 nodes (i.e. - `kubelet`) to the same minor version before updating `kube-proxy` to the same minor version as your nodes. The order of operations during an upgrade are as follows:
 
@@ -308,15 +310,15 @@ If you recently updated your cluster to a new Kubernetes minor version, then upd
 
 #### K8S012
 
-`kube-proxy` IPVS proxy mode is deprecated starting in Kubernetes `v1.35` and will be removed in `v1.36`. Clusters using IPVS mode should migrate to `iptables` or `nftables` proxy mode.
+`kube-proxy` IPVS proxy mode is deprecated starting in Kubernetes `v1.35` and will be removed in `v1.36`. Clusters using IPVS mode MUST migrate to `iptables` or `nftables` proxy mode.
 
 **❌ Remediation required**
 
-For clusters upgrading to Kubernetes `v1.36` or later — IPVS proxy mode is removed.
+For clusters upgrading to Kubernetes `v1.36` or later — IPVS proxy mode MUST NOT be used as it is removed.
 
 **⚠️ Remediation recommended**
 
-For clusters upgrading to Kubernetes `v1.35` — IPVS proxy mode is deprecated and migration is recommended.
+For clusters upgrading to Kubernetes `v1.35` — IPVS proxy mode is deprecated and SHOULD be migrated.
 
 [Kubernetes kube-proxy documentation](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/)
 
@@ -324,7 +326,7 @@ For clusters upgrading to Kubernetes `v1.35` — IPVS proxy mode is deprecated a
 
 **⚠️ Remediation recommended**
 
-The Kubernetes community Ingress NGINX controller (`registry.k8s.io/ingress-nginx/controller` or `k8s.gcr.io/ingress-nginx/controller`) has been retired. Users running this controller should migrate to an actively maintained ingress controller such as the AWS Load Balancer Controller or a third-party alternative.
+The Kubernetes community Ingress NGINX controller (`registry.k8s.io/ingress-nginx/controller` or `k8s.gcr.io/ingress-nginx/controller`) has been retired. Users running this controller SHOULD migrate to an actively maintained ingress controller such as the AWS Load Balancer Controller or a third-party alternative.
 
 This check scans Deployments and DaemonSets for container images referencing the retired Ingress NGINX controller.
 
