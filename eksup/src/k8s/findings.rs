@@ -21,6 +21,8 @@ pub struct KubernetesFindings {
   pub termination_grace_period: Vec<checks::TerminationGracePeriod>,
   pub docker_socket: Vec<checks::DockerSocket>,
   pub kube_proxy_version_skew: Vec<checks::KubeProxyVersionSkew>,
+  pub kube_proxy_ipvs_mode: Vec<checks::KubeProxyIpvsMode>,
+  pub ingress_nginx_retirement: Vec<checks::IngressNginxRetirement>,
 }
 
 pub async fn get_kubernetes_findings(
@@ -30,6 +32,7 @@ pub async fn get_kubernetes_findings(
 ) -> Result<KubernetesFindings> {
   let resources = resources::get_resources(client).await?;
   let nodes = resources::get_nodes(client).await?;
+  let kube_proxy_config = resources::get_configmap(client, "kube-system", "kube-proxy-config").await?;
 
   let version_skew = checks::version_skew(&nodes, cluster_version)?;
   let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();
@@ -45,6 +48,8 @@ pub async fn get_kubernetes_findings(
     .filter_map(|s| s.docker_socket(target_version).ok().flatten())
     .collect();
   let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, cluster_version)?;
+  let kube_proxy_ipvs_mode = checks::kube_proxy_ipvs_mode(kube_proxy_config.as_ref(), target_version)?;
+  let ingress_nginx_retirement = checks::ingress_nginx_retirement(&resources, target_version)?;
 
   Ok(KubernetesFindings {
     version_skew,
@@ -55,5 +60,7 @@ pub async fn get_kubernetes_findings(
     termination_grace_period,
     docker_socket,
     kube_proxy_version_skew,
+    kube_proxy_ipvs_mode,
+    ingress_nginx_retirement,
   })
 }

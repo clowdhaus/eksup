@@ -114,6 +114,20 @@ Users are encourage to evaluate if remediation is warranted or not and whether t
 diff <(aws ec2 describe-launch-template-versions A ...) <(aws ec2 describe-launch-template-versions B ...) -->
 <!-- TODO - consider diffing the templates and reporting the differences in the reported output -->
 
+#### EKS008
+
+EKS managed nodegroups should not use AL2 (Amazon Linux 2) AMI types. AL2 AMIs are deprecated starting in Kubernetes 1.32 and are no longer supported in 1.33+. Users should migrate to AL2023 or Bottlerocket AMI types.
+
+**❌ Remediation required**
+
+For clusters upgrading to Kubernetes `v1.33` or later — AL2 AMI types are no longer supported.
+
+**⚠️ Remediation recommended**
+
+For clusters upgrading to Kubernetes `v1.32` — AL2 AMI types are deprecated and migration is recommended before they become unsupported.
+
+[Amazon Linux 2 end of standard support](https://docs.aws.amazon.com/linux/al2/ug/eol-faq.html)
+
 ---
 
 ## Kubernetes
@@ -135,6 +149,8 @@ Table below shows the checks that are applicable, or not, to the respective Kube
 | `K8S009` |     ✅     |     ✅     |          ✅           |     ✅      | ✅  |   ✅    |    ✅     |
 | `K8S010` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
 | `K8S011` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
+| `K8S012` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
+| `K8S013` |     ✅     |     ❌     |          ❌           |     ❌      | ❌  |   ❌    |    ✅     |
 
 #### K8S001
 
@@ -289,3 +305,27 @@ If you recently updated your cluster to a new Kubernetes minor version, then upd
     1. Update the control plane to the new Kubernetes minor version
     2. Update the nodes, which updates `kubelet`, to the new Kubernetes minor version
     3. Update `kube-proxy` to the new Kubernetes minor version
+
+#### K8S012
+
+`kube-proxy` IPVS proxy mode is deprecated starting in Kubernetes `v1.35` and will be removed in `v1.36`. Clusters using IPVS mode should migrate to `iptables` or `nftables` proxy mode.
+
+**❌ Remediation required**
+
+For clusters upgrading to Kubernetes `v1.36` or later — IPVS proxy mode is removed.
+
+**⚠️ Remediation recommended**
+
+For clusters upgrading to Kubernetes `v1.35` — IPVS proxy mode is deprecated and migration is recommended.
+
+[Kubernetes kube-proxy documentation](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/)
+
+#### K8S013
+
+**⚠️ Remediation recommended**
+
+The Kubernetes community Ingress NGINX controller (`registry.k8s.io/ingress-nginx/controller` or `k8s.gcr.io/ingress-nginx/controller`) has been retired. Users running this controller should migrate to an actively maintained ingress controller such as the AWS Load Balancer Controller or a third-party alternative.
+
+This check scans Deployments and DaemonSets for container images referencing the retired Ingress NGINX controller.
+
+[Ingress NGINX Controller](https://kubernetes.github.io/ingress-nginx/)

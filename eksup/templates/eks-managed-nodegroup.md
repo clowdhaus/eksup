@@ -39,6 +39,11 @@ The default update strategy for EKS managed nodegroups is a surge, rolling updat
     Check [[EKS006]](https://clowdhaus.github.io/eksup/info/checks/#eks006)
 {{ eks_managed_nodegroup_update }}
 
+3. Ensure the EKS managed nodegroup(s) are not using deprecated AL2 AMI types. AL2 AMIs are deprecated in Kubernetes 1.32 and no longer supported starting in 1.33. Migrate to AL2023 or Bottlerocket AMI types before upgrading.
+
+    #### Check [[EKS008]](https://clowdhaus.github.io/eksup/info/checks/#eks008)
+{{ al2_ami_deprecation }}
+
 ##### Upgrade
 
 The following steps are applicable for each nodegroup in the cluster.

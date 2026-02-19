@@ -145,6 +145,9 @@ pub enum Code {
   /// Self-managed node group autoscaling group has pending update(s)
   EKS007,
 
+  /// AL2 AMI deprecation (deprecated in 1.32, removed in 1.33+)
+  EKS008,
+
   /// Kubernetes finding codes not specific to EKS
   ///
   /// Kubernetes version skew detected between control plane and node
@@ -179,6 +182,12 @@ pub enum Code {
 
   /// Kubernetes version skew detected between kube-proxy and kubelet
   K8S011,
+
+  /// kube-proxy IPVS mode deprecated (deprecated in 1.35, removed in 1.36)
+  K8S012,
+
+  /// Ingress NGINX controller retirement (recommended for 1.35+)
+  K8S013,
 }
 
 impl std::fmt::Display for Code {
@@ -196,6 +205,7 @@ impl std::fmt::Display for Code {
       Code::EKS005 => write!(f, "EKS005"),
       Code::EKS006 => write!(f, "EKS006"),
       Code::EKS007 => write!(f, "EKS007"),
+      Code::EKS008 => write!(f, "EKS008"),
       Code::K8S001 => write!(f, "K8S001"),
       Code::K8S002 => write!(f, "K8S002"),
       Code::K8S003 => write!(f, "K8S003"),
@@ -207,6 +217,8 @@ impl std::fmt::Display for Code {
       Code::K8S009 => write!(f, "K8S009"),
       Code::K8S010 => write!(f, "K8S010"),
       Code::K8S011 => write!(f, "K8S011"),
+      Code::K8S012 => write!(f, "K8S012"),
+      Code::K8S013 => write!(f, "K8S013"),
     }
   }
 }

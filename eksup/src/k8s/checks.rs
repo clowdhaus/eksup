@@ -7,6 +7,8 @@ use tabled::{
   settings::{Margin, Remove, Style, location::ByColumnName},
 };
 
+use k8s_openapi::api::core::v1::ConfigMap;
+
 use crate::{
   finding::{self, Code, Finding, Findings, Remediation},
   k8s::resources::{self, Resource},
@@ -273,6 +275,131 @@ pub fn kube_proxy_version_skew(
 }
 
 finding::impl_findings!(KubeProxyVersionSkew, "✅ - `kube-proxy` version is aligned with the node/`kubelet` versions in use");
+
+#[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct KubeProxyIpvsMode {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  #[tabled(rename = "CURRENT MODE")]
+  pub current_mode: String,
+}
+
+finding::impl_findings!(KubeProxyIpvsMode, "✅ - `kube-proxy` is not using the deprecated IPVS mode");
+
+/// Check if kube-proxy is configured with IPVS mode, which is deprecated in 1.35 and
+/// removed in 1.36
+pub fn kube_proxy_ipvs_mode(
+  configmap: Option<&ConfigMap>,
+  target_version: &str,
+) -> Result<Vec<KubeProxyIpvsMode>> {
+  let target_minor = version::parse_minor(target_version)?;
+  if target_minor < 35 {
+    return Ok(vec![]);
+  }
+
+  let cm = match configmap {
+    Some(cm) => cm,
+    None => return Ok(vec![]),
+  };
+
+  let data = match &cm.data {
+    Some(data) => data,
+    None => return Ok(vec![]),
+  };
+
+  let config_str = match data.get("config") {
+    Some(c) => c,
+    None => return Ok(vec![]),
+  };
+
+  let config: serde_yaml::Value = serde_yaml::from_str(config_str)
+    .context("Failed to parse kube-proxy-config ConfigMap as YAML")?;
+
+  let mode = config.get("mode")
+    .and_then(|v| v.as_str())
+    .unwrap_or("");
+
+  if mode == "ipvs" {
+    let remediation = if target_minor >= 36 {
+      Remediation::Required
+    } else {
+      Remediation::Recommended
+    };
+
+    Ok(vec![KubeProxyIpvsMode {
+      finding: Finding::new(Code::K8S012, remediation),
+      current_mode: mode.to_owned(),
+    }])
+  } else {
+    Ok(vec![])
+  }
+}
+
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct IngressNginxRetirement {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  #[tabled(inline)]
+  pub resource: Resource,
+  pub image: String,
+}
+
+finding::impl_findings!(IngressNginxRetirement, "✅ - No Ingress NGINX controller images detected that require migration");
+
+/// Check for the retired Kubernetes community Ingress NGINX controller images
+/// which are no longer maintained as of 1.35+
+pub fn ingress_nginx_retirement(
+  resources: &[resources::StdResource],
+  target_version: &str,
+) -> Result<Vec<IngressNginxRetirement>> {
+  let target_minor = version::parse_minor(target_version)?;
+  if target_minor < 35 {
+    return Ok(vec![]);
+  }
+
+  let mut findings = Vec::new();
+
+  for resource in resources {
+    // Only check Deployments and DaemonSets
+    if !matches!(resource.metadata.kind, resources::Kind::Deployment | resources::Kind::DaemonSet) {
+      continue;
+    }
+
+    let ptmpl = match resource.spec.template.as_ref() {
+      Some(t) => t,
+      None => continue,
+    };
+    let pspec = match ptmpl.spec.as_ref() {
+      Some(s) => s,
+      None => continue,
+    };
+
+    for container in &pspec.containers {
+      let image = match &container.image {
+        Some(img) => img,
+        None => continue,
+      };
+
+      if image.contains("registry.k8s.io/ingress-nginx/controller")
+        || image.contains("k8s.gcr.io/ingress-nginx/controller")
+      {
+        findings.push(IngressNginxRetirement {
+          finding: Finding::new(Code::K8S013, Remediation::Recommended),
+          resource: Resource {
+            name: resource.metadata.name.to_owned(),
+            namespace: resource.metadata.namespace.to_owned(),
+            kind: resource.metadata.kind.to_owned(),
+          },
+          image: image.to_owned(),
+        });
+      }
+    }
+  }
+
+  Ok(findings)
+}
 
 pub trait K8sFindings {
   fn get_resource(&self) -> Resource;

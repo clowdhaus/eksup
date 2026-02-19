@@ -3,7 +3,7 @@ use aws_sdk_autoscaling::types::AutoScalingGroup;
 use aws_sdk_ec2::Client as Ec2Client;
 use aws_sdk_eks::{
   Client as EksClient,
-  types::{Addon, Cluster, Nodegroup},
+  types::{Addon, AmiTypes, Cluster, Nodegroup},
 };
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
@@ -471,4 +471,50 @@ pub(crate) async fn self_managed_nodegroup_update(
   } else {
     Ok(None)
   }
+}
+
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct Al2AmiDeprecation {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  pub name: String,
+  #[tabled(rename = "AMI TYPE")]
+  pub ami_type: String,
+}
+
+finding::impl_findings!(Al2AmiDeprecation, "✅ - No EKS managed nodegroups are using deprecated AL2 AMI types");
+
+/// Check for EKS managed nodegroups using AL2 AMI types which are deprecated in 1.32 and
+/// no longer supported starting in 1.33
+pub(crate) fn al2_ami_deprecation(nodegroups: &[Nodegroup], target_version: &str) -> Result<Vec<Al2AmiDeprecation>> {
+  let target_minor = version::parse_minor(target_version)?;
+  if target_minor < 32 {
+    return Ok(vec![]);
+  }
+
+  let remediation = if target_minor >= 33 {
+    Remediation::Required
+  } else {
+    Remediation::Recommended
+  };
+
+  let mut findings = Vec::new();
+  for nodegroup in nodegroups {
+    let ami_type = match nodegroup.ami_type() {
+      Some(ami) => ami,
+      None => continue,
+    };
+
+    let is_al2 = matches!(ami_type, AmiTypes::Al2X8664 | AmiTypes::Al2Arm64 | AmiTypes::Al2X8664Gpu);
+    if is_al2 {
+      findings.push(Al2AmiDeprecation {
+        finding: Finding::new(Code::EKS008, remediation.clone()),
+        name: nodegroup.nodegroup_name().unwrap_or_default().to_owned(),
+        ami_type: ami_type.as_str().to_string(),
+      });
+    }
+  }
+
+  Ok(findings)
 }

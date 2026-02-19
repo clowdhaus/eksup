@@ -101,6 +101,8 @@ pub struct DataPlaneFindings {
   pub eks_managed_nodegroup_update: Vec<checks::ManagedNodeGroupUpdate>,
   /// Similar to the `eks_managed_nodegroup_update` except for self-managed node groups (autoscaling groups)
   pub self_managed_nodegroup_update: Vec<checks::AutoscalingGroupUpdate>,
+  /// EKS managed nodegroups using deprecated AL2 AMI types
+  pub al2_ami_deprecation: Vec<checks::Al2AmiDeprecation>,
 
   /// The names of the EKS managed node groups
   pub eks_managed_nodegroups: Vec<String>,
@@ -116,6 +118,7 @@ pub async fn get_data_plane_findings(
   ec2_client: &Ec2Client,
   eks_client: &EksClient,
   cluster: &Cluster,
+  target_version: &str,
 ) -> Result<DataPlaneFindings> {
   let cluster_name = cluster.name().unwrap_or_default();
 
@@ -124,6 +127,7 @@ pub async fn get_data_plane_findings(
   let fargate_profiles = resources::get_fargate_profiles(eks_client, cluster_name).await?;
 
   let eks_managed_nodegroup_health = checks::eks_managed_nodegroup_health(&eks_mngs)?;
+  let al2_ami_deprecation = checks::al2_ami_deprecation(&eks_mngs, target_version)?;
   let mut eks_managed_nodegroup_update = Vec::new();
   for eks_mng in &eks_mngs {
     let update = checks::eks_managed_nodegroup_update(ec2_client, eks_mng).await?;
@@ -146,6 +150,7 @@ pub async fn get_data_plane_findings(
       .into_iter()
       .flatten()
       .collect::<Vec<checks::AutoscalingGroupUpdate>>(),
+    al2_ami_deprecation,
     // Pass through to avoid additional API calls
     eks_managed_nodegroups: eks_mngs
       .iter()

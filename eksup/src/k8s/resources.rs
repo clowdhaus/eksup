@@ -91,6 +91,18 @@ pub async fn get_nodes(client: &Client) -> Result<Vec<Node>> {
   )
 }
 
+/// Returns a ConfigMap by name from the specified namespace, if it exists
+pub async fn get_configmap(client: &Client, namespace: &str, name: &str) -> Result<Option<core::v1::ConfigMap>> {
+  let api: Api<core::v1::ConfigMap> = Api::namespaced(client.to_owned(), namespace);
+  match api.get_opt(name).await {
+    Ok(cm) => Ok(cm),
+    Err(e) => {
+      warn!("Failed to get ConfigMap {namespace}/{name}: {e}");
+      Ok(None)
+    }
+  }
+}
+
 /// Returns all of the ENIConfigs in the cluster, if any are present
 ///
 /// This is used to extract the subnet ID(s) to retrieve the number of

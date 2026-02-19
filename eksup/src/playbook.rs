@@ -62,6 +62,8 @@ pub struct TemplateData {
   termination_grace_period: String,
   docker_socket: String,
   kube_proxy_version_skew: String,
+  kube_proxy_ipvs_mode: String,
+  ingress_nginx_retirement: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
@@ -79,6 +81,7 @@ struct EksManagedNodeGroupTemplateData {
   target_version: String,
   eks_managed_nodegroup_health: String,
   eks_managed_nodegroup_update: String,
+  al2_ami_deprecation: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -138,6 +141,9 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
     eks_managed_nodegroup_update: data_plane_findings
       .eks_managed_nodegroup_update
       .to_markdown_table("\t")?,
+    al2_ami_deprecation: data_plane_findings
+      .al2_ami_deprecation
+      .to_markdown_table("\t")?,
   };
   let eks_managed_nodegroup_template = char_replace(handlebars.render("eks-managed-nodegroup.md", &eks_mng_tmpl_data)?);
 
@@ -187,6 +193,8 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
     termination_grace_period: kubernetes_findings.termination_grace_period.to_markdown_table("\t")?,
     docker_socket: kubernetes_findings.docker_socket.to_markdown_table("\t")?,
     kube_proxy_version_skew: kubernetes_findings.kube_proxy_version_skew.to_markdown_table("\t")?,
+    kube_proxy_ipvs_mode: kubernetes_findings.kube_proxy_ipvs_mode.to_markdown_table("\t")?,
+    ingress_nginx_retirement: kubernetes_findings.ingress_nginx_retirement.to_markdown_table("\t")?,
   };
 
   let filename = match &args.filename {
