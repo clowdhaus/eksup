@@ -533,7 +533,7 @@ impl checks::K8sFindings for StdResource {
     }
   }
 
-  fn docker_socket(&self, _target_minor: i32) -> anyhow::Result<Option<checks::DockerSocket>> {
+  fn docker_socket(&self) -> anyhow::Result<Option<checks::DockerSocket>> {
     let pod_template = match self.spec.template.as_ref() {
       Some(t) => t,
       None => return Ok(None),

@@ -69,19 +69,6 @@ pub(crate) fn parse_minor(version: &str) -> Result<i32> {
   Ok(minor)
 }
 
-/// Given a version, normalize to a consistent format
-///
-/// For example, the format Amazon EKS uses is v1.20.7-eks-123456 which is normalized to 1.20
-pub(crate) fn normalize(version: &str) -> Result<String> {
-  let parts: Vec<&str> = version.split('.').collect();
-  let major = parts.first()
-    .context(format!("Invalid version format '{version}'"))?;
-  let minor = parts.get(1)
-    .context(format!("Invalid version format '{version}', expected 'X.Y[.Z]'"))?;
-
-  Ok(format!("{}.{}", major.replace('v', ""), minor))
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -106,25 +93,6 @@ mod tests {
   fn parse_minor_invalid_versions() {
     assert!(parse_minor("125").is_err(), "should fail on '125' (no dot)");
     assert!(parse_minor("").is_err(), "should fail on empty string");
-  }
-
-  #[test]
-  fn normalize_valid_versions() {
-    let cases = vec![
-      ("v1.30.0-eks-12345", "1.30"),
-      ("1.25", "1.25"),
-      ("v1.20.7-eks-123456", "1.20"),
-    ];
-
-    for (input, expected) in cases {
-      let result = normalize(input).unwrap();
-      assert_eq!(result, expected, "normalize({input})");
-    }
-  }
-
-  #[test]
-  fn normalize_invalid_versions() {
-    assert!(normalize("nodots").is_err(), "should fail on 'nodots'");
   }
 
   #[test]

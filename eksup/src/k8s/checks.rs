@@ -101,38 +101,35 @@ impl Findings for Vec<VersionSkew> {
   }
 }
 
-/// Returns all of the nodes in the cluster
-pub fn version_skew(nodes: &[resources::Node], cluster_version: &str) -> Result<Vec<VersionSkew>> {
+/// Returns version skew findings for all nodes in the cluster
+pub fn version_skew(nodes: &[resources::Node], control_plane_minor: i32) -> Vec<VersionSkew> {
   let mut findings = vec![];
 
   for node in nodes {
-    let control_plane_minor_version = version::parse_minor(cluster_version)?;
-    let version_skew = control_plane_minor_version - node.minor_version;
-    if version_skew <= 0 {
+    let skew = control_plane_minor - node.minor_version;
+    if skew <= 0 {
       continue;
     }
 
     // Prior to upgrade, the node version (kubelet) should not be more than 3 version behind
     // the control plane version (api server). If it is, the node must be upgraded before
     // attempting the cluster upgrade
-    let remediation = match version_skew {
+    let remediation = match skew {
       1 | 2 => Remediation::Recommended,
       _ => Remediation::Required,
     };
 
-    let node = VersionSkew {
+    findings.push(VersionSkew {
       finding: Finding::new(Code::K8S001, remediation),
       name: node.name.to_owned(),
       kubelet_version: node.kubelet_version.to_owned(),
-      kubernetes_version: format!("v{}", version::normalize(&node.kubelet_version)?),
-      control_plane_version: format!("v{cluster_version}"),
-      version_skew: format!("+{version_skew}"),
-    };
-
-    findings.push(node)
+      kubernetes_version: format!("v{}", version::format_version(node.minor_version)),
+      control_plane_version: format!("v{}", version::format_version(control_plane_minor)),
+      version_skew: format!("+{skew}"),
+    });
   }
 
-  Ok(findings)
+  findings
 }
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
@@ -232,7 +229,7 @@ pub struct KubeProxyVersionSkew {
 
 pub fn kube_proxy_version_skew(
   resources: &[resources::StdResource],
-  cluster_version: &str,
+  control_plane_minor: i32,
 ) -> Result<Vec<KubeProxyVersionSkew>> {
   let kube_proxy = match resources
     .iter()
@@ -253,8 +250,7 @@ pub fn kube_proxy_version_skew(
     .context("kube-proxy container image has no version tag")?;
   let kproxy_minor_version = version::parse_minor(image_tag)?;
 
-  let control_plane_minor_version = version::parse_minor(cluster_version)?;
-  let version_skew = control_plane_minor_version - kproxy_minor_version;
+  let version_skew = control_plane_minor - kproxy_minor_version;
   if version_skew <= 0 {
     return Ok(vec![]);
   }
@@ -268,7 +264,7 @@ pub fn kube_proxy_version_skew(
 
   Ok(vec![KubeProxyVersionSkew {
     finding: Finding::new(Code::K8S011, remediation),
-    api_server_version: format!("v1.{control_plane_minor_version}"),
+    api_server_version: format!("v1.{control_plane_minor}"),
     kube_proxy_version: format!("v1.{kproxy_minor_version}"),
     version_skew: format!("{version_skew}"),
   }])
@@ -418,5 +414,5 @@ pub trait K8sFindings {
   fn termination_grace_period(&self) -> Option<TerminationGracePeriod>;
 
   /// K8S008 - check if resources use the Docker socket
-  fn docker_socket(&self, target_minor: i32) -> Result<Option<DockerSocket>>;
+  fn docker_socket(&self) -> Result<Option<DockerSocket>>;
 }

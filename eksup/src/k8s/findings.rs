@@ -27,14 +27,14 @@ pub struct KubernetesFindings {
 
 pub async fn get_kubernetes_findings(
   client: &K8sClient,
-  cluster_version: &str,
+  control_plane_minor: i32,
   target_minor: i32,
 ) -> Result<KubernetesFindings> {
   let resources = resources::get_resources(client).await?;
   let nodes = resources::get_nodes(client).await?;
   let kube_proxy_config = resources::get_configmap(client, "kube-system", "kube-proxy-config").await?;
 
-  let version_skew = checks::version_skew(&nodes, cluster_version)?;
+  let version_skew = checks::version_skew(&nodes, control_plane_minor);
   let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();
   let min_ready_seconds: Vec<checks::MinReadySeconds> =
     resources.iter().filter_map(|s| s.min_ready_seconds()).collect();
@@ -45,9 +45,9 @@ pub async fn get_kubernetes_findings(
     resources.iter().filter_map(|s| s.termination_grace_period()).collect();
   let docker_socket: Vec<checks::DockerSocket> = resources
     .iter()
-    .filter_map(|s| s.docker_socket(target_minor).ok().flatten())
+    .filter_map(|s| s.docker_socket().ok().flatten())
     .collect();
-  let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, cluster_version)?;
+  let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, control_plane_minor)?;
   let kube_proxy_ipvs_mode = checks::kube_proxy_ipvs_mode(kube_proxy_config.as_ref(), target_minor)?;
   let ingress_nginx_retirement = checks::ingress_nginx_retirement(&resources, target_minor)?;
 

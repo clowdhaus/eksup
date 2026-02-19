@@ -221,10 +221,11 @@ finding::impl_findings!(AddonVersionCompatibility, "✅ - There are no reported 
 pub(crate) async fn addon_version_compatibility(
   client: &EksClient,
   cluster_version: &str,
+  target_minor: i32,
   addons: &[Addon],
 ) -> Result<Vec<AddonVersionCompatibility>> {
   let mut addon_versions = Vec::new();
-  let target_k8s_version = version::format_version(version::parse_minor(cluster_version)? + 1);
+  let target_k8s_version = version::format_version(target_minor);
 
   for addon in addons {
     let name = addon.addon_name().unwrap_or_default().to_owned();

@@ -75,10 +75,11 @@ pub async fn get_addon_findings(
   eks_client: &EksClient,
   cluster_name: &str,
   cluster_version: &str,
+  target_minor: i32,
 ) -> Result<AddonFindings> {
   let addons = resources::get_addons(eks_client, cluster_name).await?;
 
-  let version_compatibility = checks::addon_version_compatibility(eks_client, cluster_version, &addons).await?;
+  let version_compatibility = checks::addon_version_compatibility(eks_client, cluster_version, target_minor, &addons).await?;
   let health = checks::addon_health(&addons)?;
 
   Ok(AddonFindings {
