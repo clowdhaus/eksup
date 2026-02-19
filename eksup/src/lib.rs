@@ -15,6 +15,7 @@ use aws_config::default_provider::{credentials::DefaultCredentialsChain, region:
 use aws_types::region::Region;
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
 
 fn get_styles() -> clap::builder::Styles {
@@ -153,11 +154,20 @@ pub async fn analyze(args: Analysis) -> Result<()> {
     },
   };
 
+  let spinner = ProgressBar::new_spinner()
+    .with_style(ProgressStyle::with_template("{spinner:.cyan} {msg}").unwrap());
+  spinner.enable_steady_tick(std::time::Duration::from_millis(80));
+
+  spinner.set_message("Connecting to cluster...");
   let k8s = clients::RealK8sClients::new(&args.cluster).await?;
+
+  spinner.set_message("Analyzing cluster...");
   let mut results = analysis::analyze(&aws, &k8s, &cluster, target_minor).await?;
   if args.ignore_recommended {
     results.filter_recommended();
   }
+
+  spinner.finish_and_clear();
   output::output(&results, &args.format, &args.output)?;
 
   Ok(())
@@ -219,12 +229,22 @@ pub async fn create(args: Create) -> Result<()> {
         },
       };
 
+      let spinner = ProgressBar::new_spinner()
+        .with_style(ProgressStyle::with_template("{spinner:.cyan} {msg}").unwrap());
+      spinner.enable_steady_tick(std::time::Duration::from_millis(80));
+
+      spinner.set_message("Connecting to cluster...");
       let k8s = clients::RealK8sClients::new(&playbook.cluster).await?;
+
+      spinner.set_message("Analyzing cluster...");
       let mut results = analysis::analyze(&aws, &k8s, &cluster, target_minor).await?;
       if playbook.ignore_recommended {
         results.filter_recommended();
       }
+
+      spinner.set_message("Creating playbook...");
       playbook::create(playbook, region, &cluster, results, target_minor)?;
+      spinner.finish_and_clear();
     }
   }
 
