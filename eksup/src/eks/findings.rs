@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
   clients::{AwsClients, K8sClients},
-  eks::checks,
+  eks::{checks, resources::quota_codes},
+  finding::Code,
   version,
 };
 
@@ -179,5 +180,65 @@ pub async fn get_data_plane_findings(
       .iter()
       .map(|fp| fp.fargate_profile_name().unwrap_or_default().to_owned())
       .collect(),
+  })
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ServiceLimitFindings {
+  pub ec2_limits: Vec<checks::ServiceLimitFinding>,
+  pub ebs_gp2_limits: Vec<checks::ServiceLimitFinding>,
+  pub ebs_gp3_limits: Vec<checks::ServiceLimitFinding>,
+}
+
+pub async fn get_service_limit_findings(aws: &impl AwsClients) -> Result<ServiceLimitFindings> {
+  // EC2 On-Demand vCPU limit
+  let ec2_limits = match tokio::try_join!(
+    aws.get_service_quota_usage("ec2", quota_codes::EC2_ON_DEMAND_STANDARD),
+    aws.get_ec2_on_demand_vcpu_count(),
+  ) {
+    Ok(((name, limit, unit), current)) => {
+      checks::service_limit(Code::AWS003, &name, current, limit, &unit)
+        .into_iter().collect()
+    }
+    Err(e) => {
+      tracing::warn!("Unable to check EC2 service limits: {e}");
+      vec![]
+    }
+  };
+
+  // EBS GP2 storage limit
+  let ebs_gp2_limits = match tokio::try_join!(
+    aws.get_service_quota_usage("ebs", quota_codes::EBS_GP2_STORAGE),
+    aws.get_ebs_volume_storage("gp2"),
+  ) {
+    Ok(((name, limit, unit), current)) => {
+      checks::service_limit(Code::AWS004, &name, current, limit, &unit)
+        .into_iter().collect()
+    }
+    Err(e) => {
+      tracing::warn!("Unable to check EBS GP2 service limits: {e}");
+      vec![]
+    }
+  };
+
+  // EBS GP3 storage limit
+  let ebs_gp3_limits = match tokio::try_join!(
+    aws.get_service_quota_usage("ebs", quota_codes::EBS_GP3_STORAGE),
+    aws.get_ebs_volume_storage("gp3"),
+  ) {
+    Ok(((name, limit, unit), current)) => {
+      checks::service_limit(Code::AWS005, &name, current, limit, &unit)
+        .into_iter().collect()
+    }
+    Err(e) => {
+      tracing::warn!("Unable to check EBS GP3 service limits: {e}");
+      vec![]
+    }
+  };
+
+  Ok(ServiceLimitFindings {
+    ec2_limits,
+    ebs_gp2_limits,
+    ebs_gp3_limits,
   })
 }

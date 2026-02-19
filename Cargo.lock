@@ -255,6 +255,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws-sdk-servicequotas"
+version = "1.97.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22d5459afcef4eb05cdfc5bff947e2020cf0f2ae606f16989821cacbc1dc5bcd"
+dependencies = [
+ "aws-credential-types",
+ "aws-runtime",
+ "aws-smithy-async",
+ "aws-smithy-http",
+ "aws-smithy-json",
+ "aws-smithy-observability",
+ "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
+ "aws-smithy-types",
+ "aws-types",
+ "bytes",
+ "fastrand",
+ "http 0.2.12",
+ "http 1.4.0",
+ "regex-lite",
+ "tracing",
+]
+
+[[package]]
 name = "aws-sdk-sso"
 version = "1.95.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -946,6 +970,7 @@ dependencies = [
  "aws-sdk-autoscaling",
  "aws-sdk-ec2",
  "aws-sdk-eks",
+ "aws-sdk-servicequotas",
  "aws-types",
  "clap",
  "clap-verbosity-flag",

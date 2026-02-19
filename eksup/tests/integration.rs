@@ -252,6 +252,48 @@ async fn analyze_with_explicit_target() {
 }
 
 // ============================================================================
+// Service limit findings
+// ============================================================================
+
+#[tokio::test]
+async fn service_limit_findings_healthy() {
+  use std::collections::HashMap;
+  use eksup::eks::resources::quota_codes;
+
+  let mut aws = fixtures::healthy_aws();
+  aws.service_quotas = HashMap::from([
+    (("ec2".into(), quota_codes::EC2_ON_DEMAND_STANDARD.into()), ("Running On-Demand Standard Instances".into(), 256.0, "vCPUs".into())),
+    (("ebs".into(), quota_codes::EBS_GP2_STORAGE.into()), ("GP2 Storage".into(), 50.0, "TiB".into())),
+    (("ebs".into(), quota_codes::EBS_GP3_STORAGE.into()), ("GP3 Storage".into(), 50.0, "TiB".into())),
+  ]);
+  aws.ec2_vcpu_count = 32.0;
+  aws.ebs_storage = HashMap::from([("gp2".into(), 5.0), ("gp3".into(), 10.0)]);
+
+  let result = eksup::eks::get_service_limit_findings(&aws).await.unwrap();
+  assert!(result.ec2_limits.is_empty(), "well under limit should be empty");
+  assert!(result.ebs_gp2_limits.is_empty());
+  assert!(result.ebs_gp3_limits.is_empty());
+}
+
+#[tokio::test]
+async fn service_limit_findings_high_usage() {
+  use std::collections::HashMap;
+  use eksup::eks::resources::quota_codes;
+
+  let mut aws = fixtures::healthy_aws();
+  aws.service_quotas = HashMap::from([
+    (("ec2".into(), quota_codes::EC2_ON_DEMAND_STANDARD.into()), ("Running On-Demand Standard Instances".into(), 100.0, "vCPUs".into())),
+    (("ebs".into(), quota_codes::EBS_GP2_STORAGE.into()), ("GP2 Storage".into(), 50.0, "TiB".into())),
+    (("ebs".into(), quota_codes::EBS_GP3_STORAGE.into()), ("GP3 Storage".into(), 50.0, "TiB".into())),
+  ]);
+  aws.ec2_vcpu_count = 92.0; // 92% usage
+  aws.ebs_storage = HashMap::from([("gp2".into(), 2.0), ("gp3".into(), 2.0)]);
+
+  let result = eksup::eks::get_service_limit_findings(&aws).await.unwrap();
+  assert_eq!(result.ec2_limits.len(), 1, "92% should trigger finding");
+}
+
+// ============================================================================
 // Error paths
 // ============================================================================
 

@@ -125,5 +125,10 @@ expression: output
     "kube_proxy_ipvs_mode": [],
     "ingress_nginx_retirement": [],
     "pod_disruption_budgets": []
+  },
+  "service_limits": {
+    "ec2_limits": [],
+    "ebs_gp2_limits": [],
+    "ebs_gp3_limits": []
   }
 }

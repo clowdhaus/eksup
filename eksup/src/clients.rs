@@ -18,6 +18,9 @@ pub trait AwsClients {
   fn get_self_managed_nodegroups(&self, cluster_name: &str) -> impl std::future::Future<Output = Result<Vec<AutoScalingGroup>>> + Send;
   fn get_fargate_profiles(&self, cluster_name: &str) -> impl std::future::Future<Output = Result<Vec<FargateProfile>>> + Send;
   fn get_launch_template(&self, id: &str) -> impl std::future::Future<Output = Result<LaunchTemplate>> + Send;
+  fn get_service_quota_usage(&self, service_code: &str, quota_code: &str) -> impl std::future::Future<Output = Result<(String, f64, String)>> + Send;
+  fn get_ec2_on_demand_vcpu_count(&self) -> impl std::future::Future<Output = Result<f64>> + Send;
+  fn get_ebs_volume_storage(&self, volume_type: &str) -> impl std::future::Future<Output = Result<f64>> + Send;
 }
 
 /// Trait abstracting all Kubernetes API operations used by eksup
@@ -34,6 +37,7 @@ pub struct RealAwsClients {
   eks: aws_sdk_eks::Client,
   ec2: aws_sdk_ec2::Client,
   asg: aws_sdk_autoscaling::Client,
+  sq: aws_sdk_servicequotas::Client,
 }
 
 impl RealAwsClients {
@@ -42,6 +46,7 @@ impl RealAwsClients {
       eks: aws_sdk_eks::Client::new(config),
       ec2: aws_sdk_ec2::Client::new(config),
       asg: aws_sdk_autoscaling::Client::new(config),
+      sq: aws_sdk_servicequotas::Client::new(config),
     }
   }
 }
@@ -77,6 +82,18 @@ impl AwsClients for RealAwsClients {
 
   async fn get_launch_template(&self, id: &str) -> Result<LaunchTemplate> {
     eks_resources::get_launch_template(&self.ec2, id).await
+  }
+
+  async fn get_service_quota_usage(&self, service_code: &str, quota_code: &str) -> Result<(String, f64, String)> {
+    eks_resources::get_service_quota(&self.sq, service_code, quota_code).await
+  }
+
+  async fn get_ec2_on_demand_vcpu_count(&self) -> Result<f64> {
+    eks_resources::get_ec2_on_demand_vcpu_count(&self.ec2).await
+  }
+
+  async fn get_ebs_volume_storage(&self, volume_type: &str) -> Result<f64> {
+    eks_resources::get_ebs_volume_storage(&self.ec2, volume_type).await
   }
 }
 

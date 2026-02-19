@@ -31,6 +31,7 @@ aws-config = { version="1.8", features = ["behavior-version-latest"] }
 aws-sdk-autoscaling = "1.109"
 aws-sdk-ec2 = "1.211"
 aws-sdk-eks = "1.123"
+aws-sdk-servicequotas = "1"
 aws-types = "1.1"
 clap = { version = "4.5", features = ["derive", "string", "color", "unstable-styles"] }
 clap-verbosity-flag = "3.0"

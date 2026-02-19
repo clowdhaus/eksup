@@ -162,5 +162,10 @@ expression: output
         "has_max_unavailable": false
       }
     ]
+  },
+  "service_limits": {
+    "ec2_limits": [],
+    "ebs_gp2_limits": [],
+    "ebs_gp3_limits": []
   }
 }

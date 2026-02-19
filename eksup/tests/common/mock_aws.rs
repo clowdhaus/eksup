@@ -19,6 +19,9 @@ pub struct MockAwsClients {
   pub self_managed_nodegroups: Vec<AutoScalingGroup>,
   pub fargate_profiles: Vec<FargateProfile>,
   pub launch_templates: HashMap<String, LaunchTemplate>,
+  pub service_quotas: HashMap<(String, String), (String, f64, String)>,
+  pub ec2_vcpu_count: f64,
+  pub ebs_storage: HashMap<String, f64>,
 }
 
 impl Default for MockAwsClients {
@@ -35,6 +38,9 @@ impl Default for MockAwsClients {
       self_managed_nodegroups: vec![],
       fargate_profiles: vec![],
       launch_templates: HashMap::new(),
+      service_quotas: HashMap::new(),
+      ec2_vcpu_count: 0.0,
+      ebs_storage: HashMap::new(),
     }
   }
 }
@@ -74,6 +80,20 @@ impl AwsClients for MockAwsClients {
     self.launch_templates.get(id).cloned()
       .ok_or_else(|| anyhow::anyhow!("No mock launch template for id {id}"))
   }
+
+  async fn get_service_quota_usage(&self, service_code: &str, quota_code: &str) -> Result<(String, f64, String)> {
+    let key = (service_code.to_string(), quota_code.to_string());
+    self.service_quotas.get(&key).cloned()
+      .ok_or_else(|| anyhow::anyhow!("No mock quota for {service_code}/{quota_code}"))
+  }
+
+  async fn get_ec2_on_demand_vcpu_count(&self) -> Result<f64> {
+    Ok(self.ec2_vcpu_count)
+  }
+
+  async fn get_ebs_volume_storage(&self, volume_type: &str) -> Result<f64> {
+    Ok(*self.ebs_storage.get(volume_type).unwrap_or(&0.0))
+  }
 }
 
 /// Mock that returns errors for all methods — used for error path testing
@@ -88,4 +108,7 @@ impl AwsClients for MockAwsClientsError {
   async fn get_self_managed_nodegroups(&self, _cluster_name: &str) -> Result<Vec<AutoScalingGroup>> { bail!("mock AWS error") }
   async fn get_fargate_profiles(&self, _cluster_name: &str) -> Result<Vec<FargateProfile>> { bail!("mock AWS error") }
   async fn get_launch_template(&self, _id: &str) -> Result<LaunchTemplate> { bail!("mock AWS error") }
+  async fn get_service_quota_usage(&self, _: &str, _: &str) -> Result<(String, f64, String)> { bail!("mock AWS error") }
+  async fn get_ec2_on_demand_vcpu_count(&self) -> Result<f64> { bail!("mock AWS error") }
+  async fn get_ebs_volume_storage(&self, _: &str) -> Result<f64> { bail!("mock AWS error") }
 }

@@ -452,7 +452,7 @@ pub fn pod_disruption_budgets(
         && pdb
           .selector
           .as_ref()
-          .map_or(false, |sel| resources::selector_matches(sel, &pod_labels))
+          .is_some_and(|sel| resources::selector_matches(sel, &pod_labels))
     });
 
     match matching_pdb {

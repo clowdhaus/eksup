@@ -641,12 +641,12 @@ pub fn selector_matches(
       let values = expr.values.as_deref().unwrap_or_default();
       match expr.operator.as_str() {
         "In" => {
-          if !label_value.map_or(false, |v| values.contains(v)) {
+          if !label_value.is_some_and(|v| values.contains(v)) {
             return false;
           }
         }
         "NotIn" => {
-          if label_value.map_or(false, |v| values.contains(v)) {
+          if label_value.is_some_and(|v| values.contains(v)) {
             return false;
           }
         }

@@ -514,6 +514,56 @@ pub(crate) fn al2_ami_deprecation(nodegroups: &[Nodegroup], target_minor: i32) -
   Ok(findings)
 }
 
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct ServiceLimitFinding {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  #[tabled(rename = "QUOTA")]
+  pub quota_name: String,
+  #[tabled(rename = "CURRENT")]
+  pub current_usage: String,
+  #[tabled(rename = "LIMIT")]
+  pub limit: String,
+  #[tabled(rename = "USAGE %")]
+  pub usage_pct: String,
+}
+
+finding::impl_findings!(ServiceLimitFinding, "✅ - Service limits have sufficient headroom for the upgrade");
+
+/// Check if a service quota usage is approaching or exceeding the limit
+pub(crate) fn service_limit(
+  code: Code,
+  quota_name: &str,
+  current: f64,
+  limit: f64,
+  unit: &str,
+) -> Option<ServiceLimitFinding> {
+  if limit <= 0.0 {
+    return None;
+  }
+
+  let pct = (current / limit) * 100.0;
+
+  if pct < 80.0 {
+    return None;
+  }
+
+  let remediation = if pct >= 90.0 {
+    Remediation::Required
+  } else {
+    Remediation::Recommended
+  };
+
+  Some(ServiceLimitFinding {
+    finding: Finding::new(code, remediation),
+    quota_name: quota_name.to_string(),
+    current_usage: format!("{current:.1} {unit}"),
+    limit: format!("{limit:.1} {unit}"),
+    usage_pct: format!("{pct:.0}%"),
+  })
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -1040,5 +1090,40 @@ mod tests {
     let result = self_managed_nodegroup_update(&asg, &lt);
     assert!(result.is_some());
     assert!(matches!(result.unwrap().finding.remediation, Remediation::Recommended));
+  }
+
+  // ---------- service_limit ----------
+
+  #[test]
+  fn service_limit_below_80_pct() {
+    let result = service_limit(Code::AWS003, "EC2 vCPUs", 50.0, 100.0, "vCPUs");
+    assert!(result.is_none());
+  }
+
+  #[test]
+  fn service_limit_between_80_and_90_pct() {
+    let result = service_limit(Code::AWS003, "EC2 vCPUs", 85.0, 100.0, "vCPUs");
+    assert!(result.is_some());
+    assert!(matches!(result.unwrap().finding.remediation, Remediation::Recommended));
+  }
+
+  #[test]
+  fn service_limit_above_90_pct() {
+    let result = service_limit(Code::AWS003, "EC2 vCPUs", 95.0, 100.0, "vCPUs");
+    assert!(result.is_some());
+    assert!(matches!(result.unwrap().finding.remediation, Remediation::Required));
+  }
+
+  #[test]
+  fn service_limit_at_100_pct() {
+    let result = service_limit(Code::AWS003, "EC2 vCPUs", 100.0, 100.0, "vCPUs");
+    assert!(result.is_some());
+    assert!(matches!(result.unwrap().finding.remediation, Remediation::Required));
+  }
+
+  #[test]
+  fn service_limit_zero_limit() {
+    let result = service_limit(Code::AWS003, "EC2 vCPUs", 10.0, 0.0, "vCPUs");
+    assert!(result.is_none());
   }
 }

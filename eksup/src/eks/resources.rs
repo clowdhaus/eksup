@@ -6,6 +6,7 @@ use aws_sdk_autoscaling::{
   types::{AutoScalingGroup, Filter as AsgFilter},
 };
 use aws_sdk_ec2::Client as Ec2Client;
+use aws_sdk_servicequotas::Client as SqClient;
 use aws_sdk_eks::{
   Client as EksClient,
   types::{Addon, Cluster, FargateProfile, Nodegroup},
@@ -276,6 +277,124 @@ pub struct LaunchTemplate {
   /// The latest version of the launch template
   #[tabled(rename = "LATEST")]
   pub latest_version: String,
+}
+
+/// Represents the usage vs limit for a service quota
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServiceQuotaUsage {
+  pub quota_name: String,
+  pub quota_code: String,
+  pub current_usage: f64,
+  pub limit: f64,
+  pub unit: String,
+  pub usage_pct: f64,
+}
+
+/// Well-known Service Quotas quota codes
+pub mod quota_codes {
+  /// EC2 Running On-Demand Standard (A, C, D, H, I, M, R, T, Z) Instances - vCPU limit
+  pub const EC2_ON_DEMAND_STANDARD: &str = "L-1216C47A";
+  /// EBS General Purpose SSD (gp2) volume storage - TiB limit
+  pub const EBS_GP2_STORAGE: &str = "L-D18FCD1D";
+  /// EBS General Purpose SSD (gp3) volume storage - TiB limit
+  pub const EBS_GP3_STORAGE: &str = "L-7A658B76";
+}
+
+/// Get the current quota value for a service
+pub async fn get_service_quota(
+  client: &SqClient,
+  service_code: &str,
+  quota_code: &str,
+) -> Result<(String, f64, String)> {
+  let resp = client
+    .get_service_quota()
+    .service_code(service_code)
+    .quota_code(quota_code)
+    .send()
+    .await
+    .context(format!("Failed to get service quota {service_code}/{quota_code}"))?;
+
+  let quota = resp.quota.context("No quota found in response")?;
+  let name = quota.quota_name.unwrap_or_default();
+  let value = quota.value.unwrap_or(0.0);
+  let unit = quota.unit.map(|u| u.to_string()).unwrap_or_default();
+
+  Ok((name, value, unit))
+}
+
+/// Count running on-demand EC2 instance vCPUs in the region
+pub async fn get_ec2_on_demand_vcpu_count(client: &Ec2Client) -> Result<f64> {
+  let mut total_vcpus: f64 = 0.0;
+  let mut next_token: Option<String> = None;
+
+  loop {
+    let mut req = client
+      .describe_instances()
+      .filters(
+        aws_sdk_ec2::types::Filter::builder()
+          .name("instance-state-name")
+          .values("running")
+          .build(),
+      );
+    if let Some(token) = &next_token {
+      req = req.next_token(token);
+    }
+    let resp = req.send().await.context("Failed to describe EC2 instances")?;
+
+    for reservation in resp.reservations() {
+      for instance in reservation.instances() {
+        // Skip spot instances
+        if instance.instance_lifecycle().is_some_and(|l| l.as_str() == "spot") {
+          continue;
+        }
+        if let Some(cpu_options) = instance.cpu_options() {
+          let cores = cpu_options.core_count.unwrap_or(1) as f64;
+          let threads = cpu_options.threads_per_core.unwrap_or(1) as f64;
+          total_vcpus += cores * threads;
+        }
+      }
+    }
+
+    next_token = resp.next_token;
+    if next_token.is_none() {
+      break;
+    }
+  }
+
+  Ok(total_vcpus)
+}
+
+/// Get total EBS volume storage in TiB for a given volume type (gp2, gp3)
+pub async fn get_ebs_volume_storage(client: &Ec2Client, volume_type: &str) -> Result<f64> {
+  let mut total_gib: f64 = 0.0;
+  let mut next_token: Option<String> = None;
+
+  loop {
+    let mut req = client
+      .describe_volumes()
+      .filters(
+        aws_sdk_ec2::types::Filter::builder()
+          .name("volume-type")
+          .values(volume_type)
+          .build(),
+      );
+    if let Some(token) = &next_token {
+      req = req.next_token(token);
+    }
+    let resp = req.send().await.context(format!("Failed to describe {volume_type} EBS volumes"))?;
+
+    for volume in resp.volumes() {
+      total_gib += volume.size.unwrap_or(0) as f64;
+    }
+
+    next_token = resp.next_token;
+    if next_token.is_none() {
+      break;
+    }
+  }
+
+  // Convert GiB to TiB
+  Ok(total_gib / 1024.0)
 }
 
 pub async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchTemplate> {

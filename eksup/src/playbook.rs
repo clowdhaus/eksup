@@ -65,6 +65,9 @@ pub struct TemplateData {
   kube_proxy_ipvs_mode: String,
   ingress_nginx_retirement: String,
   pod_disruption_budgets: String,
+  ec2_limits: String,
+  ebs_gp2_limits: String,
+  ebs_gp3_limits: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
@@ -188,6 +191,9 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
     kube_proxy_ipvs_mode: kubernetes_findings.kube_proxy_ipvs_mode.to_markdown_table("\t")?,
     ingress_nginx_retirement: kubernetes_findings.ingress_nginx_retirement.to_markdown_table("\t")?,
     pod_disruption_budgets: kubernetes_findings.pod_disruption_budgets.to_markdown_table("\t")?,
+    ec2_limits: analysis.service_limits.ec2_limits.to_markdown_table("\t")?,
+    ebs_gp2_limits: analysis.service_limits.ebs_gp2_limits.to_markdown_table("\t")?,
+    ebs_gp3_limits: analysis.service_limits.ebs_gp3_limits.to_markdown_table("\t")?,
   };
 
   let rendered = handlebars.render("playbook.md", &tmpl_data)?;
