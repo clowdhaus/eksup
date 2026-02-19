@@ -119,9 +119,10 @@ pub struct Playbook {
   /// Name of the playbook saved locally
   #[arg(short, long)]
   pub filename: Option<String>,
-  // /// Exclude recommendations from the output
-  // #[arg(long)]
-  // pub ignore_recommended: bool,
+
+  /// Exclude recommendations from the output
+  #[arg(long)]
+  pub ignore_recommended: bool,
 }
 
 pub async fn analyze(args: Analysis) -> Result<()> {
@@ -148,7 +149,10 @@ pub async fn analyze(args: Analysis) -> Result<()> {
   }
 
   // All checks and validations on input should happen above/before running the analysis
-  let results = analysis::analyze(&aws_config, &cluster).await?;
+  let mut results = analysis::analyze(&aws_config, &cluster).await?;
+  if args.ignore_recommended {
+    results.filter_recommended();
+  }
   output::output(&results, &args.format, &args.output)?;
 
   Ok(())
@@ -216,7 +220,10 @@ pub async fn create(args: Create) -> Result<()> {
         return Ok(());
       }
 
-      let results = analysis::analyze(&aws_config, &cluster).await?;
+      let mut results = analysis::analyze(&aws_config, &cluster).await?;
+      if playbook.ignore_recommended {
+        results.filter_recommended();
+      }
       playbook::create(playbook, region, &cluster, results)?;
     }
   }

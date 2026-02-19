@@ -46,6 +46,10 @@ impl Remediation {
       Remediation::Recommended => "⚠️".to_string(),
     }
   }
+
+  pub(crate) fn is_recommended(&self) -> bool {
+    matches!(self, Remediation::Recommended)
+  }
 }
 
 impl std::fmt::Display for Remediation {

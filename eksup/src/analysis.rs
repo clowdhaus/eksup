@@ -15,6 +15,29 @@ pub(crate) struct Results {
 }
 
 impl Results {
+  /// Remove all findings where remediation is `Recommended`, keeping only `Required`
+  pub(crate) fn filter_recommended(&mut self) {
+    self.cluster.cluster_health.retain(|f| !f.finding.remediation.is_recommended());
+    self.subnets.control_plane_ips.retain(|f| !f.finding.remediation.is_recommended());
+    self.subnets.pod_ips.retain(|f| !f.finding.remediation.is_recommended());
+    self.addons.health.retain(|f| !f.finding.remediation.is_recommended());
+    self.addons.version_compatibility.retain(|f| !f.finding.remediation.is_recommended());
+    self.data_plane.eks_managed_nodegroup_health.retain(|f| !f.finding.remediation.is_recommended());
+    self.data_plane.eks_managed_nodegroup_update.retain(|f| !f.finding.remediation.is_recommended());
+    self.data_plane.self_managed_nodegroup_update.retain(|f| !f.finding.remediation.is_recommended());
+    self.data_plane.al2_ami_deprecation.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.version_skew.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.min_replicas.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.min_ready_seconds.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.pod_topology_distribution.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.readiness_probe.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.termination_grace_period.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.docker_socket.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.kube_proxy_version_skew.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.kube_proxy_ipvs_mode.retain(|f| !f.finding.remediation.is_recommended());
+    self.kubernetes.ingress_nginx_retirement.retain(|f| !f.finding.remediation.is_recommended());
+  }
+
   /// Renders all findings as a formatted stdout table string
   pub(crate) fn to_stdout_table(&self) -> Result<String> {
     let mut output = String::new();
