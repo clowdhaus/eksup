@@ -1,0 +1,38 @@
+---
+source: eksup/tests/e2e.rs
+expression: output
+---
+{
+  "cluster": {
+    "cluster_health": []
+  },
+  "subnets": {
+    "control_plane_ips": [],
+    "pod_ips": []
+  },
+  "data_plane": {
+    "eks_managed_nodegroup_health": [],
+    "eks_managed_nodegroup_update": [],
+    "self_managed_nodegroup_update": [],
+    "al2_ami_deprecation": [],
+    "eks_managed_nodegroups": [],
+    "self_managed_nodegroups": [],
+    "fargate_profiles": []
+  },
+  "addons": {
+    "version_compatibility": [],
+    "health": []
+  },
+  "kubernetes": {
+    "version_skew": [],
+    "min_replicas": [],
+    "min_ready_seconds": [],
+    "readiness_probe": [],
+    "pod_topology_distribution": [],
+    "termination_grace_period": [],
+    "docker_socket": [],
+    "kube_proxy_version_skew": [],
+    "kube_proxy_ipvs_mode": [],
+    "ingress_nginx_retirement": []
+  }
+}

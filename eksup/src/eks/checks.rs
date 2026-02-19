@@ -98,7 +98,8 @@ pub(crate) fn control_plane_ips(subnet_ips: &[resources::VpcSubnet]) -> Vec<Insu
   for subnet in subnet_ips {
     *az_ips.entry(subnet.availability_zone_id.clone()).or_default() += subnet.available_ips;
   }
-  let availability_zone_ips: Vec<(String, i32)> = az_ips.into_iter().collect();
+  let mut availability_zone_ips: Vec<(String, i32)> = az_ips.into_iter().collect();
+  availability_zone_ips.sort_by(|a, b| a.0.cmp(&b.0));
 
   // There are at least 2 different availability zones with 5 or more IPs; no finding
   if availability_zone_ips
@@ -155,7 +156,10 @@ pub(crate) fn pod_ips(
     *az_ips.entry(subnet.availability_zone_id.clone()).or_default() += subnet.available_ips;
   }
 
-  az_ips
+  let mut sorted_ips: Vec<(String, i32)> = az_ips.into_iter().collect();
+  sorted_ips.sort_by(|a, b| a.0.cmp(&b.0));
+
+  sorted_ips
     .into_iter()
     .map(|(az, ips)| InsufficientSubnetIps {
       finding: finding.clone(),

@@ -1,0 +1,127 @@
+---
+source: eksup/tests/e2e.rs
+expression: output
+---
+{
+  "cluster": {
+    "cluster_health": []
+  },
+  "subnets": {
+    "control_plane_ips": [
+      {
+        "finding": {
+          "code": "EKS001",
+          "symbol": "❌",
+          "remediation": "Required"
+        },
+        "id": "use1-az1",
+        "available_ips": 3
+      },
+      {
+        "finding": {
+          "code": "EKS001",
+          "symbol": "❌",
+          "remediation": "Required"
+        },
+        "id": "use1-az2",
+        "available_ips": 100
+      }
+    ],
+    "pod_ips": []
+  },
+  "data_plane": {
+    "eks_managed_nodegroup_health": [],
+    "eks_managed_nodegroup_update": [],
+    "self_managed_nodegroup_update": [],
+    "al2_ami_deprecation": [],
+    "eks_managed_nodegroups": [],
+    "self_managed_nodegroups": [],
+    "fargate_profiles": []
+  },
+  "addons": {
+    "version_compatibility": [],
+    "health": []
+  },
+  "kubernetes": {
+    "version_skew": [
+      {
+        "finding": {
+          "code": "K8S001",
+          "symbol": "⚠️",
+          "remediation": "Recommended"
+        },
+        "name": "node-1",
+        "kubelet_version": "v1.28.0",
+        "kubernetes_version": "v1.28",
+        "control_plane_version": "v1.30",
+        "version_skew": "+2"
+      }
+    ],
+    "min_replicas": [
+      {
+        "finding": {
+          "code": "K8S002",
+          "symbol": "❌",
+          "remediation": "Required"
+        },
+        "resource": {
+          "name": "web",
+          "namespace": "default",
+          "kind": "Deployment"
+        },
+        "replicas": 1
+      }
+    ],
+    "min_ready_seconds": [
+      {
+        "finding": {
+          "code": "K8S003",
+          "symbol": "⚠️",
+          "remediation": "Recommended"
+        },
+        "resource": {
+          "name": "web",
+          "namespace": "default",
+          "kind": "Deployment"
+        },
+        "seconds": 0
+      }
+    ],
+    "readiness_probe": [
+      {
+        "finding": {
+          "code": "K8S006",
+          "symbol": "❌",
+          "remediation": "Required"
+        },
+        "resource": {
+          "name": "web",
+          "namespace": "default",
+          "kind": "Deployment"
+        },
+        "readiness_probe": false
+      }
+    ],
+    "pod_topology_distribution": [
+      {
+        "finding": {
+          "code": "K8S005",
+          "symbol": "❌",
+          "remediation": "Required"
+        },
+        "resource": {
+          "name": "web",
+          "namespace": "default",
+          "kind": "Deployment"
+        },
+        "anti_affinity": false,
+        "topology_spread_constraints": false
+      }
+    ],
+    "termination_grace_period": [],
+    "docker_socket": [],
+    "kube_proxy_version_skew": [],
+    "kube_proxy_ipvs_mode": [],
+    "ingress_nginx_retirement": []
+  }
+}
