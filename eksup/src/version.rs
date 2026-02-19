@@ -35,7 +35,7 @@ pub(crate) fn check_version_supported(cluster_version: &str) -> Result<Option<i3
 /// Given the current Kubernetes version and the default behavior based on Kubernetes
 /// upgrade restrictions of one minor version upgrade at a time, return the
 /// next minor version number
-/// TODO: This will change in the future when the strategy allows for `BlueGreen` upgrades
+// Future: Support BlueGreen strategy where target can skip versions
 pub(crate) fn get_target_version(current_version: &str) -> Result<i32> {
   let current_minor = parse_minor(current_version)?;
 

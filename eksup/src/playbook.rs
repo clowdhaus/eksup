@@ -98,20 +98,9 @@ struct FargateProfileTemplateData {
   target_version: String,
 }
 
-fn char_replace(text: String) -> String {
-  text
-    .replace("&#x60;", "`")
-    .replace("&#x27;", "'")
-    .replace("&lt;", "<")
-    .replace("&amp;lt;", "<")
-    .replace("&gt;", ">")
-    .replace("&amp;gt;", ">")
-    .replace("&quot;", "\"")
-    .replace("&#x3D;", "=")
-}
-
 pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis: analysis::Results) -> Result<()> {
   let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(handlebars::no_escape);
   handlebars.register_embed_templates::<Templates>()?;
 
   let cluster_name = cluster.name().context("Cluster name missing")?;
@@ -145,7 +134,7 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
       .al2_ami_deprecation
       .to_markdown_table("\t")?,
   };
-  let eks_managed_nodegroup_template = char_replace(handlebars.render("eks-managed-nodegroup.md", &eks_mng_tmpl_data)?);
+  let eks_managed_nodegroup_template = handlebars.render("eks-managed-nodegroup.md", &eks_mng_tmpl_data)?;
 
   let self_mng_tmpl_data = SelfManagedNodeGroupTemplateData {
     region: region.to_owned(),
@@ -156,14 +145,14 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
       .to_markdown_table("\t")?,
   };
   let self_managed_nodegroup_template =
-    char_replace(handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?);
+    handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?;
 
   let fargate_tmpl_data = FargateProfileTemplateData {
     region: region.to_owned(),
     cluster_name: cluster_name.to_owned(),
     target_version: target_version.to_owned(),
   };
-  let fargate_profile_template = char_replace(handlebars.render("fargate-node.md", &fargate_tmpl_data)?);
+  let fargate_profile_template = handlebars.render("fargate-node.md", &fargate_tmpl_data)?;
 
   let tmpl_data = TemplateData {
     region,
@@ -202,8 +191,7 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
   };
 
   let rendered = handlebars.render("playbook.md", &tmpl_data)?;
-  let replaced = char_replace(rendered);
-  fs::write(filename, replaced)?;
+  fs::write(filename, rendered)?;
 
   Ok(())
 }
