@@ -183,13 +183,14 @@ pub async fn get_eks_managed_nodegroups(client: &EksClient, cluster_name: &str) 
   let mut nodegroups = Vec::new();
 
   for nodegroup_name in nodegroup_names {
+    let ctx = format!("Failed to describe node group '{nodegroup_name}'");
     let response = client
       .describe_nodegroup()
       .cluster_name(cluster_name)
-      .nodegroup_name(&nodegroup_name)
+      .nodegroup_name(nodegroup_name)
       .send()
       .await
-      .context(format!("Failed to describe node group '{nodegroup_name}'"))?
+      .context(ctx)?
       .nodegroup;
 
     if let Some(nodegroup) = response {

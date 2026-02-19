@@ -34,6 +34,10 @@ pub struct EniConfigSpec {
   pub security_groups: Option<Vec<String>>,
 }
 
+/// Number of items to fetch per Kubernetes API list call.
+/// Balances round trips for normal clusters vs timeout avoidance for large ones.
+const LIST_PAGE_SIZE: u32 = 500;
+
 /// Generic paginated list helper that fetches all items across pages
 async fn list_all<K>(api: &Api<K>, page_size: u32) -> Result<Vec<K>>
 where
@@ -93,7 +97,7 @@ pub struct Node {
 
 pub async fn get_nodes(client: &Client) -> Result<Vec<Node>> {
   let api: Api<core::v1::Node> = Api::all(client.to_owned());
-  let node_list = list_all(&api, 500).await.context("Failed to list Nodes")?;
+  let node_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list Nodes")?;
 
   Ok(
     node_list
@@ -133,7 +137,7 @@ pub async fn get_configmap(client: &Client, namespace: &str, name: &str) -> Resu
 /// available IPs in the subnet(s) when custom networking is enabled
 pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
   let api = Api::<ENIConfig>::all(client.to_owned());
-  let eniconfigs = match list_all(&api, 500).await {
+  let eniconfigs = match list_all(&api, LIST_PAGE_SIZE).await {
     Ok(eniconfigs) => eniconfigs,
     Err(e) => {
       warn!("Failed to list ENIConfigs: {e}");
@@ -146,7 +150,7 @@ pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
 
 async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::Deployment> = Api::all(client.to_owned());
-  let deployment_list = list_all(&api, 500).await.context("Failed to list Deployments")?;
+  let deployment_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list Deployments")?;
 
   let deployments = deployment_list
     .iter()
@@ -182,7 +186,7 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::ReplicaSet> = Api::all(client.to_owned());
-  let replicaset_list = list_all(&api, 500).await.context("Failed to list ReplicaSets")?;
+  let replicaset_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list ReplicaSets")?;
 
   let replicasets = replicaset_list
     .iter()
@@ -221,7 +225,7 @@ async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::StatefulSet> = Api::all(client.to_owned());
-  let statefulset_list = list_all(&api, 500).await.context("Failed to list StatefulSets")?;
+  let statefulset_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list StatefulSets")?;
 
   let statefulsets = statefulset_list
     .iter()
@@ -257,7 +261,7 @@ async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::DaemonSet> = Api::all(client.to_owned());
-  let daemonset_list = list_all(&api, 500).await.context("Failed to list DaemonSets")?;
+  let daemonset_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list DaemonSets")?;
 
   let daemonsets = daemonset_list
     .iter()
@@ -293,7 +297,7 @@ async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::Job> = Api::all(client.to_owned());
-  let job_list = list_all(&api, 500).await.context("Failed to list Jobs")?;
+  let job_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list Jobs")?;
 
   let jobs = job_list
     .iter()
@@ -332,7 +336,7 @@ async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::CronJob> = Api::all(client.to_owned());
-  let cronjob_list = list_all(&api, 500).await.context("Failed to list CronJobs")?;
+  let cronjob_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list CronJobs")?;
 
   let cronjobs = cronjob_list
     .iter()

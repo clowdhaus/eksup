@@ -15,7 +15,7 @@ use aws_config::default_provider::{credentials::DefaultCredentialsChain, region:
 use aws_types::region::Region;
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressFinish, ProgressStyle};
 use serde::{Deserialize, Serialize};
 
 fn get_styles() -> clap::builder::Styles {
@@ -136,9 +136,22 @@ pub struct Playbook {
   pub ignore_recommended: bool,
 }
 
+fn new_spinner() -> ProgressBar {
+  let spinner = ProgressBar::new_spinner()
+    .with_style(ProgressStyle::with_template("{spinner:.cyan} {msg}").unwrap())
+    .with_finish(ProgressFinish::AndClear);
+  spinner.enable_steady_tick(std::time::Duration::from_millis(80));
+  spinner
+}
+
 pub async fn analyze(args: Analysis) -> Result<()> {
+  let spinner = new_spinner();
+
+  spinner.set_message("Loading AWS configuration...");
   let aws_config = get_config(&args.region, &args.profile).await?;
   let aws = clients::RealAwsClients::new(&aws_config);
+
+  spinner.set_message("Fetching cluster details...");
   let cluster = aws.get_cluster(&args.cluster).await?;
   let cluster_version = cluster.version().context("Cluster version not found")?;
 
@@ -147,16 +160,13 @@ pub async fn analyze(args: Analysis) -> Result<()> {
     None => match version::check_version_supported(cluster_version)? {
       Some(target) => target,
       None => {
+        spinner.finish_and_clear();
         println!("Cluster is already at the latest supported version: {cluster_version}");
         println!("Nothing to upgrade at this time");
         return Ok(());
       }
     },
   };
-
-  let spinner = ProgressBar::new_spinner()
-    .with_style(ProgressStyle::with_template("{spinner:.cyan} {msg}").unwrap());
-  spinner.enable_steady_tick(std::time::Duration::from_millis(80));
 
   spinner.set_message("Connecting to cluster...");
   let k8s = clients::RealK8sClients::new(&args.cluster).await?;
@@ -210,10 +220,15 @@ async fn get_config(region: &Option<String>, profile: &Option<String>) -> Result
 pub async fn create(args: Create) -> Result<()> {
   match args.command {
     CreateCommands::Playbook(playbook) => {
+      let spinner = new_spinner();
+
+      spinner.set_message("Loading AWS configuration...");
       let aws_config = get_config(&playbook.region, &playbook.profile).await?;
       let region = aws_config.region().context("AWS region not configured")?.to_string();
 
       let aws = clients::RealAwsClients::new(&aws_config);
+
+      spinner.set_message("Fetching cluster details...");
       let cluster = aws.get_cluster(&playbook.cluster).await?;
       let cluster_version = cluster.version().context("Cluster version not found")?;
 
@@ -222,16 +237,13 @@ pub async fn create(args: Create) -> Result<()> {
         None => match version::check_version_supported(cluster_version)? {
           Some(target) => target,
           None => {
+            spinner.finish_and_clear();
             println!("Cluster is already at the latest supported version: {cluster_version}");
             println!("Nothing to upgrade at this time");
             return Ok(());
           }
         },
       };
-
-      let spinner = ProgressBar::new_spinner()
-        .with_style(ProgressStyle::with_template("{spinner:.cyan} {msg}").unwrap());
-      spinner.enable_steady_tick(std::time::Duration::from_millis(80));
 
       spinner.set_message("Connecting to cluster...");
       let k8s = clients::RealK8sClients::new(&playbook.cluster).await?;
