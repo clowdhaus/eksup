@@ -76,18 +76,18 @@ pub async fn get_nodes(client: &Client) -> Result<Vec<Node>> {
   Ok(
     node_list
       .iter()
-      .map(|node| {
-        let status = node.status.as_ref().unwrap();
-        let node_info = status.node_info.as_ref().unwrap();
+      .filter_map(|node| {
+        let status = node.status.as_ref()?;
+        let node_info = status.node_info.as_ref()?;
         let kubelet_version = node_info.kubelet_version.to_owned();
-        let minor_version = version::parse_minor(&kubelet_version).unwrap();
+        let minor_version = version::parse_minor(&kubelet_version).ok()?;
 
-        Node {
-          name: node.metadata.name.as_ref().unwrap().to_owned(),
+        Some(Node {
+          name: node.metadata.name.clone().unwrap_or_default(),
           labels: node.metadata.labels.to_owned(),
           kubelet_version,
           minor_version,
-        }
+        })
       })
       .collect(),
   )
@@ -585,10 +585,10 @@ impl checks::K8sFindings for StdResource {
     }
   }
 
-  fn docker_socket(&self, target_version: &str) -> Option<checks::DockerSocket> {
-    let pod_template = self.spec.template.to_owned();
+  fn docker_socket(&self, target_version: &str) -> anyhow::Result<Option<checks::DockerSocket>> {
+    let pod_template = self.spec.template.as_ref();
 
-    let target_version = version::parse_minor(target_version).unwrap();
+    let target_version = version::parse_minor(target_version)?;
     let remediation = if target_version >= 24 {
       finding::Remediation::Required
     } else {
@@ -597,29 +597,31 @@ impl checks::K8sFindings for StdResource {
 
     match pod_template {
       Some(pod_template) => {
-        let containers = pod_template.spec.unwrap_or_default().containers;
+        let containers = &pod_template.spec.as_ref().map(|s| &s.containers);
 
-        for container in containers {
-          let volume_mounts = container.volume_mounts.unwrap_or_default();
-          for volume_mount in volume_mounts {
-            if volume_mount.mount_path.contains("docker.sock") || volume_mount.mount_path.contains("dockershim.sock") {
-              let finding = finding::Finding {
-                code: finding::Code::K8S008,
-                symbol: remediation.symbol(),
-                remediation,
-              };
+        if let Some(containers) = containers {
+          for container in *containers {
+            let volume_mounts = container.volume_mounts.as_deref().unwrap_or_default();
+            for volume_mount in volume_mounts {
+              if volume_mount.mount_path.contains("docker.sock") || volume_mount.mount_path.contains("dockershim.sock") {
+                let finding = finding::Finding {
+                  code: finding::Code::K8S008,
+                  symbol: remediation.symbol(),
+                  remediation,
+                };
 
-              return Some(checks::DockerSocket {
-                finding,
-                resource: self.get_resource(),
-                docker_socket: true,
-              });
+                return Ok(Some(checks::DockerSocket {
+                  finding,
+                  resource: self.get_resource(),
+                  docker_socket: true,
+                }));
+              }
             }
           }
         }
-        None
+        Ok(None)
       }
-      None => None,
+      None => Ok(None),
     }
   }
 }

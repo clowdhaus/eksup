@@ -6,7 +6,7 @@ mod output;
 mod playbook;
 mod version;
 
-use std::{env, process, str};
+use std::{env, str};
 
 use anyhow::{Context, Result};
 use aws_config::default_provider::{credentials::DefaultCredentialsChain, region::DefaultRegionChain};
@@ -138,7 +138,7 @@ pub async fn analyze(args: Analysis) -> Result<()> {
 
   // All checks and validations on input should happen above/before running the analysis
   let results = analysis::analyze(&aws_config, &cluster).await?;
-  output::output(&results, &args.format, &args.output).await?;
+  output::output(&results, &args.format, &args.output)?;
 
   Ok(())
 }
@@ -195,11 +195,7 @@ pub async fn create(args: Create) -> Result<()> {
       }
 
       let results = analysis::analyze(&aws_config, &cluster).await?;
-
-      if let Err(err) = playbook::create(playbook, region, &cluster, results) {
-        eprintln!("{err}");
-        process::exit(2);
-      }
+      playbook::create(playbook, region, &cluster, results)?;
     }
   }
 

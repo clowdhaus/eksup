@@ -5,7 +5,6 @@ use aws_sdk_eks::{
   Client as EksClient,
   types::{Addon, Cluster, Nodegroup},
 };
-use itertools::Itertools;
 use kube::Client as K8sClient;
 use serde::{Deserialize, Serialize};
 use tabled::{
@@ -63,7 +62,7 @@ impl Findings for Vec<ClusterHealthIssue> {
 }
 
 /// Check for any reported health issues on the cluster control plane
-pub(crate) async fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue>> {
+pub(crate) fn cluster_health(cluster: &Cluster) -> Result<Vec<ClusterHealthIssue>> {
   let health = cluster.health();
 
   match health {
@@ -143,22 +142,17 @@ pub(crate) async fn control_plane_ips(ec2_client: &Ec2Client, cluster: &Cluster)
 
   let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
 
-  let availability_zone_ips: Vec<(String, i32)> = subnet_ips
-    .iter()
-    .chunk_by(|subnet| subnet.availability_zone_id.clone())
-    .into_iter()
-    .map(|(az, subnets)| {
-      let total_ips = subnets.map(|subnet| subnet.available_ips).sum();
-      (az, total_ips)
-    })
-    .collect();
+  let mut az_ips: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
+  for subnet in &subnet_ips {
+    *az_ips.entry(subnet.availability_zone_id.clone()).or_default() += subnet.available_ips;
+  }
+  let availability_zone_ips: Vec<(String, i32)> = az_ips.into_iter().collect();
 
   // There are at least 2 different availability zones with 5 or more IPs; no finding
   if availability_zone_ips
     .iter()
     .filter(|(_az, ips)| ips >= &5)
-    .collect::<Vec<_>>()
-    .len()
+    .count()
     >= 2
   {
     return Ok(vec![]);
@@ -201,7 +195,7 @@ pub(crate) async fn pod_ips(
 
   let subnet_ids = eniconfigs
     .iter()
-    .map(|eniconfig| eniconfig.spec.subnet.as_ref().unwrap().to_owned())
+    .filter_map(|eniconfig| eniconfig.spec.subnet.clone())
     .collect();
 
   let subnet_ips = resources::get_subnet_ips(ec2_client, subnet_ids).await?;
@@ -211,7 +205,7 @@ pub(crate) async fn pod_ips(
     return Ok(vec![]);
   }
 
-  let remediation = if available_ips >= required_ips {
+  let remediation = if available_ips < required_ips {
     finding::Remediation::Required
   } else {
     finding::Remediation::Recommended
@@ -223,15 +217,18 @@ pub(crate) async fn pod_ips(
     remediation,
   };
 
+  let mut az_ips: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
+  for subnet in &subnet_ips {
+    *az_ips.entry(subnet.availability_zone_id.clone()).or_default() += subnet.available_ips;
+  }
+
   Ok(
-    subnet_ips
-      .iter()
-      .chunk_by(|subnet| subnet.availability_zone_id.clone())
+    az_ips
       .into_iter()
-      .map(|(az, subnets)| InsufficientSubnetIps {
+      .map(|(az, ips)| InsufficientSubnetIps {
         finding: finding.clone(),
         id: az,
-        available_ips: subnets.map(|subnet| subnet.available_ips).sum(),
+        available_ips: ips,
       })
       .collect(),
   )
@@ -387,7 +384,7 @@ impl Findings for Vec<AddonHealthIssue> {
   }
 }
 
-pub(crate) async fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>> {
+pub(crate) fn addon_health(addons: &[Addon]) -> Result<Vec<AddonHealthIssue>> {
   let health_issues = addons
     .iter()
     .flat_map(|addon| {
@@ -470,7 +467,7 @@ impl Findings for Vec<NodegroupHealthIssue> {
 }
 
 /// Check for any reported health issues on EKS managed node groups
-pub(crate) async fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Result<Vec<NodegroupHealthIssue>> {
+pub(crate) fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Result<Vec<NodegroupHealthIssue>> {
   let health_issues = nodegroups
     .iter()
     .flat_map(|nodegroup| {
@@ -574,7 +571,8 @@ pub(crate) async fn eks_managed_nodegroup_update(
   // check the launch template field of the EKS managed node group which is the user provided template, if there is one.
   match launch_template_spec {
     Some(launch_template_spec) => {
-      let launch_template_id = launch_template_spec.id().unwrap().to_owned();
+      let launch_template_id = launch_template_spec.id()
+        .context("Launch template spec missing ID")?.to_owned();
       let launch_template = resources::get_launch_template(client, &launch_template_id).await?;
 
       match nodegroup.resources() {

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use aws_sdk_eks::types::Cluster;
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
@@ -112,13 +112,14 @@ pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis
   let mut handlebars = Handlebars::new();
   handlebars.register_embed_templates::<Templates>()?;
 
-  let cluster_name = cluster.name().unwrap();
-  let cluster_version = cluster.version().unwrap();
+  let cluster_name = cluster.name().context("Cluster name missing")?;
+  let cluster_version = cluster.version().context("Cluster version missing")?;
   let target_version = version::get_target_version(cluster_version)?;
   let default_playbook_name = format!("{cluster_name}_v{target_version}_upgrade.md");
 
   let release_data = get_release_data()?;
-  let release = release_data.get(&target_version).unwrap();
+  let release = release_data.get(&target_version)
+    .context(format!("No release data found for version {target_version}"))?;
 
   let cluster_findings = analysis.cluster;
   let data_plane_findings = analysis.data_plane;

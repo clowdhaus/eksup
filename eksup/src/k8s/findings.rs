@@ -31,7 +31,7 @@ pub async fn get_kubernetes_findings(
   let resources = resources::get_resources(client).await?;
   let nodes = resources::get_nodes(client).await?;
 
-  let version_skew = checks::version_skew(&nodes, cluster_version).await?;
+  let version_skew = checks::version_skew(&nodes, cluster_version)?;
   let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();
   let min_ready_seconds: Vec<checks::MinReadySeconds> =
     resources.iter().filter_map(|s| s.min_ready_seconds()).collect();
@@ -42,9 +42,9 @@ pub async fn get_kubernetes_findings(
     resources.iter().filter_map(|s| s.termination_grace_period()).collect();
   let docker_socket: Vec<checks::DockerSocket> = resources
     .iter()
-    .filter_map(|s| s.docker_socket(target_version))
+    .filter_map(|s| s.docker_socket(target_version).ok().flatten())
     .collect();
-  let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, cluster_version).await?;
+  let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, cluster_version)?;
 
   Ok(KubernetesFindings {
     version_skew,

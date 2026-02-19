@@ -100,13 +100,13 @@ impl Findings for Vec<VersionSkew> {
 }
 
 /// Returns all of the nodes in the cluster
-pub async fn version_skew(nodes: &[resources::Node], cluster_version: &str) -> Result<Vec<VersionSkew>> {
+pub fn version_skew(nodes: &[resources::Node], cluster_version: &str) -> Result<Vec<VersionSkew>> {
   let mut findings = vec![];
 
   for node in nodes {
     let control_plane_minor_version = version::parse_minor(cluster_version)?;
     let version_skew = control_plane_minor_version - node.minor_version;
-    if version_skew == 0 {
+    if version_skew <= 0 {
       continue;
     }
 
@@ -128,7 +128,7 @@ pub async fn version_skew(nodes: &[resources::Node], cluster_version: &str) -> R
       finding,
       name: node.name.to_owned(),
       kubelet_version: node.kubelet_version.to_owned(),
-      kubernetes_version: format!("v{}", version::normalize(&node.kubelet_version).unwrap()),
+      kubernetes_version: format!("v{}", version::normalize(&node.kubelet_version)?),
       control_plane_version: format!("v{cluster_version}"),
       version_skew: format!("+{version_skew}"),
     };
@@ -407,39 +407,32 @@ pub struct KubeProxyVersionSkew {
   pub version_skew: String,
 }
 
-pub async fn kube_proxy_version_skew(
+pub fn kube_proxy_version_skew(
   resources: &[resources::StdResource],
   cluster_version: &str,
 ) -> Result<Vec<KubeProxyVersionSkew>> {
   let kube_proxy = match resources
     .iter()
-    .filter(|r| r.metadata.kind == resources::Kind::DaemonSet && r.metadata.name == "kube-proxy")
-    .collect::<Vec<_>>()
-    .first()
+    .find(|r| r.metadata.kind == resources::Kind::DaemonSet && r.metadata.name == "kube-proxy")
   {
-    Some(k) => k.to_owned(),
+    Some(k) => k,
     None => {
-      println!("Unable to find kube-proxy");
+      tracing::warn!("Unable to find kube-proxy daemonset");
       return Ok(vec![]);
     }
   };
 
-  let ptmpl = kube_proxy.spec.template.as_ref().unwrap();
-  let pspec = ptmpl.spec.as_ref().unwrap();
-  let kproxy_minor_version = pspec
-    .containers
-    .iter()
-    .map(|container| {
-      // TODO - this seems brittle
-      let image = container.image.as_ref().unwrap().split(':').collect::<Vec<_>>()[1];
-      version::parse_minor(image).unwrap()
-    })
-    .next()
-    .context("Unable to find image version for kube-proxy")?;
+  let ptmpl = kube_proxy.spec.template.as_ref().context("kube-proxy has no pod template")?;
+  let pspec = ptmpl.spec.as_ref().context("kube-proxy pod template has no spec")?;
+  let first_container = pspec.containers.first().context("kube-proxy has no containers")?;
+  let image_tag = first_container.image.as_deref()
+    .and_then(|img| img.split(':').nth(1))
+    .context("kube-proxy container image has no version tag")?;
+  let kproxy_minor_version = version::parse_minor(image_tag)?;
 
   let control_plane_minor_version = version::parse_minor(cluster_version)?;
   let version_skew = control_plane_minor_version - kproxy_minor_version;
-  if version_skew == 0 {
+  if version_skew <= 0 {
     return Ok(vec![]);
   }
 
@@ -515,7 +508,7 @@ pub trait K8sFindings {
   fn termination_grace_period(&self) -> Option<TerminationGracePeriod>;
 
   /// K8S008 - check if resources use the Docker socket
-  fn docker_socket(&self, target_version: &str) -> Option<DockerSocket>;
+  fn docker_socket(&self, target_version: &str) -> Result<Option<DockerSocket>>;
 
   // K8S009 - pod security policies (separate from workload resources)
 }

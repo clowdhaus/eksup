@@ -16,7 +16,7 @@ pub struct ClusterFindings {
 
 /// Collects the cluster findings from the Amazon EKS API
 pub async fn get_cluster_findings(cluster: &Cluster) -> Result<ClusterFindings> {
-  let cluster_health = checks::cluster_health(cluster).await?;
+  let cluster_health = checks::cluster_health(cluster)?;
 
   Ok(ClusterFindings { cluster_health })
 }
@@ -79,7 +79,7 @@ pub async fn get_addon_findings(
   let addons = resources::get_addons(eks_client, cluster_name).await?;
 
   let version_compatibility = checks::addon_version_compatibility(eks_client, cluster_version, &addons).await?;
-  let health = checks::addon_health(&addons).await?;
+  let health = checks::addon_health(&addons)?;
 
   Ok(AddonFindings {
     version_compatibility,
@@ -123,7 +123,7 @@ pub async fn get_data_plane_findings(
   let self_mngs = resources::get_self_managed_nodegroups(asg_client, cluster_name).await?;
   let fargate_profiles = resources::get_fargate_profiles(eks_client, cluster_name).await?;
 
-  let eks_managed_nodegroup_health = checks::eks_managed_nodegroup_health(&eks_mngs).await?;
+  let eks_managed_nodegroup_health = checks::eks_managed_nodegroup_health(&eks_mngs)?;
   let mut eks_managed_nodegroup_update = Vec::new();
   for eks_mng in &eks_mngs {
     let update = checks::eks_managed_nodegroup_update(ec2_client, eks_mng).await?;

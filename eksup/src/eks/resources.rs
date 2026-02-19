@@ -1,4 +1,4 @@
-use std::{collections::HashSet, process::exit};
+use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use aws_sdk_autoscaling::{
@@ -12,23 +12,17 @@ use aws_sdk_eks::{
 };
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
-use tracing::error;
 
 /// Describe the cluster to get its full details
 pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
-  let request = client.describe_cluster().name(name);
-  let response = match request.send().await {
-    Ok(response) => response,
-    Err(_) => {
-      error!("Cluster {name} not found");
-      exit(1)
-    }
-  };
+  let response = client
+    .describe_cluster()
+    .name(name)
+    .send()
+    .await
+    .context(format!("Cluster '{name}' not found"))?;
 
-  match response.cluster {
-    Some(cluster) => Ok(cluster),
-    None => exit(1),
-  }
+  response.cluster.context(format!("Cluster '{name}' not found in response"))
 }
 
 /// Container for the subnet IDs and their total available IPs
@@ -133,22 +127,18 @@ pub(crate) async fn get_addon_versions(
     .await?;
 
   // Since we are providing an addon name, we are only concerned with the first and only item
-  let addon = describe.addons().first().unwrap();
-  let latest_version = match addon.addon_versions().first() {
-    Some(version) => version.addon_version().unwrap_or_default(),
-    None => {
-      error!("No addon versions found for addon {name}");
-      exit(1)
-    }
-  };
+  let addon = describe.addons().first()
+    .context(format!("No addon found for '{name}' on Kubernetes version '{kubernetes_version}'"))?;
+  let latest_version = addon.addon_versions().first()
+    .context(format!("No addon versions found for addon '{name}'"))?
+    .addon_version().unwrap_or_default();
 
   // The default version as specified by the EKS API for a given addon and Kubernetes version
   let default_version = addon
     .addon_versions()
     .iter()
-    .filter(|v| v.compatibilities().iter().any(|c| c.default_version))
-    .map(|v| v.addon_version().unwrap_or_default())
-    .next()
+    .find(|v| v.compatibilities().iter().any(|c| c.default_version))
+    .and_then(|v| v.addon_version())
     .unwrap_or_default();
 
   // Get the list of ALL supported version for this addon and Kubernetes version
@@ -211,19 +201,12 @@ pub async fn get_self_managed_nodegroups(client: &AsgClient, cluster_name: &str)
   let groups = response.auto_scaling_groups().to_owned();
 
   // Filter out EKS managed node groups by the EKS MNG applied tag
-  let filtered = groups.iter().filter(|group| {
+  Ok(groups.into_iter().filter(|group| {
     group
       .tags()
       .iter()
       .all(|tag| tag.key().unwrap_or_default() != "eks:nodegroup-name")
-  });
-
-  let mut result: Vec<AutoScalingGroup> = Vec::new();
-  for f in filtered {
-    result.push(f.to_owned());
-  }
-
-  Ok(result)
+  }).collect())
 }
 
 pub async fn get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Result<Vec<FargateProfile>> {
@@ -280,26 +263,17 @@ pub(crate) async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<
     .send()
     .await?;
 
-  match output.launch_templates {
-    Some(lts) => {
-      let lt = lts
-        .into_iter()
-        .map(|lt| LaunchTemplate {
-          name: lt.launch_template_name.unwrap_or_default(),
-          id: lt.launch_template_id.unwrap_or_default(),
-          current_version: lt.default_version_number.unwrap_or_default().to_string(),
-          latest_version: lt.latest_version_number.unwrap_or_default().to_string(),
-        })
-        .next();
+  let lts = output.launch_templates
+    .context(format!("No launch templates found for id '{id}'"))?;
 
-      match lt {
-        Some(t) => Ok(t),
-        None => {
-          error!("Unable to find launch template with id: {id}");
-          exit(1)
-        }
-      }
-    }
-    None => exit(1),
-  }
+  lts
+    .into_iter()
+    .next()
+    .map(|lt| LaunchTemplate {
+      name: lt.launch_template_name.unwrap_or_default(),
+      id: lt.launch_template_id.unwrap_or_default(),
+      current_version: lt.default_version_number.unwrap_or_default().to_string(),
+      latest_version: lt.latest_version_number.unwrap_or_default().to_string(),
+    })
+    .context(format!("Unable to find launch template with id '{id}'"))
 }

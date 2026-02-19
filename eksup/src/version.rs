@@ -1,12 +1,12 @@
 use std::fmt;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::ValueEnum;
 use seq_macro::seq;
 use serde::{Deserialize, Serialize};
 
 /// Latest support version
-pub const LATEST: &str = "1.33";
+pub const LATEST: &str = "1.35";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct _Versions {
@@ -14,7 +14,7 @@ pub struct _Versions {
   pub target: String,
 }
 
-seq!(N in 27..=33 {
+seq!(N in 30..=35 {
     /// Kubernetes version(s) supported
     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
     pub enum _KubernetesVersion {
@@ -63,8 +63,10 @@ pub(crate) fn get_target_version(current_version: &str) -> Result<String> {
 /// For example, the format Amazon EKS of v1.20.7-eks-123456 returns 20
 /// Or the format of v1.22.7 returns 22
 pub(crate) fn parse_minor(version: &str) -> Result<i32> {
-  let version = version.split('.').collect::<Vec<&str>>();
-  let minor = version[1].parse::<i32>()?;
+  let parts: Vec<&str> = version.split('.').collect();
+  let minor_str = parts.get(1)
+    .context(format!("Invalid version format '{version}', expected 'X.Y[.Z]'"))?;
+  let minor = minor_str.parse::<i32>()?;
 
   Ok(minor)
 }
@@ -73,10 +75,13 @@ pub(crate) fn parse_minor(version: &str) -> Result<i32> {
 ///
 /// For example, the format Amazon EKS uses is v1.20.7-eks-123456 which is normalized to 1.20
 pub(crate) fn normalize(version: &str) -> Result<String> {
-  let version = version.split('.').collect::<Vec<&str>>();
-  let normalized = format!("{}.{}", version[0].replace('v', ""), version[1]);
+  let parts: Vec<&str> = version.split('.').collect();
+  let major = parts.first()
+    .context(format!("Invalid version format '{version}'"))?;
+  let minor = parts.get(1)
+    .context(format!("Invalid version format '{version}', expected 'X.Y[.Z]'"))?;
 
-  Ok(normalized)
+  Ok(format!("{}.{}", major.replace('v', ""), minor))
 }
 
 #[cfg(test)]

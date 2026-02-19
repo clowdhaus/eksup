@@ -112,7 +112,7 @@ jobs:
 
         cp {README.md,LICENSE} "${STAGING}/"
 
-        if [ "${{ matrix.os }}" = "windows-2022" ]; then
+        if [ "${{ matrix.os }}" = "windows-2025" ]; then
           cp "target/${{ matrix.target }}/release/eksup.exe" "${STAGING}/"
           7z a "${STAGING}.zip" "${STAGING}"
           echo "ASSET=${STAGING}.zip" >> $GITHUB_ENV

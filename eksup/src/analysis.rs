@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use aws_sdk_eks::types::Cluster;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ pub(crate) struct Results {
 }
 
 impl Results {
-  /// Returns true if there are no findings
+  /// Renders all findings as a formatted stdout table string
   pub(crate) fn to_stdout_table(&self) -> Result<String> {
     let mut output = String::new();
 
@@ -51,7 +51,7 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
   let ec2_client = aws_sdk_ec2::Client::new(aws_shared_config);
   let eks_client = aws_sdk_eks::Client::new(aws_shared_config);
 
-  let cluster_name = cluster.name().unwrap();
+  let cluster_name = cluster.name().context("Cluster name missing from API response")?;
 
   let k8s_client = match kube::Client::try_default().await {
     Ok(client) => client,
@@ -63,7 +63,7 @@ pub(crate) async fn analyze(aws_shared_config: &aws_config::SdkConfig, cluster: 
     }
   };
 
-  let cluster_version = cluster.version().unwrap();
+  let cluster_version = cluster.version().context("Cluster version missing from API response")?;
   let target_version = version::get_target_version(cluster_version)?;
 
   let cluster_findings = eks::get_cluster_findings(cluster).await?;
