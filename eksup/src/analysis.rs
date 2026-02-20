@@ -100,7 +100,7 @@ pub async fn analyze(
     eks::get_subnet_findings(aws, k8s, cluster),
     eks::get_addon_findings(aws, cluster_name, cluster_version, target_minor),
     eks::get_data_plane_findings(aws, cluster, target_minor),
-    k8s::get_kubernetes_findings(k8s, control_plane_minor, target_minor, &config.checks.k8s002),
+    k8s::get_kubernetes_findings(k8s, control_plane_minor, target_minor, &config.checks.k8s002, &config.checks.k8s004),
     eks::get_service_limit_findings(aws),
     eks::get_insights_findings(aws, cluster_name),
   )?;

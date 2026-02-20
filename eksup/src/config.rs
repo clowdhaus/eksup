@@ -13,6 +13,9 @@ pub struct Config {
 pub struct ChecksConfig {
   #[serde(default, rename = "K8S002")]
   pub k8s002: K8s002Config,
+
+  #[serde(default, rename = "K8S004")]
+  pub k8s004: K8s004Config,
 }
 
 /// Configuration for the K8S002 minimum-replicas check.
@@ -80,6 +83,21 @@ impl K8s002Config {
     }
 
     Some(self.min_replicas)
+  }
+}
+
+/// Configuration for the K8S004 PodDisruptionBudget check.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct K8s004Config {
+  /// Resources to ignore entirely (no finding emitted).
+  #[serde(default)]
+  pub ignore: Vec<ResourceSelector>,
+}
+
+impl K8s004Config {
+  /// Returns true if the resource should be checked (not ignored).
+  pub fn should_check(&self, name: &str, namespace: &str) -> bool {
+    !self.ignore.iter().any(|s| s.name == name && s.namespace == namespace)
   }
 }
 
@@ -212,6 +230,36 @@ mod tests {
     assert_eq!(cfg.effective_min_replicas("my-app", "default"), Some(3));
   }
 
+  // ── K8s004Config::should_check ─────────────────────────────────────
+
+  #[test]
+  fn k8s004_should_check_default() {
+    let cfg = K8s004Config::default();
+    assert!(cfg.should_check("my-app", "default"));
+  }
+
+  #[test]
+  fn k8s004_should_check_ignored() {
+    let cfg = K8s004Config {
+      ignore: vec![ResourceSelector {
+        name: "coredns".to_string(),
+        namespace: "kube-system".to_string(),
+      }],
+    };
+    assert!(!cfg.should_check("coredns", "kube-system"));
+  }
+
+  #[test]
+  fn k8s004_should_check_not_ignored() {
+    let cfg = K8s004Config {
+      ignore: vec![ResourceSelector {
+        name: "coredns".to_string(),
+        namespace: "kube-system".to_string(),
+      }],
+    };
+    assert!(cfg.should_check("other-app", "default"));
+  }
+
   // ── YAML deserialization ───────────────────────────────────────────
 
   #[test]
@@ -241,6 +289,28 @@ checks:
     assert_eq!(cfg.checks.k8s002.ignore[0].name, "coredns");
     assert_eq!(cfg.checks.k8s002.overrides.len(), 1);
     assert_eq!(cfg.checks.k8s002.overrides[0].min_replicas, 10);
+  }
+
+  #[test]
+  fn deserialize_k8s004_yaml() {
+    let yaml = r#"
+checks:
+  K8S004:
+    ignore:
+      - name: web
+        namespace: default
+"#;
+    let cfg: Config = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(cfg.checks.k8s004.ignore.len(), 1);
+    assert_eq!(cfg.checks.k8s004.ignore[0].name, "web");
+    assert_eq!(cfg.checks.k8s004.ignore[0].namespace, "default");
+  }
+
+  #[test]
+  fn deserialize_empty_yaml_k8s004_defaults() {
+    let yaml = "{}";
+    let cfg: Config = serde_yaml::from_str(yaml).unwrap();
+    assert!(cfg.checks.k8s004.ignore.is_empty());
   }
 
   #[test]

@@ -1,7 +1,7 @@
 mod common;
 
 use common::{fixtures, mock_k8s::MockK8sClients};
-use eksup::config::{Config, K8s002Config};
+use eksup::config::{Config, K8s002Config, K8s004Config};
 use eksup::eks::resources::VpcSubnet;
 
 // ============================================================================
@@ -136,7 +136,7 @@ async fn data_plane_findings_node_ips() {
 #[tokio::test]
 async fn kubernetes_findings_empty() {
   let k8s = fixtures::healthy_k8s();
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default()).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
   assert!(result.version_skew.is_empty());
   assert!(result.min_replicas.is_empty());
 }
@@ -148,7 +148,7 @@ async fn kubernetes_findings_version_skew() {
     ..Default::default()
   };
 
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default()).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
   assert_eq!(result.version_skew.len(), 1);
 }
 
@@ -159,7 +159,7 @@ async fn kubernetes_findings_workload_issues() {
     ..Default::default()
   };
 
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default()).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
   assert!(!result.min_replicas.is_empty(), "1 replica should trigger finding");
   assert!(!result.readiness_probe.is_empty(), "missing probe should trigger finding");
 }
@@ -200,7 +200,7 @@ async fn kubernetes_findings_missing_pdb() {
     ..Default::default()
   };
 
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default()).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
   assert!(!result.pod_disruption_budgets.is_empty(), "missing PDB should trigger finding");
 }
 
@@ -382,7 +382,7 @@ async fn kubernetes_findings_min_replicas_default_threshold() {
     resources: vec![fixtures::make_deployment("web", "default", 2)],
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default()).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
   assert!(result.min_replicas.is_empty(), "2 replicas should pass with default threshold of 2");
 }
 
@@ -394,7 +394,7 @@ async fn kubernetes_findings_min_replicas_strict_threshold() {
     ..Default::default()
   };
   let strict = K8s002Config { min_replicas: 3, ..Default::default() };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &strict).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &strict, &K8s004Config::default()).await.unwrap();
   assert_eq!(result.min_replicas.len(), 1, "2 replicas should fail with threshold of 3");
 }
 
@@ -411,7 +411,7 @@ async fn kubernetes_findings_min_replicas_ignored() {
     }],
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config, &K8s004Config::default()).await.unwrap();
   assert!(result.min_replicas.is_empty(), "ignored workload should not trigger finding");
 }
 
@@ -432,7 +432,62 @@ async fn kubernetes_findings_min_replicas_per_workload_override() {
     }],
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config, &K8s004Config::default()).await.unwrap();
   assert_eq!(result.min_replicas.len(), 1, "only etcd should fail (3 < 5)");
   assert_eq!(result.min_replicas[0].resource.name, "etcd");
+}
+
+// ============================================================================
+// K8S004 config-specific tests
+// ============================================================================
+
+#[tokio::test]
+async fn kubernetes_findings_pdb_ignored() {
+  use std::collections::BTreeMap;
+  use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
+  use eksup::k8s::resources::{Kind, StdMetadata, StdResource, StdSpec};
+
+  let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
+  let deploy = StdResource {
+    metadata: StdMetadata {
+      name: "web".into(),
+      namespace: "default".into(),
+      kind: Kind::Deployment,
+      labels: BTreeMap::new(),
+      annotations: BTreeMap::new(),
+    },
+    spec: StdSpec {
+      min_ready_seconds: None,
+      replicas: Some(3),
+      template: Some(PodTemplateSpec {
+        metadata: Some(k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+          labels: Some(labels),
+          ..Default::default()
+        }),
+        spec: Some(PodSpec {
+          containers: vec![Container { name: "app".into(), ..Default::default() }],
+          ..Default::default()
+        }),
+      }),
+    },
+  };
+
+  let k8s = MockK8sClients {
+    resources: vec![deploy],
+    ..Default::default()
+  };
+
+  // Without ignore: should trigger PDB finding
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
+  assert!(!result.pod_disruption_budgets.is_empty(), "missing PDB should trigger finding");
+
+  // With ignore: should NOT trigger
+  let config = K8s004Config {
+    ignore: vec![eksup::config::ResourceSelector {
+      name: "web".into(),
+      namespace: "default".into(),
+    }],
+  };
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &config).await.unwrap();
+  assert!(result.pod_disruption_budgets.is_empty(), "ignored workload should not trigger PDB finding");
 }
