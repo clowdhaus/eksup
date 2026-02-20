@@ -159,6 +159,8 @@ define_codes! {
   EKS006 => { desc: "EKS managed node group has pending launch template update(s)",  from: None,     until: None },
   EKS007 => { desc: "Self-managed node group has pending launch template update(s)", from: None,     until: None },
   EKS008 => { desc: "AL2 AMI deprecation (deprecated in 1.32, removed in 1.33+)",   from: Some(32), until: None },
+  EKS009 => { desc: "EKS upgrade readiness insight",                               from: None,     until: None },
+  EKS010 => { desc: "EKS cluster misconfiguration insight",                        from: None,     until: None },
   K8S001 => { desc: "Kubernetes version skew between control plane and node",        from: None,     until: None },
   K8S002 => { desc: "Insufficient number of .spec.replicas",                         from: None,     until: None },
   K8S003 => { desc: "Insufficient .spec.minReadySeconds",                            from: None,     until: None },
