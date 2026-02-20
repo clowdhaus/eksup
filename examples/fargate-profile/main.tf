@@ -19,7 +19,7 @@ data "aws_availability_zones" "available" {}
 
 locals {
   name          = "test-${basename(path.cwd)}"
-  minor_version = 25
+  minor_version = 34
   region        = "us-east-1"
 
   vpc_cidr = "10.0.0.0/16"
@@ -37,20 +37,22 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.13"
+  version = "~> 21.14"
 
-  cluster_name                   = local.name
-  cluster_version                = "1.${local.minor_version}"
-  cluster_endpoint_public_access = true
+  name                   = local.name
+  kubernetes_version     = "1.${local.minor_version}"
+  endpoint_public_access = true
 
-  cluster_addons = {
+  addons = {
     coredns = {
       configuration_values = jsonencode({
         computeType = "Fargate"
       })
     }
     kube-proxy = {}
-    vpc-cni    = {}
+    vpc-cni = {
+      before_compute = true
+    }
   }
 
   vpc_id                   = module.vpc.vpc_id
@@ -75,7 +77,7 @@ module "eks" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
+  version = "~> 6.0"
 
   name = local.name
   cidr = local.vpc_cidr

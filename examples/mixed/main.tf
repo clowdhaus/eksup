@@ -19,7 +19,7 @@ data "aws_availability_zones" "available" {}
 
 locals {
   name          = "test-${basename(path.cwd)}"
-  minor_version = 27
+  minor_version = 34
   region        = "us-east-1"
 
   vpc_cidr_nodes = "10.0.0.0/16"
@@ -38,27 +38,20 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.13"
+  version = "~> 21.14"
 
-  cluster_name                   = local.name
-  cluster_version                = "1.${local.minor_version}"
-  cluster_endpoint_public_access = true
+  name                   = local.name
+  kubernetes_version     = "1.${local.minor_version}"
+  endpoint_public_access = true
 
-  cluster_addons = {
+  addons = {
     coredns = {
-      # aws eks describe-addon-versions --kubernetes-version 1.27 --addon-name coredns --query 'addons[*].addonVersions[*].addonVersion'
-      addon_version = "v1.9.3-eksbuild.3"
       configuration_values = jsonencode({
         computeType = "Fargate"
       })
     }
-    kube-proxy = {
-      # aws eks describe-addon-versions --kubernetes-version 1.27 --addon-name kube-proxy --query 'addons[*].addonVersions[*].addonVersion'
-      addon_version = "v1.25.6-eksbuild.2"
-    }
+    kube-proxy = {}
     vpc-cni = {
-      # aws eks describe-addon-versions --kubernetes-version 1.27 --addon-name vpc-cni --query 'addons[*].addonVersions[*].addonVersion'
-      addon_version  = "v1.12.5-eksbuild.2"
       before_compute = true
       configuration_values = jsonencode({
         env = {
@@ -76,18 +69,11 @@ module "eks" {
   subnet_ids               = slice(module.vpc.private_subnets, 0, 3)
   control_plane_subnet_ids = module.vpc.intra_subnets
 
-  eks_managed_node_group_defaults = {
-    # Demonstrating skew check
-    cluster_version = "1.${local.minor_version - 1}"
-  }
-
   eks_managed_node_groups = {
     # This uses a custom launch template (custom as in module/user supplied)
     standard = {
-      # pre_bootstrap_user_data = <<-EOT
-      #   #!/bin/bash
-      #   echo "Hello from user data!"
-      # EOT
+      # Demonstrating skew check
+      kubernetes_version = "1.${local.minor_version - 1}"
 
       # To show pending changes
       update_launch_template_default_version = false
@@ -99,28 +85,25 @@ module "eks" {
 
     # This uses the default launch template created by EKS MNG
     default = {
+      # Demonstrating skew check
+      kubernetes_version         = "1.${local.minor_version - 1}"
       use_custom_launch_template = false
     }
   }
 
-  self_managed_node_group_defaults = {
-    # Demonstrating skew check
-    cluster_version = "1.${local.minor_version - 2}"
-  }
-
   self_managed_node_groups = {
     standard = {
+      # Demonstrating skew check
+      kubernetes_version = "1.${local.minor_version - 2}"
+
       min_size     = 1
       max_size     = 3
       desired_size = 1
     }
 
     different = {
-      # pre_bootstrap_user_data = <<-EOT
-      #   #!/bin/bash
-      #   echo "Hello from user data!"
-      # EOT
-
+      # Demonstrating skew check
+      kubernetes_version = "1.${local.minor_version - 2}"
       # To show pending changes
       instance_refresh                       = {}
       update_launch_template_default_version = false
@@ -167,7 +150,7 @@ resource "kubectl_manifest" "eni_config" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
+  version = "~> 6.0"
 
   name = local.name
   cidr = local.vpc_cidr_nodes
