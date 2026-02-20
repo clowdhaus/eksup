@@ -419,3 +419,105 @@ pub async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchT
     })
     .context(format!("Unable to find launch template with id '{id}'"))
 }
+
+/// Simplified representation of an EKS cluster insight
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ClusterInsight {
+  pub id: String,
+  pub name: String,
+  pub category: String,
+  pub status: String,
+  pub status_reason: String,
+  pub kubernetes_version: String,
+  pub description: String,
+  pub recommendation: String,
+}
+
+/// List all cluster insights that are not in a PASSING state
+pub async fn list_insights(client: &EksClient, cluster_name: &str) -> Result<Vec<String>> {
+  use aws_sdk_eks::types::{InsightStatusValue, InsightsFilter};
+
+  let filter = InsightsFilter::builder()
+    .statuses(InsightStatusValue::Error)
+    .statuses(InsightStatusValue::Warning)
+    .statuses(InsightStatusValue::UnknownValue)
+    .build();
+
+  let mut insight_ids = Vec::new();
+  let mut next_token: Option<String> = None;
+  loop {
+    let mut req = client
+      .list_insights()
+      .cluster_name(cluster_name)
+      .filter(filter.clone());
+    if let Some(token) = &next_token {
+      req = req.next_token(token);
+    }
+    let resp = req.send().await.context("Failed to list cluster insights")?;
+
+    for summary in resp.insights() {
+      if let Some(id) = summary.id() {
+        insight_ids.push(id.to_string());
+      }
+    }
+
+    next_token = resp.next_token;
+    if next_token.is_none() {
+      break;
+    }
+  }
+
+  Ok(insight_ids)
+}
+
+/// Describe a single cluster insight by ID
+pub async fn describe_insight(
+  client: &EksClient,
+  cluster_name: &str,
+  insight_id: &str,
+) -> Result<ClusterInsight> {
+  let resp = client
+    .describe_insight()
+    .cluster_name(cluster_name)
+    .id(insight_id)
+    .send()
+    .await
+    .context(format!("Failed to describe insight '{insight_id}'"))?;
+
+  let insight = resp.insight.context("No insight found in response")?;
+
+  let (status, status_reason) = match insight.insight_status() {
+    Some(s) => (
+      s.status().map(|v| v.as_str().to_string()).unwrap_or_default(),
+      s.reason().unwrap_or_default().to_string(),
+    ),
+    None => (String::new(), String::new()),
+  };
+
+  Ok(ClusterInsight {
+    id: insight.id().unwrap_or_default().to_string(),
+    name: insight.name().unwrap_or_default().to_string(),
+    category: insight.category().map(|c| c.as_str().to_string()).unwrap_or_default(),
+    status,
+    status_reason,
+    kubernetes_version: insight.kubernetes_version().unwrap_or_default().to_string(),
+    description: insight.description().unwrap_or_default().to_string(),
+    recommendation: insight.recommendation().unwrap_or_default().to_string(),
+  })
+}
+
+/// Fetch all non-PASSING cluster insights with full details
+pub async fn get_cluster_insights(
+  client: &EksClient,
+  cluster_name: &str,
+) -> Result<Vec<ClusterInsight>> {
+  let insight_ids = list_insights(client, cluster_name).await?;
+
+  let mut insights = Vec::new();
+  for id in &insight_ids {
+    let insight = describe_insight(client, cluster_name, id).await?;
+    insights.push(insight);
+  }
+
+  Ok(insights)
+}
