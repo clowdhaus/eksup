@@ -38,11 +38,11 @@ Options:
           Increase logging verbosity
 
   -f, --format <FORMAT>
-          [default: text]
-
           Possible values:
           - json: JSON format used for logging or writing to a *.json file
           - text: Text format used for writing to stdout
+
+          [default: text]
 
   -q, --quiet...
           Decrease logging verbosity
@@ -50,8 +50,14 @@ Options:
   -o, --output <OUTPUT>
           Write to file instead of stdout
 
+  -t, --target-version <TARGET_VERSION>
+          Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1
+
       --ignore-recommended
           Exclude recommendations from the output
+
+      --config <CONFIG>
+          Path to an eksup configuration file (default: .eksup.yaml in cwd)
 
   -h, --help
           Print help (see a summary with '-h')
@@ -103,14 +109,28 @@ Create a playbook for upgrading an Amazon EKS cluster
 Usage: eksup create playbook [OPTIONS] --cluster <CLUSTER>
 
 Options:
-  -c, --cluster <CLUSTER>    The name of the cluster to analyze
-  -r, --region <REGION>      The AWS region where the cluster is provisioned
-  -p, --profile <PROFILE>    The AWS profile to use to access the cluster
-  -v, --verbose...           Increase logging verbosity
-  -f, --filename <FILENAME>  Name of the playbook saved locally
-  -q, --quiet...             Decrease logging verbosity
-  -h, --help                 Print help
-  -V, --version              Print version
+  -c, --cluster <CLUSTER>
+          The name of the cluster to analyze
+  -r, --region <REGION>
+          The AWS region where the cluster is provisioned
+  -p, --profile <PROFILE>
+          The AWS profile to use to access the cluster
+  -v, --verbose...
+          Increase logging verbosity
+  -f, --filename <FILENAME>
+          Name of the playbook saved locally
+  -q, --quiet...
+          Decrease logging verbosity
+  -t, --target-version <TARGET_VERSION>
+          Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1
+      --ignore-recommended
+          Exclude recommendations from the output
+      --config <CONFIG>
+          Path to an eksup configuration file (default: .eksup.yaml in cwd)
+  -h, --help
+          Print help
+  -V, --version
+          Print version
 ```
 
 Create playbook and save locally:
@@ -118,3 +138,37 @@ Create playbook and save locally:
 ```sh linenums="1"
 eksup create playbook --cluster <cluster> --region <region>
 ```
+
+### Configuration
+
+`eksup` supports an optional configuration file (`.eksup.yaml`) for customizing check behavior. By default, `eksup` looks for `.eksup.yaml` in the current working directory. You can specify a custom path with the `--config` flag:
+
+```sh
+eksup analyze --cluster my-cluster --config /path/to/config.yaml
+```
+
+#### Configuration Format
+
+```yaml
+checks:
+  K8S002:
+    min_replicas: 3  # Global minimum replica threshold (default: 2)
+    ignore:          # Resources to skip entirely
+      - name: metrics-server
+        namespace: kube-system
+    overrides:       # Per-resource threshold overrides
+      - name: critical-app
+        namespace: production
+        min_replicas: 5
+  K8S004:
+    ignore:          # Resources to skip PDB check
+      - name: singleton-worker
+        namespace: batch
+```
+
+- `K8S002.min_replicas`: Global minimum replica threshold (default: 2). Must be >= 1.
+- `K8S002.ignore`: List of resources (by name + namespace) to exclude from the minimum replicas check.
+- `K8S002.overrides`: Per-resource minimum replica threshold. Overrides the global default.
+- `K8S004.ignore`: List of resources (by name + namespace) to exclude from the PodDisruptionBudget check.
+- Ignore takes precedence over overrides when both match the same resource.
+- Unknown fields in the configuration file are rejected with an error.
