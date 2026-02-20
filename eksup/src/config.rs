@@ -20,6 +20,7 @@ pub struct ChecksConfig {
 
 /// Configuration for the K8S002 minimum-replicas check.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct K8s002Config {
   /// Global minimum replica threshold (default 2).
   #[serde(default = "default_min_replicas")]
@@ -50,6 +51,7 @@ impl Default for K8s002Config {
 
 /// Identifies a Kubernetes resource by name + namespace.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ResourceSelector {
   pub name: String,
   pub namespace: String,
@@ -57,6 +59,7 @@ pub struct ResourceSelector {
 
 /// Per-resource override for the minimum replica threshold.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReplicaOverride {
   pub name: String,
   pub namespace: String,
@@ -87,7 +90,11 @@ impl K8s002Config {
 }
 
 /// Configuration for the K8S004 PodDisruptionBudget check.
+///
+/// The `ignore` list uses workload names (Deployment, StatefulSet, etc.),
+/// not PDB names.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct K8s004Config {
   /// Resources to ignore entirely (no finding emitted).
   #[serde(default)]
@@ -98,6 +105,27 @@ impl K8s004Config {
   /// Returns true if the resource should be checked (not ignored).
   pub fn should_check(&self, name: &str, namespace: &str) -> bool {
     !self.ignore.iter().any(|s| s.name == name && s.namespace == namespace)
+  }
+}
+
+impl Config {
+  /// Validate configuration values after deserialization.
+  fn validate(&self) -> Result<()> {
+    if self.checks.k8s002.min_replicas < 1 {
+      anyhow::bail!(
+        "K8S002.min_replicas must be >= 1, got {}",
+        self.checks.k8s002.min_replicas
+      );
+    }
+    for ovr in &self.checks.k8s002.overrides {
+      if ovr.min_replicas < 1 {
+        anyhow::bail!(
+          "K8S002.overrides[{}/{}].min_replicas must be >= 1, got {}",
+          ovr.namespace, ovr.name, ovr.min_replicas
+        );
+      }
+    }
+    Ok(())
   }
 }
 
@@ -114,6 +142,7 @@ fn load_from(path: Option<&str>, base_dir: Option<&std::path::Path>) -> Result<C
     let contents = std::fs::read_to_string(p).with_context(|| format!("Failed to read config file: {p}"))?;
     let config: Config =
       serde_yaml::from_str(&contents).with_context(|| format!("Failed to parse config file: {p}"))?;
+    config.validate()?;
     return Ok(config);
   }
 
@@ -125,6 +154,7 @@ fn load_from(path: Option<&str>, base_dir: Option<&std::path::Path>) -> Result<C
         .with_context(|| format!("Failed to read config file: {}", default_path.display()))?;
       let config: Config = serde_yaml::from_str(&contents)
         .with_context(|| format!("Failed to parse config file: {}", default_path.display()))?;
+      config.validate()?;
       return Ok(config);
     }
   }
@@ -367,5 +397,61 @@ checks:
   fn load_no_base_dir_returns_default() {
     let cfg = load_from(None, None).unwrap();
     assert_eq!(cfg.checks.k8s002.min_replicas, 2);
+  }
+
+  #[test]
+  fn load_invalid_yaml_content() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("bad.yaml");
+    let mut f = std::fs::File::create(&path).unwrap();
+    writeln!(f, "checks:\n  K8S002:\n    min_replicas: not-a-number").unwrap();
+    let result = load_from(Some(path.to_str().unwrap()), None);
+    assert!(result.is_err(), "invalid yaml should return Err");
+  }
+
+  #[test]
+  fn load_unknown_field_rejected() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("typo.yaml");
+    let mut f = std::fs::File::create(&path).unwrap();
+    writeln!(f, "checks:\n  K8S002:\n    min_replcia: 3").unwrap();
+    let result = load_from(Some(path.to_str().unwrap()), None);
+    assert!(result.is_err(), "unknown field should be rejected");
+  }
+
+  // ── validate() ──────────────────────────────────────────────────────
+
+  #[test]
+  fn validate_zero_min_replicas_rejected() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("zero.yaml");
+    let mut f = std::fs::File::create(&path).unwrap();
+    writeln!(f, "checks:\n  K8S002:\n    min_replicas: 0").unwrap();
+    let result = load_from(Some(path.to_str().unwrap()), None);
+    assert!(result.is_err(), "min_replicas: 0 should be rejected");
+  }
+
+  #[test]
+  fn validate_negative_min_replicas_rejected() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("negative.yaml");
+    let mut f = std::fs::File::create(&path).unwrap();
+    writeln!(f, "checks:\n  K8S002:\n    min_replicas: -1").unwrap();
+    let result = load_from(Some(path.to_str().unwrap()), None);
+    assert!(result.is_err(), "negative min_replicas should be rejected");
+  }
+
+  #[test]
+  fn validate_override_zero_rejected() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("bad-override.yaml");
+    let mut f = std::fs::File::create(&path).unwrap();
+    writeln!(
+      f,
+      "checks:\n  K8S002:\n    overrides:\n      - name: x\n        namespace: ns\n        min_replicas: 0"
+    )
+    .unwrap();
+    let result = load_from(Some(path.to_str().unwrap()), None);
+    assert!(result.is_err(), "override min_replicas: 0 should be rejected");
   }
 }
