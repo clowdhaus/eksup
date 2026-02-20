@@ -12,10 +12,6 @@ nav:
     - Usage: info/usage.md
     - Checks: info/checks.md
     - Design: info/design.md
-  # - Guides:
-  #   - Process: guides/process.md
-  #   - In-Place Upgrade: guides/in-place.md
-  #   - Blue/Green Upgrade: guides/blue-green.md
 
 theme:
   name: material
