@@ -13,6 +13,7 @@ pub struct Results {
   pub addons: eks::AddonFindings,
   pub kubernetes: k8s::KubernetesFindings,
   pub service_limits: eks::ServiceLimitFindings,
+  pub insights: eks::InsightsFindings,
 }
 
 impl Results {
@@ -42,6 +43,8 @@ impl Results {
     self.service_limits.ec2_limits.retain(|f| !f.finding.remediation.is_recommended());
     self.service_limits.ebs_gp2_limits.retain(|f| !f.finding.remediation.is_recommended());
     self.service_limits.ebs_gp3_limits.retain(|f| !f.finding.remediation.is_recommended());
+    self.insights.upgrade_readiness.retain(|f| !f.finding.remediation.is_recommended());
+    self.insights.misconfiguration.retain(|f| !f.finding.remediation.is_recommended());
   }
 
   /// Renders all findings as a formatted stdout table string
@@ -72,6 +75,8 @@ impl Results {
     output.push_str(&self.service_limits.ec2_limits.to_stdout_table()?);
     output.push_str(&self.service_limits.ebs_gp2_limits.to_stdout_table()?);
     output.push_str(&self.service_limits.ebs_gp3_limits.to_stdout_table()?);
+    output.push_str(&self.insights.upgrade_readiness.to_stdout_table()?);
+    output.push_str(&self.insights.misconfiguration.to_stdout_table()?);
 
     Ok(output)
   }
@@ -90,12 +95,13 @@ pub async fn analyze(
 
   let cluster_findings = eks::get_cluster_findings(cluster)?;
 
-  let (subnet_findings, addon_findings, dataplane_findings, kubernetes_findings, service_limit_findings) = tokio::try_join!(
+  let (subnet_findings, addon_findings, dataplane_findings, kubernetes_findings, service_limit_findings, insights_findings) = tokio::try_join!(
     eks::get_subnet_findings(aws, k8s, cluster),
     eks::get_addon_findings(aws, cluster_name, cluster_version, target_minor),
     eks::get_data_plane_findings(aws, cluster, target_minor),
     k8s::get_kubernetes_findings(k8s, control_plane_minor, target_minor),
     eks::get_service_limit_findings(aws),
+    eks::get_insights_findings(aws, cluster_name),
   )?;
 
   Ok(Results {
@@ -105,5 +111,6 @@ pub async fn analyze(
     data_plane: dataplane_findings,
     kubernetes: kubernetes_findings,
     service_limits: service_limit_findings,
+    insights: insights_findings,
   })
 }

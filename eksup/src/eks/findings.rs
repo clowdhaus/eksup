@@ -242,3 +242,22 @@ pub async fn get_service_limit_findings(aws: &impl AwsClients) -> Result<Service
     ebs_gp3_limits,
   })
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InsightsFindings {
+  pub upgrade_readiness: Vec<checks::InsightFinding>,
+  pub misconfiguration: Vec<checks::InsightFinding>,
+}
+
+pub async fn get_insights_findings(
+  aws: &impl AwsClients,
+  cluster_name: &str,
+) -> Result<InsightsFindings> {
+  let insights = aws.get_cluster_insights(cluster_name).await?;
+  let (upgrade_readiness, misconfiguration) = checks::cluster_insights(&insights);
+
+  Ok(InsightsFindings {
+    upgrade_readiness,
+    misconfiguration,
+  })
+}
