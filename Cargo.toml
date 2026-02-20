@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "eksup",
+  "xtask",
 ]
 resolver = "2"
 
