@@ -183,7 +183,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
     🚧 TODO - fill in analysis results
 
     #### Check [[K8S002]](https://clowdhaus.github.io/eksup/info/checks/#k8s002)
-	✅ - All relevant Kubernetes workloads have at least 3 replicas specified
+	✅ - All relevant Kubernetes workloads meet the configured minimum replicas
 
     #### Check [[K8S003]](https://clowdhaus.github.io/eksup/info/checks/#k8s003)
 	✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0

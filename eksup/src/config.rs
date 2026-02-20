@@ -83,9 +83,15 @@ impl K8s002Config {
   }
 }
 
+const DEFAULT_CONFIG_FILE: &str = ".eksup.yaml";
+
 /// Load configuration from an explicit path, the default `.eksup.yaml` in the
 /// current working directory, or fall back to `Config::default()`.
 pub fn load(path: Option<&str>) -> Result<Config> {
+  load_from(path, std::env::current_dir().ok().as_deref())
+}
+
+fn load_from(path: Option<&str>, base_dir: Option<&std::path::Path>) -> Result<Config> {
   if let Some(p) = path {
     let contents = std::fs::read_to_string(p).with_context(|| format!("Failed to read config file: {p}"))?;
     let config: Config =
@@ -93,14 +99,16 @@ pub fn load(path: Option<&str>) -> Result<Config> {
     return Ok(config);
   }
 
-  // Try default path
-  let default_path = ".eksup.yaml";
-  if std::path::Path::new(default_path).exists() {
-    let contents =
-      std::fs::read_to_string(default_path).context("Failed to read default config file .eksup.yaml")?;
-    let config: Config =
-      serde_yaml::from_str(&contents).context("Failed to parse default config file .eksup.yaml")?;
-    return Ok(config);
+  // Try default path in base directory
+  if let Some(dir) = base_dir {
+    let default_path = dir.join(DEFAULT_CONFIG_FILE);
+    if default_path.exists() {
+      let contents = std::fs::read_to_string(&default_path)
+        .with_context(|| format!("Failed to read config file: {}", default_path.display()))?;
+      let config: Config = serde_yaml::from_str(&contents)
+        .with_context(|| format!("Failed to parse config file: {}", default_path.display()))?;
+      return Ok(config);
+    }
   }
 
   Ok(Config::default())
@@ -252,10 +260,8 @@ checks:
 
   #[test]
   fn load_no_path_no_default_file() {
-    // Run in a temp dir so there is no .eksup.yaml
     let tmp = tempfile::tempdir().unwrap();
-    let _guard = std::env::set_current_dir(tmp.path());
-    let cfg = load(None).unwrap();
+    let cfg = load_from(None, Some(tmp.path())).unwrap();
     assert_eq!(cfg.checks.k8s002.min_replicas, 2);
   }
 
@@ -264,38 +270,32 @@ checks:
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("my-config.yaml");
     let mut f = std::fs::File::create(&path).unwrap();
-    writeln!(
-      f,
-      "checks:\n  K8S002:\n    min_replicas: 7"
-    )
-    .unwrap();
+    writeln!(f, "checks:\n  K8S002:\n    min_replicas: 7").unwrap();
 
-    let cfg = load(Some(path.to_str().unwrap())).unwrap();
+    let cfg = load_from(Some(path.to_str().unwrap()), None).unwrap();
     assert_eq!(cfg.checks.k8s002.min_replicas, 7);
   }
 
   #[test]
   fn load_explicit_path_not_found() {
-    let result = load(Some("/tmp/does-not-exist-eksup-test.yaml"));
+    let result = load_from(Some("/tmp/does-not-exist-eksup-test.yaml"), None);
     assert!(result.is_err());
   }
 
   #[test]
-  fn load_default_file_in_cwd() {
+  fn load_default_file_in_base_dir() {
     let tmp = tempfile::tempdir().unwrap();
     let default_path = tmp.path().join(".eksup.yaml");
     let mut f = std::fs::File::create(&default_path).unwrap();
-    writeln!(
-      f,
-      "checks:\n  K8S002:\n    min_replicas: 9"
-    )
-    .unwrap();
+    writeln!(f, "checks:\n  K8S002:\n    min_replicas: 9").unwrap();
 
-    let prev = std::env::current_dir().unwrap();
-    std::env::set_current_dir(tmp.path()).unwrap();
-    let cfg = load(None).unwrap();
-    std::env::set_current_dir(prev).unwrap();
-
+    let cfg = load_from(None, Some(tmp.path())).unwrap();
     assert_eq!(cfg.checks.k8s002.min_replicas, 9);
+  }
+
+  #[test]
+  fn load_no_base_dir_returns_default() {
+    let cfg = load_from(None, None).unwrap();
+    assert_eq!(cfg.checks.k8s002.min_replicas, 2);
   }
 }

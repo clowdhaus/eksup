@@ -3,13 +3,14 @@ mod common;
 use aws_sdk_eks::types::{Cluster, ClusterHealth, FargateProfile, Nodegroup, VpcConfigResponse};
 use common::{fixtures, mock_aws::MockAwsClients, mock_k8s::MockK8sClients};
 use eksup::analysis::Results;
+use eksup::config::Config;
 use eksup::eks::resources::VpcSubnet;
 
 /// Helper: run analysis and return Results (defaults to n+1 target)
 async fn run_analysis(aws: &MockAwsClients, k8s: &MockK8sClients) -> Results {
   let cluster_version = aws.cluster.version().unwrap();
   let target_minor = eksup::version::get_target_version(cluster_version).unwrap();
-  eksup::analysis::analyze(aws, k8s, &aws.cluster, target_minor).await.unwrap()
+  eksup::analysis::analyze(aws, k8s, &aws.cluster, target_minor, &Config::default()).await.unwrap()
 }
 
 /// Helper: render Results as text

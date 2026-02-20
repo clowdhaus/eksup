@@ -39,19 +39,6 @@ expression: output
           "kind": "Deployment"
         },
         "replicas": 1
-      },
-      {
-        "finding": {
-          "code": "K8S002",
-          "symbol": "❌",
-          "remediation": "Required"
-        },
-        "resource": {
-          "name": "api",
-          "namespace": "backend",
-          "kind": "Deployment"
-        },
-        "replicas": 2
       }
     ],
     "min_ready_seconds": [

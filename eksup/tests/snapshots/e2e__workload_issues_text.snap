@@ -6,7 +6,6 @@ expression: output
 │ CHECK  │    │ NAME │ NAMESPACE │ KIND       │ REPLICAS │
 ├────────┼────┼──────┼───────────┼────────────┼──────────┤
 │ K8S002 │ ❌ │ web  │ default   │ Deployment │ 1        │
-│ K8S002 │ ❌ │ api  │ backend   │ Deployment │ 2        │
 └────────┴────┴──────┴───────────┴────────────┴──────────┘
 ┌────────┬────┬──────┬───────────┬────────────┬─────────┐
 │ CHECK  │    │ NAME │ NAMESPACE │ KIND       │ SECONDS │
