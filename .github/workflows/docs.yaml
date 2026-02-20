@@ -1,0 +1,38 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yaml'
+      - 'xtask/**'
+      - 'eksup/src/finding.rs'
+      - 'eksup/src/version.rs'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - run: pip install mkdocs-material pymdown-extensions
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: xtask
+
+      - name: Verify docs are up to date
+        run: cargo xtask generate-docs --check
+
+      - name: Deploy to GitHub Pages
+        run: mkdocs gh-deploy --force
