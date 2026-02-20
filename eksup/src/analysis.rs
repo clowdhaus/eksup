@@ -88,6 +88,7 @@ pub async fn analyze(
   k8s: &impl K8sClients,
   cluster: &Cluster,
   target_minor: i32,
+  config: &crate::config::Config,
 ) -> Result<Results> {
   let cluster_name = cluster.name().context("Cluster name missing from API response")?;
   let cluster_version = cluster.version().context("Cluster version missing from API response")?;
@@ -99,7 +100,7 @@ pub async fn analyze(
     eks::get_subnet_findings(aws, k8s, cluster),
     eks::get_addon_findings(aws, cluster_name, cluster_version, target_minor),
     eks::get_data_plane_findings(aws, cluster, target_minor),
-    k8s::get_kubernetes_findings(k8s, control_plane_minor, target_minor),
+    k8s::get_kubernetes_findings(k8s, control_plane_minor, target_minor, &config.checks.k8s002),
     eks::get_service_limit_findings(aws),
     eks::get_insights_findings(aws, cluster_name),
   )?;

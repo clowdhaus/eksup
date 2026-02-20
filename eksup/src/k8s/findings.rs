@@ -26,6 +26,7 @@ pub async fn get_kubernetes_findings(
   k8s: &impl K8sClients,
   control_plane_minor: i32,
   target_minor: i32,
+  k8s002_config: &crate::config::K8s002Config,
 ) -> Result<KubernetesFindings> {
   let resources = k8s.get_resources().await?;
   let nodes = k8s.get_nodes().await?;
@@ -33,7 +34,7 @@ pub async fn get_kubernetes_findings(
   let pdbs = k8s.get_pod_disruption_budgets().await?;
 
   let version_skew = checks::version_skew(&nodes, control_plane_minor);
-  let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas()).collect();
+  let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas(k8s002_config)).collect();
   let min_ready_seconds: Vec<checks::MinReadySeconds> =
     resources.iter().filter_map(|s| s.min_ready_seconds()).collect();
   let pod_topology_distribution: Vec<checks::PodTopologyDistribution> =

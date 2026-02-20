@@ -143,7 +143,7 @@ pub struct MinReplicas {
   pub replicas: i32,
 }
 
-finding::impl_findings!(MinReplicas, "✅ - All relevant Kubernetes workloads have at least 3 replicas specified");
+finding::impl_findings!(MinReplicas, "✅ - All relevant Kubernetes workloads meet the configured minimum replicas");
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -495,8 +495,8 @@ pub fn pod_disruption_budgets(
 pub trait K8sFindings {
   fn get_resource(&self) -> Resource;
 
-  /// K8S002 - check if resources contain a minimum of 3 replicas
-  fn min_replicas(&self) -> Option<MinReplicas>;
+  /// K8S002 - check if resources meet the configured minimum replicas
+  fn min_replicas(&self, config: &crate::config::K8s002Config) -> Option<MinReplicas>;
 
   /// K8S003 - check if resources contain minReadySeconds > 0
   fn min_ready_seconds(&self) -> Option<MinReadySeconds>;

@@ -53,6 +53,7 @@ tracing-subscriber = "0.3"
 
 [dev-dependencies]
 insta = { version = "1", features = ["yaml"] }
+tempfile = "3"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin_include)"] }

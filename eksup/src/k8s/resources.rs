@@ -422,26 +422,19 @@ impl checks::K8sFindings for StdResource {
     }
   }
 
-  fn min_replicas(&self) -> Option<checks::MinReplicas> {
-    let replicas = self.spec.replicas;
+  fn min_replicas(&self, config: &crate::config::K8s002Config) -> Option<checks::MinReplicas> {
+    let replicas = self.spec.replicas?;
 
-    match replicas {
-      Some(replicas) => {
-        // CoreDNS defaults to 2 replicas
-        if self.metadata.name.contains("coredns") && replicas >= 2 {
-          return None;
-        }
-        if replicas < 3 && replicas > 0 {
-          Some(checks::MinReplicas {
-            finding: Finding::new(Code::K8S002, Remediation::Required),
-            resource: self.get_resource(),
-            replicas,
-          })
-        } else {
-          None
-        }
-      }
-      None => None,
+    let threshold = config.effective_min_replicas(&self.metadata.name, &self.metadata.namespace)?;
+
+    if replicas < threshold && replicas > 0 {
+      Some(checks::MinReplicas {
+        finding: Finding::new(Code::K8S002, Remediation::Required),
+        resource: self.get_resource(),
+        replicas,
+      })
+    } else {
+      None
     }
   }
 
@@ -773,10 +766,15 @@ mod tests {
 
   // ── min_replicas ──────────────────────────────────────────────────────
 
+  fn default_k8s002_config() -> crate::config::K8s002Config {
+    crate::config::K8s002Config::default()
+  }
+
   #[test]
-  fn min_replicas_below_3() {
+  fn min_replicas_below_threshold() {
+    let cfg = crate::config::K8s002Config { min_replicas: 3, ..Default::default() };
     let r = make_resource(Kind::Deployment, "web", Some(2), None, Some(basic_template()));
-    let result = r.min_replicas();
+    let result = r.min_replicas(&cfg);
     assert!(result.is_some());
     let finding = result.unwrap();
     assert_eq!(finding.replicas, 2);
@@ -784,35 +782,69 @@ mod tests {
   }
 
   #[test]
-  fn min_replicas_at_3() {
-    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(basic_template()));
-    assert!(r.min_replicas().is_none());
+  fn min_replicas_at_threshold() {
+    let cfg = default_k8s002_config();
+    let r = make_resource(Kind::Deployment, "web", Some(2), None, Some(basic_template()));
+    assert!(r.min_replicas(&cfg).is_none());
   }
 
   #[test]
   fn min_replicas_statefulset_1() {
+    let cfg = default_k8s002_config();
     let r = make_resource(Kind::StatefulSet, "db", Some(1), None, Some(basic_template()));
-    let result = r.min_replicas();
+    let result = r.min_replicas(&cfg);
     assert!(result.is_some());
     assert_eq!(result.unwrap().replicas, 1);
   }
 
   #[test]
   fn min_replicas_replicaset_0() {
+    let cfg = default_k8s002_config();
     let r = make_resource(Kind::ReplicaSet, "old", Some(0), None, Some(basic_template()));
-    assert!(r.min_replicas().is_none());
+    assert!(r.min_replicas(&cfg).is_none());
   }
 
   #[test]
   fn min_replicas_job_skipped() {
+    let cfg = default_k8s002_config();
     let r = make_resource(Kind::Job, "batch", None, None, Some(basic_template()));
-    assert!(r.min_replicas().is_none());
+    assert!(r.min_replicas(&cfg).is_none());
   }
 
   #[test]
   fn min_replicas_none() {
+    let cfg = default_k8s002_config();
     let r = make_resource(Kind::Deployment, "web", None, None, Some(basic_template()));
-    assert!(r.min_replicas().is_none());
+    assert!(r.min_replicas(&cfg).is_none());
+  }
+
+  #[test]
+  fn min_replicas_ignored_resource() {
+    let cfg = crate::config::K8s002Config {
+      ignore: vec![crate::config::ResourceSelector {
+        name: "coredns".to_string(),
+        namespace: "default".to_string(),
+      }],
+      ..Default::default()
+    };
+    let r = make_resource(Kind::Deployment, "coredns", Some(1), None, Some(basic_template()));
+    assert!(r.min_replicas(&cfg).is_none());
+  }
+
+  #[test]
+  fn min_replicas_override_threshold() {
+    let cfg = crate::config::K8s002Config {
+      overrides: vec![crate::config::ReplicaOverride {
+        name: "web".to_string(),
+        namespace: "default".to_string(),
+        min_replicas: 5,
+      }],
+      ..Default::default()
+    };
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(basic_template()));
+    let result = r.min_replicas(&cfg);
+    assert!(result.is_some());
+    assert_eq!(result.unwrap().replicas, 3);
   }
 
   // ── min_ready_seconds ─────────────────────────────────────────────────

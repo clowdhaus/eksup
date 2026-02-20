@@ -1,5 +1,6 @@
 pub mod analysis;
 pub mod clients;
+pub mod config;
 pub mod eks;
 pub mod finding;
 pub mod k8s;
@@ -93,6 +94,10 @@ pub struct Analysis {
   /// Exclude recommendations from the output
   #[arg(long)]
   pub ignore_recommended: bool,
+
+  /// Path to an eksup configuration file (default: .eksup.yaml in cwd)
+  #[arg(long)]
+  pub config: Option<String>,
 }
 
 /// Create artifacts using the analysis data
@@ -134,6 +139,10 @@ pub struct Playbook {
   /// Exclude recommendations from the output
   #[arg(long)]
   pub ignore_recommended: bool,
+
+  /// Path to an eksup configuration file (default: .eksup.yaml in cwd)
+  #[arg(long)]
+  pub config: Option<String>,
 }
 
 fn new_spinner() -> ProgressBar {
@@ -146,6 +155,8 @@ fn new_spinner() -> ProgressBar {
 
 pub async fn analyze(args: Analysis) -> Result<()> {
   let spinner = new_spinner();
+
+  let config = config::load(args.config.as_deref())?;
 
   spinner.set_message("Loading AWS configuration...");
   let aws_config = get_config(&args.region, &args.profile).await?;
@@ -172,7 +183,7 @@ pub async fn analyze(args: Analysis) -> Result<()> {
   let k8s = clients::RealK8sClients::new(&args.cluster).await?;
 
   spinner.set_message("Analyzing cluster...");
-  let mut results = analysis::analyze(&aws, &k8s, &cluster, target_minor).await?;
+  let mut results = analysis::analyze(&aws, &k8s, &cluster, target_minor, &config).await?;
   if args.ignore_recommended {
     results.filter_recommended();
   }
@@ -222,6 +233,8 @@ pub async fn create(args: Create) -> Result<()> {
     CreateCommands::Playbook(playbook) => {
       let spinner = new_spinner();
 
+      let config = config::load(playbook.config.as_deref())?;
+
       spinner.set_message("Loading AWS configuration...");
       let aws_config = get_config(&playbook.region, &playbook.profile).await?;
       let region = aws_config.region().context("AWS region not configured")?.to_string();
@@ -249,7 +262,7 @@ pub async fn create(args: Create) -> Result<()> {
       let k8s = clients::RealK8sClients::new(&playbook.cluster).await?;
 
       spinner.set_message("Analyzing cluster...");
-      let mut results = analysis::analyze(&aws, &k8s, &cluster, target_minor).await?;
+      let mut results = analysis::analyze(&aws, &k8s, &cluster, target_minor, &config).await?;
       if playbook.ignore_recommended {
         results.filter_recommended();
       }
