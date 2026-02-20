@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use aws_sdk_eks::types::{Cluster, ClusterHealth, VpcConfigResponse};
 use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
 
-use eksup::eks::resources::{AddonVersion, VpcSubnet};
+use eksup::eks::resources::{AddonVersion, ClusterInsight, VpcSubnet};
 use eksup::k8s::resources::{Kind, Node, StdMetadata, StdPdb, StdResource, StdSpec};
 
 use super::mock_aws::MockAwsClients;
@@ -101,5 +101,27 @@ pub fn make_addon_version(latest: &str, default: &str, supported: &[&str]) -> Ad
     latest: latest.into(),
     default: default.into(),
     supported_versions: supported.iter().map(|s| s.to_string()).collect(),
+  }
+}
+
+/// Creates a ClusterInsight for mock responses
+pub fn make_insight(
+  id: &str,
+  name: &str,
+  category: &str,
+  status: &str,
+  kubernetes_version: &str,
+  description: &str,
+  recommendation: &str,
+) -> ClusterInsight {
+  ClusterInsight {
+    id: id.into(),
+    name: name.into(),
+    category: category.into(),
+    status: status.into(),
+    status_reason: String::new(),
+    kubernetes_version: kubernetes_version.into(),
+    description: description.into(),
+    recommendation: recommendation.into(),
   }
 }

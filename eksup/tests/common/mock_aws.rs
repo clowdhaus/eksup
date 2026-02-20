@@ -5,7 +5,7 @@ use aws_sdk_autoscaling::types::AutoScalingGroup;
 use aws_sdk_eks::types::{Addon, Cluster, FargateProfile, Nodegroup};
 
 use eksup::clients::AwsClients;
-use eksup::eks::resources::{AddonVersion, LaunchTemplate, VpcSubnet};
+use eksup::eks::resources::{AddonVersion, ClusterInsight, LaunchTemplate, VpcSubnet};
 
 /// Mock AWS client for testing. All fields default to "healthy" empty data.
 /// Override specific fields to simulate different cluster states.
@@ -22,6 +22,7 @@ pub struct MockAwsClients {
   pub service_quotas: HashMap<(String, String), (String, f64, String)>,
   pub ec2_vcpu_count: f64,
   pub ebs_storage: HashMap<String, f64>,
+  pub insights: Vec<ClusterInsight>,
 }
 
 impl Default for MockAwsClients {
@@ -41,6 +42,7 @@ impl Default for MockAwsClients {
       service_quotas: HashMap::new(),
       ec2_vcpu_count: 0.0,
       ebs_storage: HashMap::new(),
+      insights: vec![],
     }
   }
 }
@@ -94,6 +96,10 @@ impl AwsClients for MockAwsClients {
   async fn get_ebs_volume_storage(&self, volume_type: &str) -> Result<f64> {
     Ok(*self.ebs_storage.get(volume_type).unwrap_or(&0.0))
   }
+
+  async fn get_cluster_insights(&self, _cluster_name: &str) -> Result<Vec<ClusterInsight>> {
+    Ok(self.insights.clone())
+  }
 }
 
 /// Mock that returns errors for all methods — used for error path testing
@@ -111,4 +117,5 @@ impl AwsClients for MockAwsClientsError {
   async fn get_service_quota_usage(&self, _: &str, _: &str) -> Result<(String, f64, String)> { bail!("mock AWS error") }
   async fn get_ec2_on_demand_vcpu_count(&self) -> Result<f64> { bail!("mock AWS error") }
   async fn get_ebs_volume_storage(&self, _: &str) -> Result<f64> { bail!("mock AWS error") }
+  async fn get_cluster_insights(&self, _cluster_name: &str) -> Result<Vec<ClusterInsight>> { bail!("mock AWS error") }
 }

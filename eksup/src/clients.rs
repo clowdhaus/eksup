@@ -4,7 +4,7 @@ use aws_sdk_eks::types::{Addon, Cluster, FargateProfile, Nodegroup};
 use k8s_openapi::api::core::v1::ConfigMap;
 
 use crate::{
-  eks::resources::{self as eks_resources, AddonVersion, LaunchTemplate, VpcSubnet},
+  eks::resources::{self as eks_resources, AddonVersion, ClusterInsight, LaunchTemplate, VpcSubnet},
   k8s::resources::{self as k8s_resources, ENIConfig, Node, StdPdb, StdResource},
 };
 
@@ -21,6 +21,7 @@ pub trait AwsClients {
   fn get_service_quota_usage(&self, service_code: &str, quota_code: &str) -> impl std::future::Future<Output = Result<(String, f64, String)>> + Send;
   fn get_ec2_on_demand_vcpu_count(&self) -> impl std::future::Future<Output = Result<f64>> + Send;
   fn get_ebs_volume_storage(&self, volume_type: &str) -> impl std::future::Future<Output = Result<f64>> + Send;
+  fn get_cluster_insights(&self, cluster_name: &str) -> impl std::future::Future<Output = Result<Vec<ClusterInsight>>> + Send;
 }
 
 /// Trait abstracting all Kubernetes API operations used by eksup
@@ -94,6 +95,10 @@ impl AwsClients for RealAwsClients {
 
   async fn get_ebs_volume_storage(&self, volume_type: &str) -> Result<f64> {
     eks_resources::get_ebs_volume_storage(&self.ec2, volume_type).await
+  }
+
+  async fn get_cluster_insights(&self, cluster_name: &str) -> Result<Vec<ClusterInsight>> {
+    eks_resources::get_cluster_insights(&self.eks, cluster_name).await
   }
 }
 
