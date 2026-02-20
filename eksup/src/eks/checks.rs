@@ -564,6 +564,68 @@ pub(crate) fn service_limit(
   })
 }
 
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct InsightFinding {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  #[tabled(rename = "INSIGHT")]
+  pub name: String,
+  #[tabled(rename = "STATUS")]
+  pub status: String,
+  #[tabled(rename = "VERSION")]
+  pub kubernetes_version: String,
+  #[tabled(rename = "DESCRIPTION")]
+  pub description: String,
+  #[tabled(rename = "RECOMMENDATION")]
+  pub recommendation: String,
+}
+
+finding::impl_findings!(InsightFinding, "✅ - No cluster insight issues found");
+
+/// Map raw EKS cluster insights to findings, partitioned by category
+///
+/// Returns (upgrade_readiness, misconfiguration) tuples.
+/// PASSING insights are pre-filtered by the API call; this function
+/// maps ERROR → Required and WARNING/UNKNOWN → Recommended.
+pub(crate) fn cluster_insights(
+  insights: &[resources::ClusterInsight],
+) -> (Vec<InsightFinding>, Vec<InsightFinding>) {
+  let mut upgrade_readiness = Vec::new();
+  let mut misconfiguration = Vec::new();
+
+  for insight in insights {
+    let remediation = match insight.status.as_str() {
+      "ERROR" => Remediation::Required,
+      "WARNING" | "UNKNOWN" => Remediation::Recommended,
+      _ => continue,
+    };
+
+    let code = if insight.category == "UPGRADE_READINESS" {
+      Code::EKS009
+    } else {
+      Code::EKS010
+    };
+
+    let finding = InsightFinding {
+      finding: Finding::new(code, remediation),
+      name: insight.name.clone(),
+      status: insight.status.clone(),
+      kubernetes_version: insight.kubernetes_version.clone(),
+      description: insight.description.clone(),
+      recommendation: insight.recommendation.clone(),
+    };
+
+    if insight.category == "UPGRADE_READINESS" {
+      upgrade_readiness.push(finding);
+    } else {
+      misconfiguration.push(finding);
+    }
+  }
+
+  (upgrade_readiness, misconfiguration)
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -1125,5 +1187,84 @@ mod tests {
   fn service_limit_zero_limit() {
     let result = service_limit(Code::AWS003, "EC2 vCPUs", 10.0, 0.0, "vCPUs");
     assert!(result.is_none());
+  }
+
+  use crate::eks::resources::ClusterInsight;
+
+  fn make_test_insight(category: &str, status: &str) -> ClusterInsight {
+    ClusterInsight {
+      id: "test-id".into(),
+      name: "Test Insight".into(),
+      category: category.into(),
+      status: status.into(),
+      status_reason: String::new(),
+      kubernetes_version: "1.31".into(),
+      description: "Test description".into(),
+      recommendation: "Test recommendation".into(),
+    }
+  }
+
+  // ---------- cluster_insights ----------
+
+  #[test]
+  fn cluster_insights_empty() {
+    let (upgrade, misconfig) = cluster_insights(&[]);
+    assert!(upgrade.is_empty());
+    assert!(misconfig.is_empty());
+  }
+
+  #[test]
+  fn cluster_insights_error_is_required() {
+    let insight = make_test_insight("UPGRADE_READINESS", "ERROR");
+    let (upgrade, _) = cluster_insights(&[insight]);
+    assert_eq!(upgrade.len(), 1);
+    assert!(matches!(upgrade[0].finding.remediation, Remediation::Required));
+  }
+
+  #[test]
+  fn cluster_insights_warning_is_recommended() {
+    let insight = make_test_insight("UPGRADE_READINESS", "WARNING");
+    let (upgrade, _) = cluster_insights(&[insight]);
+    assert_eq!(upgrade.len(), 1);
+    assert!(matches!(upgrade[0].finding.remediation, Remediation::Recommended));
+  }
+
+  #[test]
+  fn cluster_insights_unknown_is_recommended() {
+    let insight = make_test_insight("MISCONFIGURATION", "UNKNOWN");
+    let (_, misconfig) = cluster_insights(&[insight]);
+    assert_eq!(misconfig.len(), 1);
+    assert!(matches!(misconfig[0].finding.remediation, Remediation::Recommended));
+  }
+
+  #[test]
+  fn cluster_insights_passing_skipped() {
+    let insight = make_test_insight("UPGRADE_READINESS", "PASSING");
+    let (upgrade, misconfig) = cluster_insights(&[insight]);
+    assert!(upgrade.is_empty());
+    assert!(misconfig.is_empty());
+  }
+
+  #[test]
+  fn cluster_insights_partitions_by_category() {
+    let insights = vec![
+      make_test_insight("UPGRADE_READINESS", "ERROR"),
+      make_test_insight("MISCONFIGURATION", "WARNING"),
+      make_test_insight("UPGRADE_READINESS", "WARNING"),
+    ];
+    let (upgrade, misconfig) = cluster_insights(&insights);
+    assert_eq!(upgrade.len(), 2);
+    assert_eq!(misconfig.len(), 1);
+  }
+
+  #[test]
+  fn cluster_insights_code_mapping() {
+    let insights = vec![
+      make_test_insight("UPGRADE_READINESS", "ERROR"),
+      make_test_insight("MISCONFIGURATION", "ERROR"),
+    ];
+    let (upgrade, misconfig) = cluster_insights(&insights);
+    assert_eq!(upgrade[0].finding.code.to_string(), "EKS009");
+    assert_eq!(misconfig[0].finding.code.to_string(), "EKS010");
   }
 }
