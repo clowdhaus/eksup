@@ -162,7 +162,7 @@ define_codes! {
   EKS009 => { desc: "EKS upgrade readiness insight",                               from: None,     until: None },
   EKS010 => { desc: "EKS cluster misconfiguration insight",                        from: None,     until: None },
   K8S001 => { desc: "Kubernetes version skew between control plane and node",        from: None,     until: None },
-  K8S002 => { desc: "Insufficient number of .spec.replicas",                         from: None,     until: None },
+  K8S002 => { desc: "Insufficient number of .spec.replicas (configurable)",           from: None,     until: None },
   K8S003 => { desc: "Insufficient .spec.minReadySeconds",                            from: None,     until: None },
   K8S004 => { desc: "Missing PodDisruptionBudget",                                   from: None,     until: None },
   K8S005 => { desc: "Pod distribution settings put availability at risk",            from: None,     until: None },
@@ -170,7 +170,7 @@ define_codes! {
   K8S007 => { desc: "TerminationGracePeriodSeconds is set to zero",                  from: None,     until: None },
   K8S008 => { desc: "Mounts docker.sock or dockershim.sock",                         from: None,     until: None },
   K8S009 => { desc: "Pod security policies present (removed in 1.25)",               from: None,     until: Some(24) },
-  K8S010 => { desc: "EBS CSI driver not installed",                                  from: None,     until: None },
+  K8S010 => { desc: "EBS CSI driver not installed",                                  from: None,     until: Some(24) },
   K8S011 => { desc: "kube-proxy version skew with kubelet",                          from: None,     until: None },
   K8S012 => { desc: "kube-proxy IPVS mode deprecated (1.35+, removed 1.36)",        from: Some(35), until: None },
   K8S013 => { desc: "Ingress NGINX controller retirement (1.35+)",                   from: Some(35), until: None },
@@ -232,6 +232,11 @@ mod tests {
   #[test]
   fn k8s009_is_retired() {
     assert!(Code::K8S009.is_retired());
+  }
+
+  #[test]
+  fn k8s010_is_retired() {
+    assert!(Code::K8S010.is_retired());
   }
 
   #[test]
