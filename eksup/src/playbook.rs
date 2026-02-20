@@ -68,6 +68,8 @@ pub struct TemplateData {
   ec2_limits: String,
   ebs_gp2_limits: String,
   ebs_gp3_limits: String,
+  upgrade_readiness_insights: String,
+  misconfiguration_insights: String,
 }
 
 fn get_release_data() -> Result<HashMap<Version, Release>> {
@@ -194,6 +196,8 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
     ec2_limits: analysis.service_limits.ec2_limits.to_markdown_table("\t")?,
     ebs_gp2_limits: analysis.service_limits.ebs_gp2_limits.to_markdown_table("\t")?,
     ebs_gp3_limits: analysis.service_limits.ebs_gp3_limits.to_markdown_table("\t")?,
+    upgrade_readiness_insights: analysis.insights.upgrade_readiness.to_markdown_table("\t")?,
+    misconfiguration_insights: analysis.insights.misconfiguration.to_markdown_table("\t")?,
   };
 
   let rendered = handlebars.render("playbook.md", &tmpl_data)?;

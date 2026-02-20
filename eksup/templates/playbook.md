@@ -145,6 +145,23 @@
     - https://github.com/FairwindsOps/pluto
     - https://github.com/doitintl/kube-no-trouble
 
+6. Review [EKS cluster insights](https://docs.aws.amazon.com/eks/latest/userguide/cluster-insights.html) for upgrade readiness issues. Amazon EKS automatically scans clusters against potential upgrade-impacting issues including deprecated Kubernetes API usage. Clusters with ERROR-status insights cannot be upgraded without the `--force` flag.
+
+    <details>
+    <summary>📌 CLI Example</summary>
+
+    ```sh
+    aws eks list-insights --region {{ region }} --cluster-name {{ cluster_name }}
+    ```
+
+    </details>
+
+    #### Check [[EKS009]](https://clowdhaus.github.io/eksup/info/checks/#eks009)
+{{ upgrade_readiness_insights }}
+
+    #### Check [[EKS010]](https://clowdhaus.github.io/eksup/info/checks/#eks010)
+{{ misconfiguration_insights }}
+
 ### Control Plane Upgrade
 
 ℹ️ [Updating an Amazon EKS cluster Kubernetes version](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html)
