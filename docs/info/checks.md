@@ -9,13 +9,48 @@ If a check fails, it is reported as a finding. Each check will have a remediatio
 
 See the [symbol table](https://clowdhaus.github.io/eksup/#symbol-table) for further details on the symbols used throughout the documentation.
 
+## Summary
+
+<!-- BEGIN GENERATED CHECKS TABLE -->
+
+| Code | Description | Status | Applicable Versions |
+| :--- | :---------- | :----- | :------------------ |
+| `AWS001` | Insufficient available subnet IPs for nodes | Active | All versions |
+| `AWS002` | Insufficient available subnet IPs for pods (custom networking) | Active | All versions |
+| `AWS003` | Insufficient EC2 service limits | Active | All versions |
+| `AWS004` | Insufficient EBS GP2 service limits | Active | All versions |
+| `AWS005` | Insufficient EBS GP3 service limits | Active | All versions |
+| `EKS001` | Insufficient available subnet IPs for control plane ENIs | Active | All versions |
+| `EKS002` | Health issue(s) reported by the EKS control plane | Active | All versions |
+| `EKS003` | Health issue(s) reported by the EKS managed node group | Active | All versions |
+| `EKS004` | Health issue(s) reported by the EKS addon | Active | All versions |
+| `EKS005` | EKS addon incompatible with targeted Kubernetes version | Active | All versions |
+| `EKS006` | EKS managed node group has pending launch template update(s) | Active | All versions |
+| `EKS007` | Self-managed node group has pending launch template update(s) | Active | All versions |
+| `EKS008` | AL2 AMI deprecation (deprecated in 1.32, removed in 1.33+) | Active | 1.32+ |
+| `EKS009` | EKS upgrade readiness insight | Active | All versions |
+| `EKS010` | EKS cluster misconfiguration insight | Active | All versions |
+| `K8S001` | Kubernetes version skew between control plane and node | Active | All versions |
+| `K8S002` | Insufficient number of .spec.replicas (configurable) | Active | All versions |
+| `K8S003` | Insufficient .spec.minReadySeconds | Active | All versions |
+| `K8S004` | Missing PodDisruptionBudget | Active | All versions |
+| `K8S005` | Pod distribution settings put availability at risk | Active | All versions |
+| `K8S006` | Missing readinessProbe on containers | Active | All versions |
+| `K8S007` | TerminationGracePeriodSeconds is set to zero | Active | All versions |
+| `K8S008` | Mounts docker.sock or dockershim.sock | Active | All versions |
+| `K8S009` | Pod security policies present (removed in 1.25) | Retired | Up to 1.24 |
+| `K8S010` | EBS CSI driver not installed | Retired | Up to 1.24 |
+| `K8S011` | kube-proxy version skew with kubelet | Active | All versions |
+| `K8S012` | kube-proxy IPVS mode deprecated (1.35+, removed 1.36) | Active | 1.35+ |
+| `K8S013` | Ingress NGINX controller retirement (1.35+) | Active | 1.35+ |
+
+<!-- END GENERATED CHECKS TABLE -->
+
 ## Amazon
 
 Checks that are not specific to Amazon EKS or Kubernetes
 
 #### AWS001
-
-!!! info "🚧 _Not yet implemented_"
 
 **⚠️ Remediation recommended**
 
@@ -32,19 +67,22 @@ There MUST be a sufficient quantity of IPs available for the **pods** to support
 This check is used when custom networking is enabled since the IPs used by pods are coming from subnets different from those used by the EC2 instances themselves.
 
 #### AWS003
-!!! info "🚧 _Not yet implemented_"
 
-EC2 instance service limits
+**⚠️ Remediation recommended**
+
+There MUST be sufficient EC2 instance service limits to support the upgrade. During an upgrade, additional instances may be launched temporarily (e.g., by managed node groups or auto-scaling groups), and hitting service limits could prevent new nodes from joining the cluster.
 
 #### AWS004
-!!! info "🚧 _Not yet implemented_"
 
-EBS GP2 volume service limits
+**⚠️ Remediation recommended**
+
+There MUST be sufficient EBS GP2 volume service limits to support the upgrade. Persistent volumes backed by GP2 may need to be re-attached to new nodes during the upgrade process.
 
 #### AWS005
-!!! info "🚧 _Not yet implemented_"
 
-EBS GP3 volume service limits
+**⚠️ Remediation recommended**
+
+There MUST be sufficient EBS GP3 volume service limits to support the upgrade. Persistent volumes backed by GP3 may need to be re-attached to new nodes during the upgrade process.
 
 ---
 
@@ -100,10 +138,6 @@ EKS managed nodegroups SHOULD use the latest launch template version and there S
 
 Users are encouraged to evaluate if remediation is warranted or not and whether to update to the latest launch template version prior to upgrading. If there are pending updates, this could potentially introduce additional changes to the nodegroup during the upgrade.
 
-<!-- TODO - add the CLI command to diff the launch template versions
-diff <(aws ec2 describe-launch-template-versions A ...) <(aws ec2 describe-launch-template-versions B ...) -->
-<!-- TODO - consider diffing the templates and reporting the differences in the reported output -->
-
 #### EKS007
 
 **⚠️ Remediation recommended**
@@ -111,10 +145,6 @@ diff <(aws ec2 describe-launch-template-versions A ...) <(aws ec2 describe-launc
 Self-managed nodegroups SHOULD use the latest launch template version and there SHOULD NOT be any pending updates for the nodegroup.
 
 Users are encouraged to evaluate if remediation is warranted or not and whether to update to the latest launch template version prior to upgrading. If there are pending updates, this could potentially introduce additional changes to the nodegroup during the upgrade.
-
-<!-- TODO - add the CLI command to diff the launch template versions
-diff <(aws ec2 describe-launch-template-versions A ...) <(aws ec2 describe-launch-template-versions B ...) -->
-<!-- TODO - consider diffing the templates and reporting the differences in the reported output -->
 
 #### EKS008
 
@@ -129,6 +159,26 @@ For clusters upgrading to Kubernetes `v1.33` or later — AL2 AMI types MUST NOT
 For clusters upgrading to Kubernetes `v1.32` — AL2 AMI types are deprecated and migration SHOULD be completed before they become unsupported.
 
 [Amazon Linux 2 end of standard support](https://docs.aws.amazon.com/linux/al2/ug/eol-faq.html)
+
+#### EKS009
+
+**⚠️ Remediation recommended**
+
+EKS upgrade readiness insights are reported by the EKS API to help identify potential issues before upgrading. These insights are specific to upgrade compatibility and cover deprecated APIs, unsupported configurations, and other upgrade blockers detected by the EKS service.
+
+Users SHOULD review and address any upgrade readiness insights before proceeding with the cluster upgrade.
+
+[Amazon EKS cluster insights](https://docs.aws.amazon.com/eks/latest/userguide/cluster-insights.html)
+
+#### EKS010
+
+**⚠️ Remediation recommended**
+
+EKS cluster misconfiguration insights are reported by the EKS API to identify configuration issues that may affect cluster health or functionality. Unlike upgrade readiness insights (EKS009), these are not specific to a particular upgrade but reflect general best practices and misconfigurations.
+
+Users SHOULD review and address any cluster misconfiguration insights to maintain cluster health.
+
+[Amazon EKS cluster insights](https://docs.aws.amazon.com/eks/latest/userguide/cluster-insights.html)
 
 ---
 
@@ -148,8 +198,6 @@ Table below shows the checks that are applicable, or not, to the respective Kube
 | `K8S006` |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
 | `K8S007` |     ✅     |     ✅     |          ✅           |     ✅      | ❌  |   ❌    |    ❌     |
 | `K8S008` |     ❌     |     ❌     |          ❌           |     ✅      | ❌  |   ❌    |    ❌     |
-| `K8S009` |     ✅     |     ✅     |          ✅           |     ✅      | ✅  |   ✅    |    ✅     |
-| `K8S010` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
 | `K8S011` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
 | `K8S012` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
 | `K8S013` |     ✅     |     ❌     |          ❌           |     ❌      | ❌  |   ❌    |    ✅     |
@@ -174,16 +222,30 @@ While Kubernetes does support a version skew of n-3 between the API Server and k
 
 **❌ Remediation required**
 
-There MUST be at least 3 replicas specified for the resource.
+There MUST be at least the configured minimum number of replicas specified for the resource. The default minimum is 2 replicas, which can be customized via `.eksup.yaml`.
 
 ```yaml
-
 ---
 spec:
-  replicas: 3 # >= 3
+  replicas: 2 # >= configured minimum (default: 2)
 ```
 
 Multiple replicas, along with the use of `PodDisruptionBudget`, are REQUIRED to ensure high availability during the upgrade.
+
+The minimum replica threshold, ignored resources, and per-resource overrides can be configured:
+
+```yaml
+checks:
+  K8S002:
+    min_replicas: 3  # Global minimum replica threshold (default: 2)
+    ignore:          # Resources to skip entirely
+      - name: metrics-server
+        namespace: kube-system
+    overrides:       # Per-resource threshold overrides
+      - name: critical-app
+        namespace: production
+        min_replicas: 5
+```
 
 [EKS Best Practices - Reliability](https://aws.github.io/aws-eks-best-practices/reliability/docs/application/#run-multiple-replicas)
 
@@ -201,13 +263,21 @@ You can read more about why this is necessary for `StatefulSet` [here](https://k
 
 #### K8S004
 
-!!! info "🚧 _Not yet implemented_"
-
 **❌ Remediation required**
 
 At least one `podDisruptionBudget` MUST cover the workload, and at least one of `minAvailable` or `maxUnavailable` MUST be set.
 
 The Kubernetes eviction API is the preferred method for draining nodes for replacement during an upgrade. The eviction API respects `PodDisruptionBudget` and will not evict pods that would violate the `PodDisruptionBudget` to ensure application availability, when specified.
+
+Resources can be excluded from this check via `.eksup.yaml`:
+
+```yaml
+checks:
+  K8S004:
+    ignore:          # Resources to skip PDB check
+      - name: singleton-worker
+        namespace: batch
+```
 
 #### K8S005
 
@@ -259,40 +329,6 @@ For clusters on Kubernetes <`v1.22` — Pod volumes SHOULD NOT mount the `docker
 
 [Detector for Docker Socket (DDS)](https://github.com/aws-containers/kubectl-detector-for-docker-socket)
 
-#### K8S009
-
-The pod security policy resource has been removed starting in Kubernetes `v1.25`. Clusters MUST NOT rely on `PodSecurityPolicy` resources.
-
-**❌ Remediation required**
-
-For clusters on Kubernetes `v1.24` — `PodSecurityPolicy` resources MUST be migrated.
-
-**⚠️ Remediation recommended**
-
-For clusters on Kubernetes <`v1.23` — `PodSecurityPolicy` resources SHOULD be migrated.
-
-[Migrate from PodSecurityPolicy to the Built-In PodSecurity Admission Controller](https://kubernetes.io/docs/tasks/configure-pod-container/migrate-from-psp/)
-
-[PodSecurityPolicy Deprecation: Past, Present, and Future](https://kubernetes.io/blog/2021/04/06/podsecuritypolicy-deprecation-past-present-and-future/)
-
-#### K8S010
-
-!!! info "🚧 _Not yet implemented_"
-
-The [in-tree Amazon EBS storage provisioner](https://kubernetes.io/docs/concepts/storage/volumes/#awselasticblockstore) is deprecated. If you are upgrading your cluster to version `v1.23`, then you must first install the Amazon EBS driver before updating your cluster. For more information, see [Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html).
-
-**❌ Remediation required**
-
-For clusters on Kubernetes `v1.22`
-
-**⚠️ Remediation recommended**
-
-For clusters on Kubernetes <`v1.21`
-
-[Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html)
-
-[Kubernetes In-Tree to CSI Volume Migration Status Update](https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/)
-
 #### K8S011
 
 **❌ Remediation required**
@@ -331,3 +367,27 @@ The Kubernetes community Ingress NGINX controller (`registry.k8s.io/ingress-ngin
 This check scans Deployments and DaemonSets for container images referencing the retired Ingress NGINX controller.
 
 [Ingress NGINX Controller](https://kubernetes.github.io/ingress-nginx/)
+
+---
+
+## Retired Checks
+
+The following checks have been retired and are no longer evaluated. They remain documented here for reference.
+
+#### K8S009
+
+!!! warning "Retired"
+    This check applied to Kubernetes versions up to 1.24 and is no longer relevant for supported cluster versions.
+
+Pod security policies were removed in Kubernetes `v1.25`. Clusters that previously relied on `PodSecurityPolicy` resources needed to migrate to the built-in Pod Security Admission controller.
+
+[Migrate from PodSecurityPolicy to the Built-In PodSecurity Admission Controller](https://kubernetes.io/docs/tasks/configure-pod-container/migrate-from-psp/)
+
+#### K8S010
+
+!!! warning "Retired"
+    This check applied to Kubernetes versions up to 1.24 and is no longer relevant for supported cluster versions.
+
+The in-tree Amazon EBS storage provisioner was deprecated and clusters upgrading to version `v1.23` needed to install the Amazon EBS CSI driver first.
+
+[Amazon EBS CSI migration frequently asked questions](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi-migration-faq.html)
