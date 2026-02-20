@@ -41,5 +41,9 @@ expression: output
     "ec2_limits": [],
     "ebs_gp2_limits": [],
     "ebs_gp3_limits": []
+  },
+  "insights": {
+    "upgrade_readiness": [],
+    "misconfiguration": []
   }
 }

@@ -294,6 +294,65 @@ async fn service_limit_findings_high_usage() {
 }
 
 // ============================================================================
+// Insights findings
+// ============================================================================
+
+#[tokio::test]
+async fn insights_findings_empty() {
+  let aws = fixtures::healthy_aws();
+  let result = eksup::eks::get_insights_findings(&aws, "test-cluster").await.unwrap();
+  assert!(result.upgrade_readiness.is_empty());
+  assert!(result.misconfiguration.is_empty());
+}
+
+#[tokio::test]
+async fn insights_findings_with_issues() {
+  let mut aws = fixtures::healthy_aws();
+  aws.insights = vec![
+    fixtures::make_insight(
+      "insight-1",
+      "Deprecated API usage",
+      "UPGRADE_READINESS",
+      "ERROR",
+      "1.31",
+      "APIs removed in v1.32",
+      "Update to stable APIs",
+    ),
+    fixtures::make_insight(
+      "insight-2",
+      "Hybrid node config",
+      "MISCONFIGURATION",
+      "WARNING",
+      "",
+      "Node configuration issue",
+      "Check hybrid node setup",
+    ),
+  ];
+
+  let result = eksup::eks::get_insights_findings(&aws, "test-cluster").await.unwrap();
+  assert_eq!(result.upgrade_readiness.len(), 1, "should have 1 upgrade readiness insight");
+  assert_eq!(result.misconfiguration.len(), 1, "should have 1 misconfiguration insight");
+}
+
+#[tokio::test]
+async fn insights_findings_status_mapping() {
+  let mut aws = fixtures::healthy_aws();
+  aws.insights = vec![
+    fixtures::make_insight("id-1", "Error insight", "UPGRADE_READINESS", "ERROR", "1.31", "desc", "rec"),
+    fixtures::make_insight("id-2", "Warning insight", "UPGRADE_READINESS", "WARNING", "1.31", "desc", "rec"),
+    fixtures::make_insight("id-3", "Unknown insight", "UPGRADE_READINESS", "UNKNOWN", "1.31", "desc", "rec"),
+  ];
+
+  let result = eksup::eks::get_insights_findings(&aws, "test-cluster").await.unwrap();
+  assert_eq!(result.upgrade_readiness.len(), 3);
+
+  use eksup::finding::Remediation;
+  assert!(matches!(result.upgrade_readiness[0].finding.remediation, Remediation::Required));
+  assert!(matches!(result.upgrade_readiness[1].finding.remediation, Remediation::Recommended));
+  assert!(matches!(result.upgrade_readiness[2].finding.remediation, Remediation::Recommended));
+}
+
+// ============================================================================
 // Error paths
 // ============================================================================
 
