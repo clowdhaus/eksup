@@ -30,10 +30,10 @@ anyhow = "1.0"
 aws-config = { version="1.8", features = ["behavior-version-latest"] }
 aws-sdk-autoscaling = "1.111"
 aws-sdk-ec2 = "1.217"
-aws-sdk-eks = "1.125"
+aws-sdk-eks = "1.126"
 aws-sdk-servicequotas = "1"
 aws-types = "1.1"
-clap = { version = "4.5", features = ["derive", "string", "color", "unstable-styles"] }
+clap = { version = "4.6", features = ["derive", "string", "color", "unstable-styles"] }
 clap-verbosity-flag = "3.0"
 indicatif = "0.18"
 handlebars = { version = "6.4", features = ["rust-embed"] }
