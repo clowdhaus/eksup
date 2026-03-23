@@ -182,9 +182,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-autoscaling"
-version = "1.111.0"
+version = "1.112.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a02a606bf7634d19d8f7ebad79ef7aa6554f8e1b87da7fa05c58e97177f6c76f"
+checksum = "4b9477c124bc9c0bff96089d83f354d2d3dc8613f8149f10c592adaadc64ad41"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -207,9 +207,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-ec2"
-version = "1.217.0"
+version = "1.220.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b572f880a0a0ea4eb989c2423d298a26e920fb185b123e0dd5522e7ff8c406a4"
+checksum = "a4d073e665c1303edc348511ec2509b58a2cee148196f72db33aef5cd47c3573"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -232,9 +232,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-eks"
-version = "1.126.0"
+version = "1.127.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb18c4d8c1db51eba4070f1246e11434e9f462cf3c1da3dbd18b69654889c66b"
+checksum = "a6bdb45d08733dc9ab5bf2966d3a0716b58f1347d7e622971f266cf294b4fdc1"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -256,9 +256,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-servicequotas"
-version = "1.98.0"
+version = "1.99.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63b529e8902c3132021fb94263d2b92cdb6f86a68319f22a3853f3554d21dd1a"
+checksum = "46a5a84e9a342dbf51fd0b5aa58b4271601c04d874318e13902470a525f1f5b0"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -507,9 +507,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-types"
-version = "1.4.6"
+version = "1.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2b1117b3b2bbe166d11199b540ceed0d0f7676e36e7b962b5a437a9971eac75"
+checksum = "9d73dbfbaa8e4bc57b9045137680b958d274823509a360abfd8e1d514d40c95c"
 dependencies = [
  "base64-simd",
  "bytes",
@@ -1702,9 +1702,9 @@ dependencies = [
 
 [[package]]
 name = "kube"
-version = "3.0.1"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f96b537b4c4f61fc183594edbecbbefa3037e403feac0701bb24e6eff78e0034"
+checksum = "acc5a6a69da2975ed9925d56b5dcfc9cc739b66f37add06785b7c9f6d1e88741"
 dependencies = [
  "k8s-openapi",
  "kube-client",
@@ -1714,9 +1714,9 @@ dependencies = [
 
 [[package]]
 name = "kube-client"
-version = "3.0.1"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af97b8b696eb737e5694f087c498ca725b172c2a5bc3a6916328d160225537ee"
+checksum = "0fcaf2d1f1a91e1805d4cd82e8333c022767ae8ffd65909bbef6802733a7dd40"
 dependencies = [
  "base64",
  "bytes",
@@ -1749,9 +1749,9 @@ dependencies = [
 
 [[package]]
 name = "kube-core"
-version = "3.0.1"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7aeade7d2e9f165f96b3c1749ff01a8e2dc7ea954bd333bcfcecc37d5226bdd"
+checksum = "f126d2db7a8b532ec1d839ece2a71e2485dc3bbca6cc3c3f929becaa810e719e"
 dependencies = [
  "derive_more",
  "form_urlencoded",
@@ -1767,9 +1767,9 @@ dependencies = [
 
 [[package]]
 name = "kube-derive"
-version = "3.0.1"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c98f59f4e68864624a0b993a1cc2424439ab7238eaede5c299e89943e2a093ff"
+checksum = "d6b9b97e121fce957f9cafc6da534abc4276983ab03190b76c09361e2df849fa"
 dependencies = [
  "darling 0.23.0",
  "proc-macro2",
