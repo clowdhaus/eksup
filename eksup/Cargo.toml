@@ -28,7 +28,7 @@ path = "src/main.rs"
 anstyle = "1.0"
 anyhow = "1.0"
 aws-config = { version="1.8", features = ["behavior-version-latest"] }
-aws-sdk-autoscaling = "1.112"
+aws-sdk-autoscaling = "1.113"
 aws-sdk-ec2 = "1.220"
 aws-sdk-eks = "1.127"
 aws-sdk-servicequotas = "1"
@@ -46,7 +46,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 tabled = "0.20"
-tokio = { version = "1.50", default-features = false, features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.51", default-features = false, features = ["macros", "rt-multi-thread"] }
 tracing = {version = "0.1", features = ["log-always"] }
 tracing-log = "0.2"
 tracing-subscriber = "0.3"
