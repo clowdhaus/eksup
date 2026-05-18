@@ -207,9 +207,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-ec2"
-version = "1.225.0"
+version = "1.226.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f41dcfeab462e4757d2434719baf4f32dc74a88d843a8001a8b980b4dd1198e6"
+checksum = "27ef215366676d2392accd5a5f964e891f7a97d210b34ccabe775510ccfd0302"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -1262,9 +1262,9 @@ dependencies = [
 
 [[package]]
 name = "handlebars"
-version = "6.4.0"
+version = "6.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b3f9296c208515b87bd915a2f5d1163d4b3f863ba83337d7713cf478055948e"
+checksum = "d43ccdfe15a81ab0a8af639e90254227c9a46afd9c5f5b6ec7efaa345c4b0f00"
 dependencies = [
  "derive_builder",
  "log",

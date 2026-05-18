@@ -29,7 +29,7 @@ anstyle = "1.0"
 anyhow = "1.0"
 aws-config = { version="1.8", features = ["behavior-version-latest"] }
 aws-sdk-autoscaling = "1.115"
-aws-sdk-ec2 = "1.225"
+aws-sdk-ec2 = "1.226"
 aws-sdk-eks = "1.130"
 aws-sdk-servicequotas = "1"
 aws-types = "1.1"
