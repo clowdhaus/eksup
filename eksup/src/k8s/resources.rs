@@ -659,20 +659,14 @@ pub fn selector_matches(
       let label_value = labels.get(&expr.key);
       let values = expr.values.as_deref().unwrap_or_default();
       match expr.operator.as_str() {
-        "In" => {
-          if !label_value.is_some_and(|v| values.contains(v)) {
-            return false;
-          }
+        "In" if !label_value.is_some_and(|v| values.contains(v)) => {
+          return false;
         }
-        "NotIn" => {
-          if label_value.is_some_and(|v| values.contains(v)) {
-            return false;
-          }
+        "NotIn" if label_value.is_some_and(|v| values.contains(v)) => {
+          return false;
         }
-        "Exists" => {
-          if label_value.is_none() {
-            return false;
-          }
+        "Exists" if label_value.is_none() => {
+          return false;
         }
         "DoesNotExist" if label_value.is_some() => {
           return false;
