@@ -26,8 +26,14 @@ fn main() -> Result<()> {
             let check_mode = args.iter().any(|a| a == "--check");
             generate_man(check_mode)
         }
+        Some("generate-all") => {
+            let check_mode = args.iter().any(|a| a == "--check");
+            generate_all(check_mode)
+        }
         _ => {
-            eprintln!("Usage: cargo xtask <generate-docs|generate-completions|generate-man> [--check]");
+            eprintln!(
+                "Usage: cargo xtask <generate-docs|generate-completions|generate-man|generate-all> [--check]"
+            );
             std::process::exit(1);
         }
     }
@@ -260,5 +266,12 @@ fn generate_man(check_mode: bool) -> Result<()> {
         println!("Updated {}", final_path.display());
     }
 
+    Ok(())
+}
+
+fn generate_all(check_mode: bool) -> Result<()> {
+    generate_docs(check_mode)?;
+    generate_completions(check_mode)?;
+    generate_man(check_mode)?;
     Ok(())
 }
