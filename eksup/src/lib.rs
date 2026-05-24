@@ -74,6 +74,9 @@ pub enum Commands {
     #[arg(value_enum)]
     shell: clap_complete::Shell,
   },
+
+  /// Generate the man page for eksup
+  Man,
 }
 
 /// Analyze an Amazon EKS cluster for potential upgrade issues
@@ -301,5 +304,12 @@ mod tests {
       generate(shell, &mut cmd, "eksup", &mut buf);
       assert!(!buf.is_empty(), "{shell:?} produced empty completion output");
     }
+  }
+
+  #[test]
+  fn man_renders() {
+    let mut buf = Vec::new();
+    clap_mangen::Man::new(Cli::command()).render(&mut buf).unwrap();
+    assert!(!buf.is_empty(), "man page rendered empty");
   }
 }

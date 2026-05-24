@@ -26,6 +26,9 @@ async fn main() -> Result<()> {
       let mut cmd = Cli::command();
       clap_complete::generate(shell, &mut cmd, "eksup", &mut std::io::stdout());
     }
+    Commands::Man => {
+      clap_mangen::Man::new(Cli::command()).render(&mut std::io::stdout())?;
+    }
   }
 
   Ok(())
