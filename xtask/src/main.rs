@@ -22,8 +22,12 @@ fn main() -> Result<()> {
             let check_mode = args.iter().any(|a| a == "--check");
             generate_completions(check_mode)
         }
+        Some("generate-man") => {
+            let check_mode = args.iter().any(|a| a == "--check");
+            generate_man(check_mode)
+        }
         _ => {
-            eprintln!("Usage: cargo xtask <generate-docs|generate-completions> [--check]");
+            eprintln!("Usage: cargo xtask <generate-docs|generate-completions|generate-man> [--check]");
             std::process::exit(1);
         }
     }
@@ -224,6 +228,36 @@ fn generate_completions(check_mode: bool) -> Result<()> {
 
     if check_mode {
         println!("completions/ is up to date.");
+    }
+
+    Ok(())
+}
+
+fn generate_man(check_mode: bool) -> Result<()> {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let out_dir = workspace_root.join("man");
+    let final_path = out_dir.join("eksup.1");
+
+    let mut buf = Vec::new();
+    clap_mangen::Man::new(eksup::Cli::command())
+        .render(&mut buf)
+        .with_context(|| "Failed to render man page")?;
+
+    if check_mode {
+        let current = std::fs::read(&final_path).unwrap_or_default();
+        if current != buf {
+            bail!(
+                "{} is out of date. Run `cargo xtask generate-man`.",
+                final_path.display()
+            );
+        }
+        println!("man/eksup.1 is up to date.");
+    } else {
+        std::fs::create_dir_all(&out_dir)
+            .with_context(|| format!("Failed to create {}", out_dir.display()))?;
+        std::fs::write(&final_path, &buf)
+            .with_context(|| format!("Failed to write {}", final_path.display()))?;
+        println!("Updated {}", final_path.display());
     }
 
     Ok(())
