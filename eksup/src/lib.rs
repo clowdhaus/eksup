@@ -13,35 +13,38 @@ use std::{env, str};
 use anyhow::{Context, Result};
 use clients::AwsClients;
 use aws_config::default_provider::{credentials::DefaultCredentialsChain, region::DefaultRegionChain};
-use aws_types::region::Region;
-use clap::{Args, Parser, Subcommand};
+use aws_sdk_eks::config::Region;
+use clap::{
+  Args, Parser, Subcommand,
+  builder::styling::{AnsiColor, Color, Style, Styles},
+};
 use clap_verbosity_flag::Verbosity;
 use indicatif::{ProgressBar, ProgressFinish, ProgressStyle};
 use serde::{Deserialize, Serialize};
 
-fn get_styles() -> clap::builder::Styles {
-  clap::builder::Styles::styled()
+fn get_styles() -> Styles {
+  Styles::styled()
     .header(
-      anstyle::Style::new()
+      Style::new()
         .bold()
         .underline()
-        .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Green))),
+        .fg_color(Some(Color::Ansi(AnsiColor::Green))),
     )
     .literal(
-      anstyle::Style::new()
+      Style::new()
         .bold()
-        .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::BrightCyan))),
+        .fg_color(Some(Color::Ansi(AnsiColor::BrightCyan))),
     )
     .usage(
-      anstyle::Style::new()
+      Style::new()
         .bold()
-        .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Green))),
+        .fg_color(Some(Color::Ansi(AnsiColor::Green))),
     )
     .placeholder(
-      anstyle::Style::new()
+      Style::new()
         .bold()
         .underline()
-        .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Yellow))),
+        .fg_color(Some(Color::Ansi(AnsiColor::Yellow))),
     )
 }
 
