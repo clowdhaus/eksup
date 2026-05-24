@@ -1,13 +1,15 @@
+#![allow(dead_code)]
+
 use std::collections::BTreeMap;
 
 use aws_sdk_eks::types::{Cluster, ClusterHealth, VpcConfigResponse};
+use eksup::{
+  eks::resources::{AddonVersion, ClusterInsight, VpcSubnet},
+  k8s::resources::{Kind, Node, StdMetadata, StdPdb, StdResource, StdSpec},
+};
 use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
 
-use eksup::eks::resources::{AddonVersion, ClusterInsight, VpcSubnet};
-use eksup::k8s::resources::{Kind, Node, StdMetadata, StdPdb, StdResource, StdSpec};
-
-use super::mock_aws::MockAwsClients;
-use super::mock_k8s::MockK8sClients;
+use super::{mock_aws::MockAwsClients, mock_k8s::MockK8sClients};
 
 /// Builds a healthy cluster at version 1.30 with sufficient IPs
 pub fn healthy_aws() -> MockAwsClients {
@@ -24,8 +26,16 @@ pub fn healthy_aws() -> MockAwsClients {
       )
       .build(),
     subnet_ips: vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 100, availability_zone_id: "use1-az1".into() },
-      VpcSubnet { id: "subnet-2".into(), available_ips: 100, availability_zone_id: "use1-az2".into() },
+      VpcSubnet {
+        id: "subnet-1".into(),
+        available_ips: 100,
+        availability_zone_id: "use1-az1".into(),
+      },
+      VpcSubnet {
+        id: "subnet-2".into(),
+        available_ips: 100,
+        availability_zone_id: "use1-az2".into(),
+      },
     ],
     ..Default::default()
   }
@@ -81,8 +91,7 @@ pub fn make_pdb(
   has_min_available: bool,
   has_max_unavailable: bool,
 ) -> StdPdb {
-  use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
-  use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
+  use k8s_openapi::apimachinery::pkg::{apis::meta::v1::LabelSelector, util::intstr::IntOrString};
   StdPdb {
     name: name.into(),
     namespace: namespace.into(),
@@ -90,8 +99,16 @@ pub fn make_pdb(
       match_labels: Some(match_labels),
       ..Default::default()
     }),
-    min_available: if has_min_available { Some(IntOrString::Int(1)) } else { None },
-    max_unavailable: if has_max_unavailable { Some(IntOrString::Int(1)) } else { None },
+    min_available: if has_min_available {
+      Some(IntOrString::Int(1))
+    } else {
+      None
+    },
+    max_unavailable: if has_max_unavailable {
+      Some(IntOrString::Int(1))
+    } else {
+      None
+    },
   }
 }
 

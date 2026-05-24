@@ -6,11 +6,11 @@ use aws_sdk_autoscaling::{
   types::{AutoScalingGroup, Filter as AsgFilter},
 };
 use aws_sdk_ec2::Client as Ec2Client;
-use aws_sdk_servicequotas::Client as SqClient;
 use aws_sdk_eks::{
   Client as EksClient,
   types::{Addon, Cluster, FargateProfile, Nodegroup},
 };
+use aws_sdk_servicequotas::Client as SqClient;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 
@@ -23,7 +23,9 @@ pub async fn get_cluster(client: &EksClient, name: &str) -> Result<Cluster> {
     .await
     .context(format!("Cluster '{name}' not found"))?;
 
-  response.cluster.context(format!("Cluster '{name}' not found in response"))
+  response
+    .cluster
+    .context(format!("Cluster '{name}' not found in response"))
 }
 
 /// Container for the subnet IDs and their total available IPs
@@ -121,11 +123,7 @@ pub struct AddonVersion {
 ///
 /// Returns associated version details for a given addon that, primarily used
 /// for version compatibility checks and/or upgrade recommendations
-pub async fn get_addon_versions(
-  client: &EksClient,
-  name: &str,
-  kubernetes_version: &str,
-) -> Result<AddonVersion> {
+pub async fn get_addon_versions(client: &EksClient, name: &str, kubernetes_version: &str) -> Result<AddonVersion> {
   // Get all of the addon versions supported for the given addon and Kubernetes version
   let describe = client
     .describe_addon_versions()
@@ -133,14 +131,20 @@ pub async fn get_addon_versions(
     .kubernetes_version(kubernetes_version)
     .send()
     .await
-    .context(format!("Failed to describe addon versions for '{name}' on Kubernetes {kubernetes_version}"))?;
+    .context(format!(
+      "Failed to describe addon versions for '{name}' on Kubernetes {kubernetes_version}"
+    ))?;
 
   // Since we are providing an addon name, we are only concerned with the first and only item
-  let addon = describe.addons().first()
-    .context(format!("No addon found for '{name}' on Kubernetes version '{kubernetes_version}'"))?;
-  let latest_version = addon.addon_versions().first()
+  let addon = describe.addons().first().context(format!(
+    "No addon found for '{name}' on Kubernetes version '{kubernetes_version}'"
+  ))?;
+  let latest_version = addon
+    .addon_versions()
+    .first()
     .context(format!("No addon versions found for addon '{name}'"))?
-    .addon_version().unwrap_or_default();
+    .addon_version()
+    .unwrap_or_default();
 
   // The default version as specified by the EKS API for a given addon and Kubernetes version
   let default_version = addon
@@ -213,17 +217,28 @@ pub async fn get_self_managed_nodegroups(client: &AsgClient, cluster_name: &str)
     .set_values(Some(keys))
     .build();
 
-  let response = client.describe_auto_scaling_groups().filters(filter).send().await
-    .context(format!("Failed to describe Auto Scaling groups for cluster '{cluster_name}'"))?;
+  let response = client
+    .describe_auto_scaling_groups()
+    .filters(filter)
+    .send()
+    .await
+    .context(format!(
+      "Failed to describe Auto Scaling groups for cluster '{cluster_name}'"
+    ))?;
   let groups = response.auto_scaling_groups().to_owned();
 
   // Filter out EKS managed node groups by the EKS MNG applied tag
-  Ok(groups.into_iter().filter(|group| {
-    group
-      .tags()
-      .iter()
-      .all(|tag| tag.key().unwrap_or_default() != "eks:nodegroup-name")
-  }).collect())
+  Ok(
+    groups
+      .into_iter()
+      .filter(|group| {
+        group
+          .tags()
+          .iter()
+          .all(|tag| tag.key().unwrap_or_default() != "eks:nodegroup-name")
+      })
+      .collect(),
+  )
 }
 
 pub async fn get_fargate_profiles(client: &EksClient, cluster_name: &str) -> Result<Vec<FargateProfile>> {
@@ -328,14 +343,12 @@ pub async fn get_ec2_on_demand_vcpu_count(client: &Ec2Client) -> Result<f64> {
   let mut next_token: Option<String> = None;
 
   loop {
-    let mut req = client
-      .describe_instances()
-      .filters(
-        aws_sdk_ec2::types::Filter::builder()
-          .name("instance-state-name")
-          .values("running")
-          .build(),
-      );
+    let mut req = client.describe_instances().filters(
+      aws_sdk_ec2::types::Filter::builder()
+        .name("instance-state-name")
+        .values("running")
+        .build(),
+    );
     if let Some(token) = &next_token {
       req = req.next_token(token);
     }
@@ -370,18 +383,19 @@ pub async fn get_ebs_volume_storage(client: &Ec2Client, volume_type: &str) -> Re
   let mut next_token: Option<String> = None;
 
   loop {
-    let mut req = client
-      .describe_volumes()
-      .filters(
-        aws_sdk_ec2::types::Filter::builder()
-          .name("volume-type")
-          .values(volume_type)
-          .build(),
-      );
+    let mut req = client.describe_volumes().filters(
+      aws_sdk_ec2::types::Filter::builder()
+        .name("volume-type")
+        .values(volume_type)
+        .build(),
+    );
     if let Some(token) = &next_token {
       req = req.next_token(token);
     }
-    let resp = req.send().await.context(format!("Failed to describe {volume_type} EBS volumes"))?;
+    let resp = req
+      .send()
+      .await
+      .context(format!("Failed to describe {volume_type} EBS volumes"))?;
 
     for volume in resp.volumes() {
       total_gib += volume.size.unwrap_or(0) as f64;
@@ -405,7 +419,8 @@ pub async fn get_launch_template(client: &Ec2Client, id: &str) -> Result<LaunchT
     .await
     .context(format!("Failed to describe launch template '{id}'"))?;
 
-  let lts = output.launch_templates
+  let lts = output
+    .launch_templates
     .context(format!("No launch templates found for id '{id}'"))?;
 
   lts
@@ -446,10 +461,7 @@ pub async fn list_insights(client: &EksClient, cluster_name: &str) -> Result<Vec
   let mut insight_ids = Vec::new();
   let mut next_token: Option<String> = None;
   loop {
-    let mut req = client
-      .list_insights()
-      .cluster_name(cluster_name)
-      .filter(filter.clone());
+    let mut req = client.list_insights().cluster_name(cluster_name).filter(filter.clone());
     if let Some(token) = &next_token {
       req = req.next_token(token);
     }
@@ -471,11 +483,7 @@ pub async fn list_insights(client: &EksClient, cluster_name: &str) -> Result<Vec
 }
 
 /// Describe a single cluster insight by ID
-pub async fn describe_insight(
-  client: &EksClient,
-  cluster_name: &str,
-  insight_id: &str,
-) -> Result<ClusterInsight> {
+pub async fn describe_insight(client: &EksClient, cluster_name: &str, insight_id: &str) -> Result<ClusterInsight> {
   let resp = client
     .describe_insight()
     .cluster_name(cluster_name)
@@ -507,10 +515,7 @@ pub async fn describe_insight(
 }
 
 /// Fetch all non-PASSING cluster insights with full details
-pub async fn get_cluster_insights(
-  client: &EksClient,
-  cluster_name: &str,
-) -> Result<Vec<ClusterInsight>> {
+pub async fn get_cluster_insights(client: &EksClient, cluster_name: &str) -> Result<Vec<ClusterInsight>> {
   let insight_ids = list_insights(client, cluster_name).await?;
 
   let mut insights = Vec::new();

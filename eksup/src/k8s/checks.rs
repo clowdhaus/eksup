@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
+use k8s_openapi::api::core::v1::ConfigMap;
 use serde::{Deserialize, Serialize};
 use tabled::{
   Table, Tabled,
   settings::{Margin, Remove, Style, location::ByColumnName},
 };
-
-use k8s_openapi::api::core::v1::ConfigMap;
 
 use crate::{
   finding::{self, Code, Finding, Findings, Remediation},
@@ -143,7 +142,10 @@ pub struct MinReplicas {
   pub replicas: i32,
 }
 
-finding::impl_findings!(MinReplicas, "✅ - All relevant Kubernetes workloads meet the configured minimum replicas");
+finding::impl_findings!(
+  MinReplicas,
+  "✅ - All relevant Kubernetes workloads meet the configured minimum replicas"
+);
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -156,7 +158,10 @@ pub struct MinReadySeconds {
   pub seconds: i32,
 }
 
-finding::impl_findings!(MinReadySeconds, "✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0");
+finding::impl_findings!(
+  MinReadySeconds,
+  "✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0"
+);
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -170,7 +175,10 @@ pub struct PodTopologyDistribution {
   pub topology_spread_constraints: bool,
 }
 
-finding::impl_findings!(PodTopologyDistribution, "✅ - All relevant Kubernetes workloads have either podAntiAffinity or topologySpreadConstraints set");
+finding::impl_findings!(
+  PodTopologyDistribution,
+  "✅ - All relevant Kubernetes workloads have either podAntiAffinity or topologySpreadConstraints set"
+);
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -184,7 +192,10 @@ pub struct Probe {
   pub readiness_probe: bool,
 }
 
-finding::impl_findings!(Probe, "✅ - All relevant Kubernetes workloads have a readiness probe configured");
+finding::impl_findings!(
+  Probe,
+  "✅ - All relevant Kubernetes workloads have a readiness probe configured"
+);
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -198,7 +209,10 @@ pub struct TerminationGracePeriod {
   pub termination_grace_period: i64,
 }
 
-finding::impl_findings!(TerminationGracePeriod, "✅ - No StatefulSet workloads have a terminationGracePeriodSeconds set to more than 0");
+finding::impl_findings!(
+  TerminationGracePeriod,
+  "✅ - No StatefulSet workloads have a terminationGracePeriodSeconds set to more than 0"
+);
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -212,7 +226,10 @@ pub struct DockerSocket {
   pub docker_socket: bool,
 }
 
-finding::impl_findings!(DockerSocket, "✅ - No relevant Kubernetes workloads are found to be utilizing the Docker socket");
+finding::impl_findings!(
+  DockerSocket,
+  "✅ - No relevant Kubernetes workloads are found to be utilizing the Docker socket"
+);
 
 #[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -242,10 +259,16 @@ pub fn kube_proxy_version_skew(
     }
   };
 
-  let ptmpl = kube_proxy.spec.template.as_ref().context("kube-proxy has no pod template")?;
+  let ptmpl = kube_proxy
+    .spec
+    .template
+    .as_ref()
+    .context("kube-proxy has no pod template")?;
   let pspec = ptmpl.spec.as_ref().context("kube-proxy pod template has no spec")?;
   let first_container = pspec.containers.first().context("kube-proxy has no containers")?;
-  let image_tag = first_container.image.as_deref()
+  let image_tag = first_container
+    .image
+    .as_deref()
     .and_then(|img| img.split(':').nth(1))
     .context("kube-proxy container image has no version tag")?;
   let kproxy_minor_version = version::parse_minor(image_tag)?;
@@ -270,7 +293,10 @@ pub fn kube_proxy_version_skew(
   }])
 }
 
-finding::impl_findings!(KubeProxyVersionSkew, "✅ - `kube-proxy` version is aligned with the node/`kubelet` versions in use");
+finding::impl_findings!(
+  KubeProxyVersionSkew,
+  "✅ - `kube-proxy` version is aligned with the node/`kubelet` versions in use"
+);
 
 #[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -281,14 +307,14 @@ pub struct KubeProxyIpvsMode {
   pub current_mode: String,
 }
 
-finding::impl_findings!(KubeProxyIpvsMode, "✅ - `kube-proxy` is not using the deprecated IPVS mode");
+finding::impl_findings!(
+  KubeProxyIpvsMode,
+  "✅ - `kube-proxy` is not using the deprecated IPVS mode"
+);
 
 /// Check if kube-proxy is configured with IPVS mode, which is deprecated in 1.35 and
 /// removed in 1.36
-pub fn kube_proxy_ipvs_mode(
-  configmap: Option<&ConfigMap>,
-  target_minor: i32,
-) -> Result<Vec<KubeProxyIpvsMode>> {
+pub fn kube_proxy_ipvs_mode(configmap: Option<&ConfigMap>, target_minor: i32) -> Result<Vec<KubeProxyIpvsMode>> {
   if target_minor < 35 {
     return Ok(vec![]);
   }
@@ -308,12 +334,10 @@ pub fn kube_proxy_ipvs_mode(
     None => return Ok(vec![]),
   };
 
-  let config: serde_yaml::Value = serde_yaml::from_str(config_str)
-    .context("Failed to parse kube-proxy-config ConfigMap as YAML")?;
+  let config: serde_yaml::Value =
+    serde_yaml::from_str(config_str).context("Failed to parse kube-proxy-config ConfigMap as YAML")?;
 
-  let mode = config.get("mode")
-    .and_then(|v| v.as_str())
-    .unwrap_or("");
+  let mode = config.get("mode").and_then(|v| v.as_str()).unwrap_or("");
 
   if mode == "ipvs" {
     let remediation = if target_minor >= 36 {
@@ -341,7 +365,10 @@ pub struct IngressNginxRetirement {
   pub image: String,
 }
 
-finding::impl_findings!(IngressNginxRetirement, "✅ - No Ingress NGINX controller images detected that require migration");
+finding::impl_findings!(
+  IngressNginxRetirement,
+  "✅ - No Ingress NGINX controller images detected that require migration"
+);
 
 /// Check for the retired Kubernetes community Ingress NGINX controller images
 /// which are no longer maintained as of 1.35+
@@ -357,7 +384,10 @@ pub fn ingress_nginx_retirement(
 
   for resource in resources {
     // Only check Deployments and DaemonSets
-    if !matches!(resource.metadata.kind, resources::Kind::Deployment | resources::Kind::DaemonSet) {
+    if !matches!(
+      resource.metadata.kind,
+      resources::Kind::Deployment | resources::Kind::DaemonSet
+    ) {
       continue;
     }
 
@@ -410,7 +440,10 @@ pub struct MissingPdb {
   pub has_max_unavailable: bool,
 }
 
-finding::impl_findings!(MissingPdb, "✅ - All relevant Kubernetes workloads have a PodDisruptionBudget configured");
+finding::impl_findings!(
+  MissingPdb,
+  "✅ - All relevant Kubernetes workloads have a PodDisruptionBudget configured"
+);
 
 /// K8S004 - Check if workloads have an associated PodDisruptionBudget with
 /// at least one of minAvailable or maxUnavailable configured
@@ -522,9 +555,11 @@ pub trait K8sFindings {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use std::collections::BTreeMap;
+
   use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
+
+  use super::*;
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -681,11 +716,11 @@ mod tests {
   #[test]
   fn version_skew_multiple_mixed_nodes() {
     let nodes = vec![
-      make_node("same", 30),      // skew 0 -> skipped
-      make_node("ahead", 31),     // ahead -> skipped
-      make_node("behind-1", 29),  // skew 1 -> Recommended
-      make_node("behind-3", 27),  // skew 3 -> Required
-      make_node("behind-4", 26),  // skew 4 -> Required
+      make_node("same", 30),     // skew 0 -> skipped
+      make_node("ahead", 31),    // ahead -> skipped
+      make_node("behind-1", 29), // skew 1 -> Recommended
+      make_node("behind-3", 27), // skew 3 -> Required
+      make_node("behind-4", 26), // skew 4 -> Required
     ];
     let result = version_skew(&nodes, 30);
     assert_eq!(result.len(), 3);
@@ -719,18 +754,16 @@ mod tests {
 
   #[test]
   fn kube_proxy_version_skew_no_skew() {
-    let ds = make_kube_proxy_daemonset(
-      "602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.30.0-eksbuild.3",
-    );
+    let ds =
+      make_kube_proxy_daemonset("602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.30.0-eksbuild.3");
     let result = kube_proxy_version_skew(&[ds], 30).unwrap();
     assert!(result.is_empty(), "same version should produce no findings");
   }
 
   #[test]
   fn kube_proxy_version_skew_1_recommended() {
-    let ds = make_kube_proxy_daemonset(
-      "602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.29.0-eksbuild.3",
-    );
+    let ds =
+      make_kube_proxy_daemonset("602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.29.0-eksbuild.3");
     let result = kube_proxy_version_skew(&[ds], 30).unwrap();
     assert_eq!(result.len(), 1);
     assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
@@ -739,9 +772,8 @@ mod tests {
 
   #[test]
   fn kube_proxy_version_skew_3_required() {
-    let ds = make_kube_proxy_daemonset(
-      "602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.27.0-eksbuild.3",
-    );
+    let ds =
+      make_kube_proxy_daemonset("602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.27.0-eksbuild.3");
     let result = kube_proxy_version_skew(&[ds], 30).unwrap();
     assert_eq!(result.len(), 1);
     assert!(matches!(result[0].finding.remediation, Remediation::Required));
@@ -750,11 +782,13 @@ mod tests {
 
   #[test]
   fn kube_proxy_version_skew_node_ahead() {
-    let ds = make_kube_proxy_daemonset(
-      "602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.31.0-eksbuild.3",
-    );
+    let ds =
+      make_kube_proxy_daemonset("602401143452.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.31.0-eksbuild.3");
     let result = kube_proxy_version_skew(&[ds], 30).unwrap();
-    assert!(result.is_empty(), "kube-proxy ahead of control plane should return empty");
+    assert!(
+      result.is_empty(),
+      "kube-proxy ahead of control plane should return empty"
+    );
   }
 
   // ===========================================================================
@@ -870,11 +904,7 @@ mod tests {
       "k8s.gcr.io/ingress-nginx/controller:v1.5.1",
     );
     // A non-matching resource that should be ignored
-    let deploy3 = make_deployment_with_image(
-      "my-app",
-      "default",
-      "my-registry.io/my-app:v2.0",
-    );
+    let deploy3 = make_deployment_with_image("my-app", "default", "my-registry.io/my-app:v2.0");
     let result = ingress_nginx_retirement(&[deploy1, deploy2, deploy3], 35).unwrap();
     assert_eq!(result.len(), 2);
     assert_eq!(result[0].resource.name, "ingress-nginx-controller");
@@ -885,9 +915,9 @@ mod tests {
   // pod_disruption_budgets
   // ===========================================================================
 
+  use k8s_openapi::apimachinery::pkg::{apis::meta::v1::LabelSelector, util::intstr::IntOrString};
+
   use crate::k8s::resources::StdPdb;
-  use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
-  use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 
   fn make_pdb_fixture(
     name: &str,

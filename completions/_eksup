@@ -1,0 +1,322 @@
+#compdef eksup
+
+autoload -U is-at-least
+
+_eksup() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'*-v[Increase logging verbosity]' \
+'*--verbose[Increase logging verbosity]' \
+'(-v --verbose)*-q[Decrease logging verbosity]' \
+'(-v --verbose)*--quiet[Decrease logging verbosity]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+":: :_eksup_commands" \
+"*::: :->eksup" \
+&& ret=0
+    case $state in
+    (eksup)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:eksup-command-$line[1]:"
+        case $line[1] in
+            (analyze)
+_arguments "${_arguments_options[@]}" : \
+'-c+[The name of the cluster to analyze]:CLUSTER:_default' \
+'--cluster=[The name of the cluster to analyze]:CLUSTER:_default' \
+'-r+[The AWS region where the cluster is provisioned]:REGION:_default' \
+'--region=[The AWS region where the cluster is provisioned]:REGION:_default' \
+'-p+[The AWS profile to use to access the cluster]:PROFILE:_default' \
+'--profile=[The AWS profile to use to access the cluster]:PROFILE:_default' \
+'-f+[]:FORMAT:((json\:"JSON format used for logging or writing to a *.json file"
+text\:"Text format used for writing to stdout"))' \
+'--format=[]:FORMAT:((json\:"JSON format used for logging or writing to a *.json file"
+text\:"Text format used for writing to stdout"))' \
+'-o+[Write to file instead of stdout]:OUTPUT:_default' \
+'--output=[Write to file instead of stdout]:OUTPUT:_default' \
+'-t+[Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1]:TARGET_VERSION:_default' \
+'--target-version=[Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1]:TARGET_VERSION:_default' \
+'--config=[Path to an eksup configuration file (default\: .eksup.yaml in cwd)]:CONFIG:_default' \
+'--ignore-recommended[Exclude recommendations from the output]' \
+'*-v[Increase logging verbosity]' \
+'*--verbose[Increase logging verbosity]' \
+'(-v --verbose)*-q[Decrease logging verbosity]' \
+'(-v --verbose)*--quiet[Decrease logging verbosity]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'-V[Print version]' \
+'--version[Print version]' \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+'*-v[Increase logging verbosity]' \
+'*--verbose[Increase logging verbosity]' \
+'(-v --verbose)*-q[Decrease logging verbosity]' \
+'(-v --verbose)*--quiet[Decrease logging verbosity]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+":: :_eksup__subcmd__create_commands" \
+"*::: :->create" \
+&& ret=0
+
+    case $state in
+    (create)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:eksup-create-command-$line[1]:"
+        case $line[1] in
+            (playbook)
+_arguments "${_arguments_options[@]}" : \
+'-c+[The name of the cluster to analyze]:CLUSTER:_default' \
+'--cluster=[The name of the cluster to analyze]:CLUSTER:_default' \
+'-r+[The AWS region where the cluster is provisioned]:REGION:_default' \
+'--region=[The AWS region where the cluster is provisioned]:REGION:_default' \
+'-p+[The AWS profile to use to access the cluster]:PROFILE:_default' \
+'--profile=[The AWS profile to use to access the cluster]:PROFILE:_default' \
+'-f+[Name of the playbook saved locally]:FILENAME:_default' \
+'--filename=[Name of the playbook saved locally]:FILENAME:_default' \
+'-t+[Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1]:TARGET_VERSION:_default' \
+'--target-version=[Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1]:TARGET_VERSION:_default' \
+'--config=[Path to an eksup configuration file (default\: .eksup.yaml in cwd)]:CONFIG:_default' \
+'--ignore-recommended[Exclude recommendations from the output]' \
+'*-v[Increase logging verbosity]' \
+'*--verbose[Increase logging verbosity]' \
+'(-v --verbose)*-q[Decrease logging verbosity]' \
+'(-v --verbose)*--quiet[Decrease logging verbosity]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_eksup__subcmd__create__subcmd__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:eksup-create-help-command-$line[1]:"
+        case $line[1] in
+            (playbook)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(completion)
+_arguments "${_arguments_options[@]}" : \
+'*-v[Increase logging verbosity]' \
+'*--verbose[Increase logging verbosity]' \
+'(-v --verbose)*-q[Decrease logging verbosity]' \
+'(-v --verbose)*--quiet[Decrease logging verbosity]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+':shell -- The shell to generate completions for:(bash elvish fish powershell zsh)' \
+&& ret=0
+;;
+(man)
+_arguments "${_arguments_options[@]}" : \
+'*-v[Increase logging verbosity]' \
+'*--verbose[Increase logging verbosity]' \
+'(-v --verbose)*-q[Decrease logging verbosity]' \
+'(-v --verbose)*--quiet[Decrease logging verbosity]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_eksup__subcmd__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:eksup-help-command-$line[1]:"
+        case $line[1] in
+            (analyze)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+":: :_eksup__subcmd__help__subcmd__create_commands" \
+"*::: :->create" \
+&& ret=0
+
+    case $state in
+    (create)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:eksup-help-create-command-$line[1]:"
+        case $line[1] in
+            (playbook)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(completion)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(man)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+}
+
+(( $+functions[_eksup_commands] )) ||
+_eksup_commands() {
+    local commands; commands=(
+'analyze:Analyze an Amazon EKS cluster for potential upgrade issues' \
+'create:Create artifacts using the analysis data' \
+'completion:Generate shell completion script for the given shell' \
+'man:Generate the man page for eksup' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'eksup commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__analyze_commands] )) ||
+_eksup__subcmd__analyze_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup analyze commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__completion_commands] )) ||
+_eksup__subcmd__completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup completion commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__create_commands] )) ||
+_eksup__subcmd__create_commands() {
+    local commands; commands=(
+'playbook:Create a playbook for upgrading an Amazon EKS cluster' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'eksup create commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__create__subcmd__help_commands] )) ||
+_eksup__subcmd__create__subcmd__help_commands() {
+    local commands; commands=(
+'playbook:Create a playbook for upgrading an Amazon EKS cluster' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'eksup create help commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__create__subcmd__help__subcmd__help_commands] )) ||
+_eksup__subcmd__create__subcmd__help__subcmd__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup create help help commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__create__subcmd__help__subcmd__playbook_commands] )) ||
+_eksup__subcmd__create__subcmd__help__subcmd__playbook_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup create help playbook commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__create__subcmd__playbook_commands] )) ||
+_eksup__subcmd__create__subcmd__playbook_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup create playbook commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__help_commands] )) ||
+_eksup__subcmd__help_commands() {
+    local commands; commands=(
+'analyze:Analyze an Amazon EKS cluster for potential upgrade issues' \
+'create:Create artifacts using the analysis data' \
+'completion:Generate shell completion script for the given shell' \
+'man:Generate the man page for eksup' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'eksup help commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__help__subcmd__analyze_commands] )) ||
+_eksup__subcmd__help__subcmd__analyze_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup help analyze commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__help__subcmd__completion_commands] )) ||
+_eksup__subcmd__help__subcmd__completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup help completion commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__help__subcmd__create_commands] )) ||
+_eksup__subcmd__help__subcmd__create_commands() {
+    local commands; commands=(
+'playbook:Create a playbook for upgrading an Amazon EKS cluster' \
+    )
+    _describe -t commands 'eksup help create commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__help__subcmd__create__subcmd__playbook_commands] )) ||
+_eksup__subcmd__help__subcmd__create__subcmd__playbook_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup help create playbook commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__help__subcmd__help_commands] )) ||
+_eksup__subcmd__help__subcmd__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup help help commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__help__subcmd__man_commands] )) ||
+_eksup__subcmd__help__subcmd__man_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup help man commands' commands "$@"
+}
+(( $+functions[_eksup__subcmd__man_commands] )) ||
+_eksup__subcmd__man_commands() {
+    local commands; commands=()
+    _describe -t commands 'eksup man commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_eksup" ]; then
+    _eksup "$@"
+else
+    compdef _eksup eksup
+fi

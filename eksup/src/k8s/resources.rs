@@ -1,19 +1,28 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
-use k8s_openapi::api::{
-  apps, batch,
-  core::{self, v1::PodTemplateSpec},
-  policy::v1::PodDisruptionBudget,
+use k8s_openapi::{
+  api::{
+    apps, batch,
+    core::{self, v1::PodTemplateSpec},
+    policy::v1::PodDisruptionBudget,
+  },
+  apimachinery::pkg::util::intstr::IntOrString,
 };
-use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
-use kube::{Client, CustomResource, api::{Api, ListParams}};
+use kube::{
+  Client, CustomResource,
+  api::{Api, ListParams},
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 use tracing::warn;
 
-use crate::{finding::{Code, Finding, Remediation}, k8s::checks, version};
+use crate::{
+  finding::{Code, Finding, Remediation},
+  k8s::checks,
+  version,
+};
 
 /// Custom resource definition for ENIConfig as specified in the AWS VPC CNI
 ///
@@ -152,7 +161,9 @@ pub async fn get_eniconfigs(client: &Client) -> Result<Vec<ENIConfig>> {
 
 async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::Deployment> = Api::all(client.to_owned());
-  let deployment_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list Deployments")?;
+  let deployment_list = list_all(&api, LIST_PAGE_SIZE)
+    .await
+    .context("Failed to list Deployments")?;
 
   let deployments = deployment_list
     .iter()
@@ -188,7 +199,9 @@ async fn get_deployments(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::ReplicaSet> = Api::all(client.to_owned());
-  let replicaset_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list ReplicaSets")?;
+  let replicaset_list = list_all(&api, LIST_PAGE_SIZE)
+    .await
+    .context("Failed to list ReplicaSets")?;
 
   let replicasets = replicaset_list
     .iter()
@@ -227,7 +240,9 @@ async fn get_replicasets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::StatefulSet> = Api::all(client.to_owned());
-  let statefulset_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list StatefulSets")?;
+  let statefulset_list = list_all(&api, LIST_PAGE_SIZE)
+    .await
+    .context("Failed to list StatefulSets")?;
 
   let statefulsets = statefulset_list
     .iter()
@@ -263,7 +278,9 @@ async fn get_statefulsets(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_daemonsets(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<apps::v1::DaemonSet> = Api::all(client.to_owned());
-  let daemonset_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list DaemonSets")?;
+  let daemonset_list = list_all(&api, LIST_PAGE_SIZE)
+    .await
+    .context("Failed to list DaemonSets")?;
 
   let daemonsets = daemonset_list
     .iter()
@@ -338,7 +355,9 @@ async fn get_jobs(client: &Client) -> Result<Vec<StdResource>> {
 
 async fn get_cronjobs(client: &Client) -> Result<Vec<StdResource>> {
   let api: Api<batch::v1::CronJob> = Api::all(client.to_owned());
-  let cronjob_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list CronJobs")?;
+  let cronjob_list = list_all(&api, LIST_PAGE_SIZE)
+    .await
+    .context("Failed to list CronJobs")?;
 
   let cronjobs = cronjob_list
     .iter()
@@ -572,8 +591,7 @@ pub async fn get_resources(client: &Client) -> Result<Vec<StdResource>> {
   )?;
 
   let mut resources = Vec::with_capacity(
-    cronjobs.len() + daemonsets.len() + deployments.len()
-    + jobs.len() + replicasets.len() + statefulsets.len(),
+    cronjobs.len() + daemonsets.len() + deployments.len() + jobs.len() + replicasets.len() + statefulsets.len(),
   );
   resources.extend(cronjobs);
   resources.extend(daemonsets);
@@ -597,7 +615,9 @@ pub struct StdPdb {
 
 pub async fn get_pod_disruption_budgets(client: &Client) -> Result<Vec<StdPdb>> {
   let api: Api<PodDisruptionBudget> = Api::all(client.to_owned());
-  let pdb_list = list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list PodDisruptionBudgets")?;
+  let pdb_list = list_all(&api, LIST_PAGE_SIZE)
+    .await
+    .context("Failed to list PodDisruptionBudgets")?;
 
   Ok(
     pdb_list
@@ -609,7 +629,13 @@ pub async fn get_pod_disruption_budgets(client: &Client) -> Result<Vec<StdPdb>> 
           Some(spec) => (spec.selector, spec.min_available, spec.max_unavailable),
           None => (None, None, None),
         };
-        StdPdb { name, namespace, selector, min_available, max_unavailable }
+        StdPdb {
+          name,
+          namespace,
+          selector,
+          min_available,
+          max_unavailable,
+        }
       })
       .collect(),
   )
@@ -633,25 +659,17 @@ pub fn selector_matches(
       let label_value = labels.get(&expr.key);
       let values = expr.values.as_deref().unwrap_or_default();
       match expr.operator.as_str() {
-        "In" => {
-          if !label_value.is_some_and(|v| values.contains(v)) {
-            return false;
-          }
+        "In" if !label_value.is_some_and(|v| values.contains(v)) => {
+          return false;
         }
-        "NotIn" => {
-          if label_value.is_some_and(|v| values.contains(v)) {
-            return false;
-          }
+        "NotIn" if label_value.is_some_and(|v| values.contains(v)) => {
+          return false;
         }
-        "Exists" => {
-          if label_value.is_none() {
-            return false;
-          }
+        "Exists" if label_value.is_none() => {
+          return false;
         }
-        "DoesNotExist" => {
-          if label_value.is_some() {
-            return false;
-          }
+        "DoesNotExist" if label_value.is_some() => {
+          return false;
         }
         _ => {}
       }
@@ -662,14 +680,16 @@ pub fn selector_matches(
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use crate::finding::Remediation;
-  use crate::k8s::checks::K8sFindings;
-  use k8s_openapi::api::core::v1::{
-    Affinity, Container, HTTPGetAction, PodAffinityTerm, PodAntiAffinity, PodSpec, PodTemplateSpec,
-    Probe as K8sProbe, TopologySpreadConstraint, VolumeMount,
+  use k8s_openapi::{
+    api::core::v1::{
+      Affinity, Container, HTTPGetAction, PodAffinityTerm, PodAntiAffinity, PodSpec, PodTemplateSpec,
+      Probe as K8sProbe, TopologySpreadConstraint, VolumeMount,
+    },
+    apimachinery::pkg::apis::meta::v1::LabelSelector,
   };
-  use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
+
+  use super::*;
+  use crate::{finding::Remediation, k8s::checks::K8sFindings};
 
   fn make_resource(
     kind: Kind,
@@ -772,7 +792,10 @@ mod tests {
 
   #[test]
   fn min_replicas_below_threshold() {
-    let cfg = crate::config::K8s002Config { min_replicas: 3, ..Default::default() };
+    let cfg = crate::config::K8s002Config {
+      min_replicas: 3,
+      ..Default::default()
+    };
     let r = make_resource(Kind::Deployment, "web", Some(2), None, Some(basic_template()));
     let result = r.min_replicas(&cfg);
     assert!(result.is_some());
@@ -911,13 +934,7 @@ mod tests {
 
   #[test]
   fn topology_spread() {
-    let r = make_resource(
-      Kind::Deployment,
-      "web",
-      Some(3),
-      None,
-      Some(template_with_spread()),
-    );
+    let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(template_with_spread()));
     assert!(r.pod_topology_distribution().is_none());
   }
 
@@ -1165,11 +1182,13 @@ mod tests {
       minor_version: 28,
     };
     assert_eq!(node.name, "ip-10-0-1-42");
-    assert!(node
-      .labels
-      .as_ref()
-      .unwrap()
-      .contains_key("node.kubernetes.io/instance-type"));
+    assert!(
+      node
+        .labels
+        .as_ref()
+        .unwrap()
+        .contains_key("node.kubernetes.io/instance-type")
+    );
     assert_eq!(node.kubelet_version, "v1.28.3");
   }
 

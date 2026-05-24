@@ -111,6 +111,7 @@ jobs:
         mkdir -p "${STAGING}"
 
         cp {README.md,LICENSE} "${STAGING}/"
+        cp -r completions man "${STAGING}/"
 
         if [ "${{ matrix.os }}" = "windows-2025" ]; then
           cp "target/${{ matrix.target }}/release/eksup.exe" "${STAGING}/"

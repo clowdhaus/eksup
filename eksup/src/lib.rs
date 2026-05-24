@@ -11,7 +11,6 @@ pub mod version;
 use std::{env, str};
 
 use anyhow::{Context, Result};
-use clients::AwsClients;
 use aws_config::default_provider::{credentials::DefaultCredentialsChain, region::DefaultRegionChain};
 use aws_sdk_eks::config::Region;
 use clap::{
@@ -19,6 +18,7 @@ use clap::{
   builder::styling::{AnsiColor, Color, Style, Styles},
 };
 use clap_verbosity_flag::Verbosity;
+use clients::AwsClients;
 use indicatif::{ProgressBar, ProgressFinish, ProgressStyle};
 use serde::{Deserialize, Serialize};
 
@@ -30,16 +30,8 @@ fn get_styles() -> Styles {
         .underline()
         .fg_color(Some(Color::Ansi(AnsiColor::Green))),
     )
-    .literal(
-      Style::new()
-        .bold()
-        .fg_color(Some(Color::Ansi(AnsiColor::BrightCyan))),
-    )
-    .usage(
-      Style::new()
-        .bold()
-        .fg_color(Some(Color::Ansi(AnsiColor::Green))),
-    )
+    .literal(Style::new().bold().fg_color(Some(Color::Ansi(AnsiColor::BrightCyan))))
+    .usage(Style::new().bold().fg_color(Some(Color::Ansi(AnsiColor::Green))))
     .placeholder(
       Style::new()
         .bold()
@@ -66,6 +58,17 @@ pub enum Commands {
   Analyze(Analysis),
   #[command(arg_required_else_help = true)]
   Create(Create),
+
+  /// Generate shell completion script for the given shell
+  #[command(arg_required_else_help = true)]
+  Completion {
+    /// The shell to generate completions for
+    #[arg(value_enum)]
+    shell: clap_complete::Shell,
+  },
+
+  /// Generate the man page for eksup
+  Man,
 }
 
 /// Analyze an Amazon EKS cluster for potential upgrade issues
@@ -277,4 +280,29 @@ pub async fn create(args: Create) -> Result<()> {
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use clap::CommandFactory;
+  use clap_complete::{Shell, generate};
+
+  use super::*;
+
+  #[test]
+  fn completion_generates_for_all_shells() {
+    let mut cmd = Cli::command();
+    for shell in [Shell::Bash, Shell::Elvish, Shell::Fish, Shell::PowerShell, Shell::Zsh] {
+      let mut buf = Vec::new();
+      generate(shell, &mut cmd, "eksup", &mut buf);
+      assert!(!buf.is_empty(), "{shell:?} produced empty completion output");
+    }
+  }
+
+  #[test]
+  fn man_renders() {
+    let mut buf = Vec::new();
+    clap_mangen::Man::new(Cli::command()).render(&mut buf).unwrap();
+    assert!(!buf.is_empty(), "man page rendered empty");
+  }
 }

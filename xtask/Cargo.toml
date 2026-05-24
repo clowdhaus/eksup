@@ -6,3 +6,7 @@ publish = false
 
 [dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }
+eksup = { path = "../eksup" }
+clap = { version = "4.6", default-features = false, features = ["std", "derive"] }
+clap_complete = { version = "4.5", default-features = false }
+clap_mangen = { version = "0.2", default-features = false }

@@ -33,6 +33,22 @@ cargo build --release
 0.13.0
 ```
 
+### Shell completions
+
+`eksup` supports shell completion for bash, zsh, fish, powershell, and elvish.
+See the [shell completions guide](https://clowdhaus.github.io/eksup/install/shell-completions/)
+for install instructions, or run:
+
+```sh
+eksup completion <shell> > <completion-script-path>
+```
+
+A man page is also generated:
+
+```sh
+eksup man > /usr/local/share/man/man1/eksup.1
+```
+
 ## Local Development
 
 `eksup` uses Rust stable for production builds, but nightly for local development for formatting and linting. It is not a requirement to use nightly, but if running `fmt` you may see a few warnings on certain features only being available on nightly.

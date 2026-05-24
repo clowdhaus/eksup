@@ -2,15 +2,15 @@ mod common;
 
 use aws_sdk_eks::types::{Cluster, ClusterHealth, FargateProfile, Nodegroup, VpcConfigResponse};
 use common::{fixtures, mock_aws::MockAwsClients, mock_k8s::MockK8sClients};
-use eksup::analysis::Results;
-use eksup::config::Config;
-use eksup::eks::resources::VpcSubnet;
+use eksup::{analysis::Results, config::Config, eks::resources::VpcSubnet};
 
 /// Helper: run analysis and return Results (defaults to n+1 target)
 async fn run_analysis(aws: &MockAwsClients, k8s: &MockK8sClients) -> Results {
   let cluster_version = aws.cluster.version().unwrap();
   let target_minor = eksup::version::get_target_version(cluster_version).unwrap();
-  eksup::analysis::analyze(aws, k8s, &aws.cluster, target_minor, &Config::default()).await.unwrap()
+  eksup::analysis::analyze(aws, k8s, &aws.cluster, target_minor, &Config::default())
+    .await
+    .unwrap()
 }
 
 /// Helper: render Results as text
@@ -53,8 +53,16 @@ async fn snapshot_healthy_cluster_json() {
 async fn snapshot_insufficient_control_plane_ips_text() {
   let mut aws = fixtures::healthy_aws();
   aws.subnet_ips = vec![
-    VpcSubnet { id: "subnet-1".into(), available_ips: 3, availability_zone_id: "use1-az1".into() },
-    VpcSubnet { id: "subnet-2".into(), available_ips: 2, availability_zone_id: "use1-az2".into() },
+    VpcSubnet {
+      id: "subnet-1".into(),
+      available_ips: 3,
+      availability_zone_id: "use1-az1".into(),
+    },
+    VpcSubnet {
+      id: "subnet-2".into(),
+      available_ips: 2,
+      availability_zone_id: "use1-az2".into(),
+    },
   ];
   let k8s = fixtures::healthy_k8s();
   let results = run_analysis(&aws, &k8s).await;
@@ -104,10 +112,7 @@ async fn snapshot_workload_issues_json() {
 async fn snapshot_version_skew_text() {
   let aws = fixtures::healthy_aws();
   let k8s = MockK8sClients {
-    nodes: vec![
-      fixtures::make_node("node-1", 28),
-      fixtures::make_node("node-2", 27),
-    ],
+    nodes: vec![fixtures::make_node("node-1", 28), fixtures::make_node("node-2", 27)],
     ..Default::default()
   };
   let results = run_analysis(&aws, &k8s).await;
@@ -123,8 +128,16 @@ async fn snapshot_version_skew_text() {
 async fn snapshot_mixed_findings_text() {
   let mut aws = fixtures::healthy_aws();
   aws.subnet_ips = vec![
-    VpcSubnet { id: "subnet-1".into(), available_ips: 3, availability_zone_id: "use1-az1".into() },
-    VpcSubnet { id: "subnet-2".into(), available_ips: 100, availability_zone_id: "use1-az2".into() },
+    VpcSubnet {
+      id: "subnet-1".into(),
+      available_ips: 3,
+      availability_zone_id: "use1-az1".into(),
+    },
+    VpcSubnet {
+      id: "subnet-2".into(),
+      available_ips: 100,
+      availability_zone_id: "use1-az2".into(),
+    },
   ];
   let k8s = MockK8sClients {
     nodes: vec![fixtures::make_node("node-1", 28)],
@@ -141,8 +154,16 @@ async fn snapshot_mixed_findings_text() {
 async fn snapshot_mixed_findings_json() {
   let mut aws = fixtures::healthy_aws();
   aws.subnet_ips = vec![
-    VpcSubnet { id: "subnet-1".into(), available_ips: 3, availability_zone_id: "use1-az1".into() },
-    VpcSubnet { id: "subnet-2".into(), available_ips: 100, availability_zone_id: "use1-az2".into() },
+    VpcSubnet {
+      id: "subnet-1".into(),
+      available_ips: 3,
+      availability_zone_id: "use1-az1".into(),
+    },
+    VpcSubnet {
+      id: "subnet-2".into(),
+      available_ips: 100,
+      availability_zone_id: "use1-az2".into(),
+    },
   ];
   let k8s = MockK8sClients {
     nodes: vec![fixtures::make_node("node-1", 28)],
@@ -201,8 +222,16 @@ fn aws_at_version(version: &str) -> MockAwsClients {
       )
       .build(),
     subnet_ips: vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 100, availability_zone_id: "use1-az1".into() },
-      VpcSubnet { id: "subnet-2".into(), available_ips: 100, availability_zone_id: "use1-az2".into() },
+      VpcSubnet {
+        id: "subnet-1".into(),
+        available_ips: 100,
+        availability_zone_id: "use1-az1".into(),
+      },
+      VpcSubnet {
+        id: "subnet-2".into(),
+        available_ips: 100,
+        availability_zone_id: "use1-az2".into(),
+      },
     ],
     ..Default::default()
   }
@@ -221,9 +250,7 @@ async fn snapshot_playbook_healthy() {
 #[tokio::test]
 async fn snapshot_playbook_eks_managed_nodegroups() {
   let mut aws = fixtures::healthy_aws();
-  aws.nodegroups = vec![
-    Nodegroup::builder().nodegroup_name("mng-1").build(),
-  ];
+  aws.nodegroups = vec![Nodegroup::builder().nodegroup_name("mng-1").build()];
   let k8s = fixtures::healthy_k8s();
   let output = render_playbook(&aws, &k8s).await;
   insta::assert_snapshot!("playbook_eks_managed_nodegroups", output);
@@ -232,9 +259,7 @@ async fn snapshot_playbook_eks_managed_nodegroups() {
 #[tokio::test]
 async fn snapshot_playbook_fargate_profiles() {
   let mut aws = fixtures::healthy_aws();
-  aws.fargate_profiles = vec![
-    FargateProfile::builder().fargate_profile_name("fp-1").build(),
-  ];
+  aws.fargate_profiles = vec![FargateProfile::builder().fargate_profile_name("fp-1").build()];
   let k8s = fixtures::healthy_k8s();
   let output = render_playbook(&aws, &k8s).await;
   insta::assert_snapshot!("playbook_fargate_profiles", output);
@@ -243,19 +268,11 @@ async fn snapshot_playbook_fargate_profiles() {
 #[tokio::test]
 async fn snapshot_playbook_mixed() {
   let mut aws = fixtures::healthy_aws();
-  aws.nodegroups = vec![
-    Nodegroup::builder().nodegroup_name("mng-1").build(),
-  ];
-  aws.fargate_profiles = vec![
-    FargateProfile::builder().fargate_profile_name("fp-1").build(),
-  ];
+  aws.nodegroups = vec![Nodegroup::builder().nodegroup_name("mng-1").build()];
+  aws.fargate_profiles = vec![FargateProfile::builder().fargate_profile_name("fp-1").build()];
   let k8s = MockK8sClients {
-    nodes: vec![
-      fixtures::make_node("node-1", 28),
-    ],
-    resources: vec![
-      fixtures::make_deployment("web", "default", 1),
-    ],
+    nodes: vec![fixtures::make_node("node-1", 28)],
+    resources: vec![fixtures::make_deployment("web", "default", 1)],
     ..Default::default()
   };
   let output = render_playbook(&aws, &k8s).await;
@@ -270,37 +287,60 @@ async fn playbook_no_data_plane_sections_when_empty() {
   let k8s = fixtures::healthy_k8s();
   let output = render_playbook(&aws, &k8s).await;
 
-  assert!(!output.contains("#### EKS Managed Nodegroup"), "EKS MNG sub-template section should be absent");
-  assert!(!output.contains("#### Self-Managed Nodegroup"), "Self-managed sub-template section should be absent");
-  assert!(!output.contains("### Fargate Node"), "Fargate sub-template section should be absent");
+  assert!(
+    !output.contains("#### EKS Managed Nodegroup"),
+    "EKS MNG sub-template section should be absent"
+  );
+  assert!(
+    !output.contains("#### Self-Managed Nodegroup"),
+    "Self-managed sub-template section should be absent"
+  );
+  assert!(
+    !output.contains("### Fargate Node"),
+    "Fargate sub-template section should be absent"
+  );
 }
 
 #[tokio::test]
 async fn playbook_eks_managed_section_present_others_absent() {
   let mut aws = fixtures::healthy_aws();
-  aws.nodegroups = vec![
-    Nodegroup::builder().nodegroup_name("mng-1").build(),
-  ];
+  aws.nodegroups = vec![Nodegroup::builder().nodegroup_name("mng-1").build()];
   let k8s = fixtures::healthy_k8s();
   let output = render_playbook(&aws, &k8s).await;
 
-  assert!(output.contains("#### EKS Managed Nodegroup"), "EKS MNG sub-template section should be present");
-  assert!(!output.contains("#### Self-Managed Nodegroup"), "Self-managed sub-template section should be absent");
-  assert!(!output.contains("### Fargate Node"), "Fargate sub-template section should be absent");
+  assert!(
+    output.contains("#### EKS Managed Nodegroup"),
+    "EKS MNG sub-template section should be present"
+  );
+  assert!(
+    !output.contains("#### Self-Managed Nodegroup"),
+    "Self-managed sub-template section should be absent"
+  );
+  assert!(
+    !output.contains("### Fargate Node"),
+    "Fargate sub-template section should be absent"
+  );
 }
 
 #[tokio::test]
 async fn playbook_fargate_section_present_others_absent() {
   let mut aws = fixtures::healthy_aws();
-  aws.fargate_profiles = vec![
-    FargateProfile::builder().fargate_profile_name("fp-1").build(),
-  ];
+  aws.fargate_profiles = vec![FargateProfile::builder().fargate_profile_name("fp-1").build()];
   let k8s = fixtures::healthy_k8s();
   let output = render_playbook(&aws, &k8s).await;
 
-  assert!(output.contains("### Fargate Node"), "Fargate sub-template section should be present");
-  assert!(!output.contains("#### EKS Managed Nodegroup"), "EKS MNG sub-template section should be absent");
-  assert!(!output.contains("#### Self-Managed Nodegroup"), "Self-managed sub-template section should be absent");
+  assert!(
+    output.contains("### Fargate Node"),
+    "Fargate sub-template section should be present"
+  );
+  assert!(
+    !output.contains("#### EKS Managed Nodegroup"),
+    "EKS MNG sub-template section should be absent"
+  );
+  assert!(
+    !output.contains("#### Self-Managed Nodegroup"),
+    "Self-managed sub-template section should be absent"
+  );
 }
 
 #[tokio::test]
@@ -323,8 +363,14 @@ async fn playbook_pod_ips_healthy_when_no_custom_networking() {
   let output = render_playbook(&aws, &k8s).await;
 
   // The pod IPs section renders with a healthy status when no custom networking issues exist
-  assert!(output.contains("sufficient IP space"), "pod IPs section should show healthy status");
-  assert!(output.contains("Check [[AWS002]]"), "pod IPs check reference should be present");
+  assert!(
+    output.contains("sufficient IP space"),
+    "pod IPs section should show healthy status"
+  );
+  assert!(
+    output.contains("Check [[AWS002]]"),
+    "pod IPs check reference should be present"
+  );
 }
 
 #[tokio::test]
@@ -334,7 +380,10 @@ async fn playbook_deprecation_url_absent_for_1_31_target() {
   let k8s = fixtures::healthy_k8s();
   let output = render_playbook(&aws, &k8s).await;
 
-  assert!(!output.contains("API deprecations"), "deprecation link should be absent for 1.31 target");
+  assert!(
+    !output.contains("API deprecations"),
+    "deprecation link should be absent for 1.31 target"
+  );
 }
 
 #[tokio::test]
@@ -344,6 +393,12 @@ async fn playbook_deprecation_url_present_for_1_32_target() {
   let k8s = fixtures::healthy_k8s();
   let output = render_playbook(&aws, &k8s).await;
 
-  assert!(output.contains("API deprecations"), "deprecation link should be present for 1.32 target");
-  assert!(output.contains("deprecation-guide/#v1-32"), "deprecation URL should point to 1.32 guide");
+  assert!(
+    output.contains("API deprecations"),
+    "deprecation link should be present for 1.32 target"
+  );
+  assert!(
+    output.contains("deprecation-guide/#v1-32"),
+    "deprecation URL should point to 1.32 guide"
+  );
 }

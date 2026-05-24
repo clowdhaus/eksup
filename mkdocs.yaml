@@ -12,6 +12,8 @@ nav:
     - Usage: info/usage.md
     - Checks: info/checks.md
     - Design: info/design.md
+  - Install:
+    - Shell Completions: install/shell-completions.md
 
 theme:
   name: material
