@@ -3,7 +3,7 @@
 //! `eksup` is a CLI to aid in upgrading Amazon EKS clusters
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use eksup::{Cli, Commands, analyze, create};
 use tracing_subscriber::FmtSubscriber;
 
@@ -22,6 +22,10 @@ async fn main() -> Result<()> {
   match cli.commands {
     Commands::Analyze(args) => analyze(args).await?,
     Commands::Create(args) => create(args).await?,
+    Commands::Completion { shell } => {
+      let mut cmd = Cli::command();
+      clap_complete::generate(shell, &mut cmd, "eksup", &mut std::io::stdout());
+    }
   }
 
   Ok(())

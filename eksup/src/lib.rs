@@ -66,6 +66,14 @@ pub enum Commands {
   Analyze(Analysis),
   #[command(arg_required_else_help = true)]
   Create(Create),
+
+  /// Generate shell completion script for the given shell
+  #[command(arg_required_else_help = true)]
+  Completion {
+    /// The shell to generate completions for
+    #[arg(value_enum)]
+    shell: clap_complete::Shell,
+  },
 }
 
 /// Analyze an Amazon EKS cluster for potential upgrade issues
@@ -277,4 +285,21 @@ pub async fn create(args: Create) -> Result<()> {
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use clap::CommandFactory;
+  use clap_complete::{generate, Shell};
+
+  #[test]
+  fn completion_generates_for_all_shells() {
+    let mut cmd = Cli::command();
+    for shell in [Shell::Bash, Shell::Elvish, Shell::Fish, Shell::PowerShell, Shell::Zsh] {
+      let mut buf = Vec::new();
+      generate(shell, &mut cmd, "eksup", &mut buf);
+      assert!(!buf.is_empty(), "{shell:?} produced empty completion output");
+    }
+  }
 }
