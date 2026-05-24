@@ -156,7 +156,9 @@ pub async fn get_data_plane_findings(
     let lt_spec = self_mng
       .launch_template()
       .context("Launch template not found, launch configuration is not supported")?;
-    let lt = aws.get_launch_template(lt_spec.launch_template_id().unwrap_or_default()).await?;
+    let lt = aws
+      .get_launch_template(lt_spec.launch_template_id().unwrap_or_default())
+      .await?;
     if let Some(update) = checks::self_managed_nodegroup_update(self_mng, &lt) {
       self_managed_nodegroup_update.push(update);
     }
@@ -196,10 +198,9 @@ pub async fn get_service_limit_findings(aws: &impl AwsClients) -> Result<Service
     aws.get_service_quota_usage("ec2", quota_codes::EC2_ON_DEMAND_STANDARD),
     aws.get_ec2_on_demand_vcpu_count(),
   ) {
-    Ok(((name, limit, unit), current)) => {
-      checks::service_limit(Code::AWS003, &name, current, limit, &unit)
-        .into_iter().collect()
-    }
+    Ok(((name, limit, unit), current)) => checks::service_limit(Code::AWS003, &name, current, limit, &unit)
+      .into_iter()
+      .collect(),
     Err(e) => {
       tracing::warn!("Unable to check EC2 service limits: {e}");
       vec![]
@@ -211,10 +212,9 @@ pub async fn get_service_limit_findings(aws: &impl AwsClients) -> Result<Service
     aws.get_service_quota_usage("ebs", quota_codes::EBS_GP2_STORAGE),
     aws.get_ebs_volume_storage("gp2"),
   ) {
-    Ok(((name, limit, unit), current)) => {
-      checks::service_limit(Code::AWS004, &name, current, limit, &unit)
-        .into_iter().collect()
-    }
+    Ok(((name, limit, unit), current)) => checks::service_limit(Code::AWS004, &name, current, limit, &unit)
+      .into_iter()
+      .collect(),
     Err(e) => {
       tracing::warn!("Unable to check EBS GP2 service limits: {e}");
       vec![]
@@ -226,10 +226,9 @@ pub async fn get_service_limit_findings(aws: &impl AwsClients) -> Result<Service
     aws.get_service_quota_usage("ebs", quota_codes::EBS_GP3_STORAGE),
     aws.get_ebs_volume_storage("gp3"),
   ) {
-    Ok(((name, limit, unit), current)) => {
-      checks::service_limit(Code::AWS005, &name, current, limit, &unit)
-        .into_iter().collect()
-    }
+    Ok(((name, limit, unit), current)) => checks::service_limit(Code::AWS005, &name, current, limit, &unit)
+      .into_iter()
+      .collect(),
     Err(e) => {
       tracing::warn!("Unable to check EBS GP3 service limits: {e}");
       vec![]
@@ -249,10 +248,7 @@ pub struct InsightsFindings {
   pub misconfiguration: Vec<checks::InsightFinding>,
 }
 
-pub async fn get_insights_findings(
-  aws: &impl AwsClients,
-  cluster_name: &str,
-) -> Result<InsightsFindings> {
+pub async fn get_insights_findings(aws: &impl AwsClients, cluster_name: &str) -> Result<InsightsFindings> {
   let insights = aws.get_cluster_insights(cluster_name).await?;
   let (upgrade_readiness, misconfiguration) = checks::cluster_insights(&insights);
 

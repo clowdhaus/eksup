@@ -11,7 +11,6 @@ pub mod version;
 use std::{env, str};
 
 use anyhow::{Context, Result};
-use clients::AwsClients;
 use aws_config::default_provider::{credentials::DefaultCredentialsChain, region::DefaultRegionChain};
 use aws_sdk_eks::config::Region;
 use clap::{
@@ -19,6 +18,7 @@ use clap::{
   builder::styling::{AnsiColor, Color, Style, Styles},
 };
 use clap_verbosity_flag::Verbosity;
+use clients::AwsClients;
 use indicatif::{ProgressBar, ProgressFinish, ProgressStyle};
 use serde::{Deserialize, Serialize};
 
@@ -30,16 +30,8 @@ fn get_styles() -> Styles {
         .underline()
         .fg_color(Some(Color::Ansi(AnsiColor::Green))),
     )
-    .literal(
-      Style::new()
-        .bold()
-        .fg_color(Some(Color::Ansi(AnsiColor::BrightCyan))),
-    )
-    .usage(
-      Style::new()
-        .bold()
-        .fg_color(Some(Color::Ansi(AnsiColor::Green))),
-    )
+    .literal(Style::new().bold().fg_color(Some(Color::Ansi(AnsiColor::BrightCyan))))
+    .usage(Style::new().bold().fg_color(Some(Color::Ansi(AnsiColor::Green))))
     .placeholder(
       Style::new()
         .bold()
@@ -292,9 +284,10 @@ pub async fn create(args: Create) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use clap::CommandFactory;
-  use clap_complete::{generate, Shell};
+  use clap_complete::{Shell, generate};
+
+  use super::*;
 
   #[test]
   fn completion_generates_for_all_shells() {

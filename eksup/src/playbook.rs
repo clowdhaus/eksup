@@ -116,7 +116,8 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
   let target_version = version::format_version(target_minor);
 
   let release_data = get_release_data()?;
-  let release = release_data.get(&target_version)
+  let release = release_data
+    .get(&target_version)
     .context(format!("No release data found for version {target_version}"))?;
 
   let cluster_findings = analysis.cluster;
@@ -136,9 +137,7 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
     eks_managed_nodegroup_update: data_plane_findings
       .eks_managed_nodegroup_update
       .to_markdown_table("\t")?,
-    al2_ami_deprecation: data_plane_findings
-      .al2_ami_deprecation
-      .to_markdown_table("\t")?,
+    al2_ami_deprecation: data_plane_findings.al2_ami_deprecation.to_markdown_table("\t")?,
   };
   let eks_managed_nodegroup_template = handlebars.render("eks-managed-nodegroup.md", &eks_mng_tmpl_data)?;
 
@@ -150,8 +149,7 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
       .self_managed_nodegroup_update
       .to_markdown_table("\t")?,
   };
-  let self_managed_nodegroup_template =
-    handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?;
+  let self_managed_nodegroup_template = handlebars.render("self-managed-nodegroup.md", &self_mng_tmpl_data)?;
 
   let fargate_tmpl_data = FargateProfileTemplateData {
     region: region.to_owned(),
@@ -204,7 +202,13 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
   Ok(rendered)
 }
 
-pub(crate) fn create(args: Playbook, region: String, cluster: &Cluster, analysis: analysis::Results, target_minor: i32) -> Result<()> {
+pub(crate) fn create(
+  args: Playbook,
+  region: String,
+  cluster: &Cluster,
+  analysis: analysis::Results,
+  target_minor: i32,
+) -> Result<()> {
   let cluster_name = cluster.name().context("Cluster name missing")?;
   let target_version = version::format_version(target_minor);
   let default_playbook_name = format!("{cluster_name}_v{target_version}_upgrade.md");

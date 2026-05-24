@@ -81,7 +81,11 @@ impl K8s002Config {
     }
 
     // Check overrides
-    if let Some(ovr) = self.overrides.iter().find(|o| o.name == name && o.namespace == namespace) {
+    if let Some(ovr) = self
+      .overrides
+      .iter()
+      .find(|o| o.name == name && o.namespace == namespace)
+    {
       return Some(ovr.min_replicas);
     }
 
@@ -121,7 +125,9 @@ impl Config {
       if ovr.min_replicas < 1 {
         anyhow::bail!(
           "K8S002.overrides[{}/{}].min_replicas must be >= 1, got {}",
-          ovr.namespace, ovr.name, ovr.min_replicas
+          ovr.namespace,
+          ovr.name,
+          ovr.min_replicas
         );
       }
     }
@@ -164,8 +170,9 @@ fn load_from(path: Option<&str>, base_dir: Option<&std::path::Path>) -> Result<C
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use std::io::Write;
+
+  use super::*;
 
   // ── Default values ──────────────────────────────────────────────────
 
@@ -255,7 +262,6 @@ mod tests {
         namespace: "other-ns".to_string(),
         min_replicas: 99,
       }],
-      ..Default::default()
     };
     assert_eq!(cfg.effective_min_replicas("my-app", "default"), Some(3));
   }

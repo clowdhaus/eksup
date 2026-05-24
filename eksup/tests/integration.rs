@@ -1,8 +1,10 @@
 mod common;
 
 use common::{fixtures, mock_k8s::MockK8sClients};
-use eksup::config::{Config, K8s002Config, K8s004Config};
-use eksup::eks::resources::VpcSubnet;
+use eksup::{
+  config::{Config, K8s002Config, K8s004Config},
+  eks::resources::VpcSubnet,
+};
 
 // ============================================================================
 // Cluster findings
@@ -56,8 +58,16 @@ async fn subnet_findings_sufficient_ips() {
 async fn subnet_findings_insufficient_control_plane_ips() {
   let mut aws = fixtures::healthy_aws();
   aws.subnet_ips = vec![
-    VpcSubnet { id: "subnet-1".into(), available_ips: 3, availability_zone_id: "use1-az1".into() },
-    VpcSubnet { id: "subnet-2".into(), available_ips: 2, availability_zone_id: "use1-az2".into() },
+    VpcSubnet {
+      id: "subnet-1".into(),
+      available_ips: 3,
+      availability_zone_id: "use1-az1".into(),
+    },
+    VpcSubnet {
+      id: "subnet-2".into(),
+      available_ips: 2,
+      availability_zone_id: "use1-az2".into(),
+    },
   ];
   let k8s = fixtures::healthy_k8s();
 
@@ -72,26 +82,35 @@ async fn subnet_findings_insufficient_control_plane_ips() {
 #[tokio::test]
 async fn addon_findings_no_addons() {
   let aws = fixtures::healthy_aws();
-  let result = eksup::eks::get_addon_findings(&aws, "test-cluster", "1.30", 31).await.unwrap();
+  let result = eksup::eks::get_addon_findings(&aws, "test-cluster", "1.30", 31)
+    .await
+    .unwrap();
   assert!(result.version_compatibility.is_empty());
   assert!(result.health.is_empty());
 }
 
 #[tokio::test]
 async fn addon_findings_version_incompatible() {
-  use aws_sdk_eks::types::Addon;
   use std::collections::HashMap;
 
+  use aws_sdk_eks::types::Addon;
+
   let mut aws = fixtures::healthy_aws();
-  aws.addons = vec![
-    Addon::builder().addon_name("vpc-cni").addon_version("v1.12.0").build(),
-  ];
+  aws.addons = vec![Addon::builder().addon_name("vpc-cni").addon_version("v1.12.0").build()];
   aws.addon_versions = HashMap::from([
-    (("vpc-cni".into(), "1.30".into()), fixtures::make_addon_version("v1.15.0", "v1.14.0", &["v1.15.0", "v1.14.0"])),
-    (("vpc-cni".into(), "1.31".into()), fixtures::make_addon_version("v1.16.0", "v1.15.0", &["v1.16.0", "v1.15.0"])),
+    (
+      ("vpc-cni".into(), "1.30".into()),
+      fixtures::make_addon_version("v1.15.0", "v1.14.0", &["v1.15.0", "v1.14.0"]),
+    ),
+    (
+      ("vpc-cni".into(), "1.31".into()),
+      fixtures::make_addon_version("v1.16.0", "v1.15.0", &["v1.16.0", "v1.15.0"]),
+    ),
   ]);
 
-  let result = eksup::eks::get_addon_findings(&aws, "test-cluster", "1.30", 31).await.unwrap();
+  let result = eksup::eks::get_addon_findings(&aws, "test-cluster", "1.30", 31)
+    .await
+    .unwrap();
   assert_eq!(result.version_compatibility.len(), 1);
 }
 
@@ -102,7 +121,9 @@ async fn addon_findings_version_incompatible() {
 #[tokio::test]
 async fn data_plane_findings_empty() {
   let aws = fixtures::healthy_aws();
-  let result = eksup::eks::get_data_plane_findings(&aws, &aws.cluster, 31).await.unwrap();
+  let result = eksup::eks::get_data_plane_findings(&aws, &aws.cluster, 31)
+    .await
+    .unwrap();
   assert!(result.eks_managed_nodegroup_health.is_empty());
   assert!(result.eks_managed_nodegroup_update.is_empty());
   assert!(result.self_managed_nodegroup_update.is_empty());
@@ -121,11 +142,21 @@ async fn data_plane_findings_node_ips() {
       .build(),
   ];
   aws.subnet_ips = vec![
-    VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
-    VpcSubnet { id: "subnet-2".into(), available_ips: 10, availability_zone_id: "use1-az2".into() },
+    VpcSubnet {
+      id: "subnet-1".into(),
+      available_ips: 10,
+      availability_zone_id: "use1-az1".into(),
+    },
+    VpcSubnet {
+      id: "subnet-2".into(),
+      available_ips: 10,
+      availability_zone_id: "use1-az2".into(),
+    },
   ];
 
-  let result = eksup::eks::get_data_plane_findings(&aws, &aws.cluster, 31).await.unwrap();
+  let result = eksup::eks::get_data_plane_findings(&aws, &aws.cluster, 31)
+    .await
+    .unwrap();
   assert!(!result.node_ips.is_empty(), "low IP subnets should produce findings");
 }
 
@@ -136,7 +167,9 @@ async fn data_plane_findings_node_ips() {
 #[tokio::test]
 async fn kubernetes_findings_empty() {
   let k8s = fixtures::healthy_k8s();
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+    .await
+    .unwrap();
   assert!(result.version_skew.is_empty());
   assert!(result.min_replicas.is_empty());
 }
@@ -148,7 +181,9 @@ async fn kubernetes_findings_version_skew() {
     ..Default::default()
   };
 
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+    .await
+    .unwrap();
   assert_eq!(result.version_skew.len(), 1);
 }
 
@@ -159,16 +194,22 @@ async fn kubernetes_findings_workload_issues() {
     ..Default::default()
   };
 
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+    .await
+    .unwrap();
   assert!(!result.min_replicas.is_empty(), "1 replica should trigger finding");
-  assert!(!result.readiness_probe.is_empty(), "missing probe should trigger finding");
+  assert!(
+    !result.readiness_probe.is_empty(),
+    "missing probe should trigger finding"
+  );
 }
 
 #[tokio::test]
 async fn kubernetes_findings_missing_pdb() {
   use std::collections::BTreeMap;
-  use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
+
   use eksup::k8s::resources::{Kind, StdMetadata, StdResource, StdSpec};
+  use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
 
   let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
   let deploy = StdResource {
@@ -188,7 +229,10 @@ async fn kubernetes_findings_missing_pdb() {
           ..Default::default()
         }),
         spec: Some(PodSpec {
-          containers: vec![Container { name: "app".into(), ..Default::default() }],
+          containers: vec![Container {
+            name: "app".into(),
+            ..Default::default()
+          }],
           ..Default::default()
         }),
       }),
@@ -200,8 +244,13 @@ async fn kubernetes_findings_missing_pdb() {
     ..Default::default()
   };
 
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
-  assert!(!result.pod_disruption_budgets.is_empty(), "missing PDB should trigger finding");
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+    .await
+    .unwrap();
+  assert!(
+    !result.pod_disruption_budgets.is_empty(),
+    "missing PDB should trigger finding"
+  );
 }
 
 // ============================================================================
@@ -212,7 +261,9 @@ async fn kubernetes_findings_missing_pdb() {
 async fn analyze_healthy_cluster() {
   let aws = fixtures::healthy_aws();
   let k8s = fixtures::healthy_k8s();
-  let results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster, 31, &Config::default()).await.unwrap();
+  let results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster, 31, &Config::default())
+    .await
+    .unwrap();
 
   assert!(results.cluster.cluster_health.is_empty());
   assert!(results.subnets.control_plane_ips.is_empty());
@@ -229,7 +280,9 @@ async fn analyze_filter_recommended() {
   };
   let aws = fixtures::healthy_aws();
 
-  let mut results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster, 31, &Config::default()).await.unwrap();
+  let mut results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster, 31, &Config::default())
+    .await
+    .unwrap();
   let before_skew = results.kubernetes.version_skew.len();
   results.filter_recommended();
   // Version skew of 1 is Recommended, so it should be filtered out
@@ -246,7 +299,9 @@ async fn analyze_with_explicit_target() {
   let k8s = fixtures::healthy_k8s();
 
   // Jump from 1.30 → 1.33
-  let results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster, 33, &Config::default()).await.unwrap();
+  let results = eksup::analysis::analyze(&aws, &k8s, &aws.cluster, 33, &Config::default())
+    .await
+    .unwrap();
 
   assert!(results.cluster.cluster_health.is_empty());
   assert!(results.subnets.control_plane_ips.is_empty());
@@ -259,13 +314,23 @@ async fn analyze_with_explicit_target() {
 #[tokio::test]
 async fn service_limit_findings_healthy() {
   use std::collections::HashMap;
+
   use eksup::eks::resources::quota_codes;
 
   let mut aws = fixtures::healthy_aws();
   aws.service_quotas = HashMap::from([
-    (("ec2".into(), quota_codes::EC2_ON_DEMAND_STANDARD.into()), ("Running On-Demand Standard Instances".into(), 256.0, "vCPUs".into())),
-    (("ebs".into(), quota_codes::EBS_GP2_STORAGE.into()), ("GP2 Storage".into(), 50.0, "TiB".into())),
-    (("ebs".into(), quota_codes::EBS_GP3_STORAGE.into()), ("GP3 Storage".into(), 50.0, "TiB".into())),
+    (
+      ("ec2".into(), quota_codes::EC2_ON_DEMAND_STANDARD.into()),
+      ("Running On-Demand Standard Instances".into(), 256.0, "vCPUs".into()),
+    ),
+    (
+      ("ebs".into(), quota_codes::EBS_GP2_STORAGE.into()),
+      ("GP2 Storage".into(), 50.0, "TiB".into()),
+    ),
+    (
+      ("ebs".into(), quota_codes::EBS_GP3_STORAGE.into()),
+      ("GP3 Storage".into(), 50.0, "TiB".into()),
+    ),
   ]);
   aws.ec2_vcpu_count = 32.0;
   aws.ebs_storage = HashMap::from([("gp2".into(), 5.0), ("gp3".into(), 10.0)]);
@@ -279,13 +344,23 @@ async fn service_limit_findings_healthy() {
 #[tokio::test]
 async fn service_limit_findings_high_usage() {
   use std::collections::HashMap;
+
   use eksup::eks::resources::quota_codes;
 
   let mut aws = fixtures::healthy_aws();
   aws.service_quotas = HashMap::from([
-    (("ec2".into(), quota_codes::EC2_ON_DEMAND_STANDARD.into()), ("Running On-Demand Standard Instances".into(), 100.0, "vCPUs".into())),
-    (("ebs".into(), quota_codes::EBS_GP2_STORAGE.into()), ("GP2 Storage".into(), 50.0, "TiB".into())),
-    (("ebs".into(), quota_codes::EBS_GP3_STORAGE.into()), ("GP3 Storage".into(), 50.0, "TiB".into())),
+    (
+      ("ec2".into(), quota_codes::EC2_ON_DEMAND_STANDARD.into()),
+      ("Running On-Demand Standard Instances".into(), 100.0, "vCPUs".into()),
+    ),
+    (
+      ("ebs".into(), quota_codes::EBS_GP2_STORAGE.into()),
+      ("GP2 Storage".into(), 50.0, "TiB".into()),
+    ),
+    (
+      ("ebs".into(), quota_codes::EBS_GP3_STORAGE.into()),
+      ("GP3 Storage".into(), 50.0, "TiB".into()),
+    ),
   ]);
   aws.ec2_vcpu_count = 92.0; // 92% usage
   aws.ebs_storage = HashMap::from([("gp2".into(), 2.0), ("gp3".into(), 2.0)]);
@@ -331,26 +406,67 @@ async fn insights_findings_with_issues() {
   ];
 
   let result = eksup::eks::get_insights_findings(&aws, "test-cluster").await.unwrap();
-  assert_eq!(result.upgrade_readiness.len(), 1, "should have 1 upgrade readiness insight");
-  assert_eq!(result.misconfiguration.len(), 1, "should have 1 misconfiguration insight");
+  assert_eq!(
+    result.upgrade_readiness.len(),
+    1,
+    "should have 1 upgrade readiness insight"
+  );
+  assert_eq!(
+    result.misconfiguration.len(),
+    1,
+    "should have 1 misconfiguration insight"
+  );
 }
 
 #[tokio::test]
 async fn insights_findings_status_mapping() {
   let mut aws = fixtures::healthy_aws();
   aws.insights = vec![
-    fixtures::make_insight("id-1", "Error insight", "UPGRADE_READINESS", "ERROR", "1.31", "desc", "rec"),
-    fixtures::make_insight("id-2", "Warning insight", "UPGRADE_READINESS", "WARNING", "1.31", "desc", "rec"),
-    fixtures::make_insight("id-3", "Unknown insight", "UPGRADE_READINESS", "UNKNOWN", "1.31", "desc", "rec"),
+    fixtures::make_insight(
+      "id-1",
+      "Error insight",
+      "UPGRADE_READINESS",
+      "ERROR",
+      "1.31",
+      "desc",
+      "rec",
+    ),
+    fixtures::make_insight(
+      "id-2",
+      "Warning insight",
+      "UPGRADE_READINESS",
+      "WARNING",
+      "1.31",
+      "desc",
+      "rec",
+    ),
+    fixtures::make_insight(
+      "id-3",
+      "Unknown insight",
+      "UPGRADE_READINESS",
+      "UNKNOWN",
+      "1.31",
+      "desc",
+      "rec",
+    ),
   ];
 
   let result = eksup::eks::get_insights_findings(&aws, "test-cluster").await.unwrap();
   assert_eq!(result.upgrade_readiness.len(), 3);
 
   use eksup::finding::Remediation;
-  assert!(matches!(result.upgrade_readiness[0].finding.remediation, Remediation::Required));
-  assert!(matches!(result.upgrade_readiness[1].finding.remediation, Remediation::Recommended));
-  assert!(matches!(result.upgrade_readiness[2].finding.remediation, Remediation::Recommended));
+  assert!(matches!(
+    result.upgrade_readiness[0].finding.remediation,
+    Remediation::Required
+  ));
+  assert!(matches!(
+    result.upgrade_readiness[1].finding.remediation,
+    Remediation::Recommended
+  ));
+  assert!(matches!(
+    result.upgrade_readiness[2].finding.remediation,
+    Remediation::Recommended
+  ));
 }
 
 // ============================================================================
@@ -359,15 +475,21 @@ async fn insights_findings_status_mapping() {
 
 #[tokio::test]
 async fn analyze_aws_error_propagates() {
-  use common::mock_aws::MockAwsClientsError;
-  use common::mock_k8s::MockK8sClientsError;
+  use common::{mock_aws::MockAwsClientsError, mock_k8s::MockK8sClientsError};
 
   let cluster = aws_sdk_eks::types::Cluster::builder()
     .name("test")
     .version("1.30")
     .build();
 
-  let result = eksup::analysis::analyze(&MockAwsClientsError, &MockK8sClientsError, &cluster, 31, &Config::default()).await;
+  let result = eksup::analysis::analyze(
+    &MockAwsClientsError,
+    &MockK8sClientsError,
+    &cluster,
+    31,
+    &Config::default(),
+  )
+  .await;
   assert!(result.is_err(), "should propagate AWS/K8s errors");
 }
 
@@ -382,8 +504,13 @@ async fn kubernetes_findings_min_replicas_default_threshold() {
     resources: vec![fixtures::make_deployment("web", "default", 2)],
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
-  assert!(result.min_replicas.is_empty(), "2 replicas should pass with default threshold of 2");
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+    .await
+    .unwrap();
+  assert!(
+    result.min_replicas.is_empty(),
+    "2 replicas should pass with default threshold of 2"
+  );
 }
 
 #[tokio::test]
@@ -393,9 +520,18 @@ async fn kubernetes_findings_min_replicas_strict_threshold() {
     resources: vec![fixtures::make_deployment("web", "default", 2)],
     ..Default::default()
   };
-  let strict = K8s002Config { min_replicas: 3, ..Default::default() };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &strict, &K8s004Config::default()).await.unwrap();
-  assert_eq!(result.min_replicas.len(), 1, "2 replicas should fail with threshold of 3");
+  let strict = K8s002Config {
+    min_replicas: 3,
+    ..Default::default()
+  };
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &strict, &K8s004Config::default())
+    .await
+    .unwrap();
+  assert_eq!(
+    result.min_replicas.len(),
+    1,
+    "2 replicas should fail with threshold of 3"
+  );
 }
 
 #[tokio::test]
@@ -411,8 +547,13 @@ async fn kubernetes_findings_min_replicas_ignored() {
     }],
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config, &K8s004Config::default()).await.unwrap();
-  assert!(result.min_replicas.is_empty(), "ignored workload should not trigger finding");
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config, &K8s004Config::default())
+    .await
+    .unwrap();
+  assert!(
+    result.min_replicas.is_empty(),
+    "ignored workload should not trigger finding"
+  );
 }
 
 #[tokio::test]
@@ -432,7 +573,9 @@ async fn kubernetes_findings_min_replicas_per_workload_override() {
     }],
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config, &K8s004Config::default()).await.unwrap();
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config, &K8s004Config::default())
+    .await
+    .unwrap();
   assert_eq!(result.min_replicas.len(), 1, "only etcd should fail (3 < 5)");
   assert_eq!(result.min_replicas[0].resource.name, "etcd");
 }
@@ -444,8 +587,9 @@ async fn kubernetes_findings_min_replicas_per_workload_override() {
 #[tokio::test]
 async fn kubernetes_findings_pdb_ignored() {
   use std::collections::BTreeMap;
-  use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
+
   use eksup::k8s::resources::{Kind, StdMetadata, StdResource, StdSpec};
+  use k8s_openapi::api::core::v1::{Container, PodSpec, PodTemplateSpec};
 
   let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
   let deploy = StdResource {
@@ -465,7 +609,10 @@ async fn kubernetes_findings_pdb_ignored() {
           ..Default::default()
         }),
         spec: Some(PodSpec {
-          containers: vec![Container { name: "app".into(), ..Default::default() }],
+          containers: vec![Container {
+            name: "app".into(),
+            ..Default::default()
+          }],
           ..Default::default()
         }),
       }),
@@ -478,8 +625,13 @@ async fn kubernetes_findings_pdb_ignored() {
   };
 
   // Without ignore: should trigger PDB finding
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default()).await.unwrap();
-  assert!(!result.pod_disruption_budgets.is_empty(), "missing PDB should trigger finding");
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+    .await
+    .unwrap();
+  assert!(
+    !result.pod_disruption_budgets.is_empty(),
+    "missing PDB should trigger finding"
+  );
 
   // With ignore: should NOT trigger
   let config = K8s004Config {
@@ -488,6 +640,11 @@ async fn kubernetes_findings_pdb_ignored() {
       namespace: "default".into(),
     }],
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &config).await.unwrap();
-  assert!(result.pod_disruption_budgets.is_empty(), "ignored workload should not trigger PDB finding");
+  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &config)
+    .await
+    .unwrap();
+  assert!(
+    result.pod_disruption_budgets.is_empty(),
+    "ignored workload should not trigger PDB finding"
+  );
 }

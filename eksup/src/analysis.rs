@@ -2,7 +2,12 @@ use anyhow::{Context, Result};
 use aws_sdk_eks::types::Cluster;
 use serde::{Deserialize, Serialize};
 
-use crate::{clients::{AwsClients, K8sClients}, eks, finding::Findings, k8s, version};
+use crate::{
+  clients::{AwsClients, K8sClients},
+  eks,
+  finding::Findings,
+  k8s, version,
+};
 
 /// Container of all findings collected
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,32 +24,104 @@ pub struct Results {
 impl Results {
   /// Remove all findings where remediation is `Recommended`, keeping only `Required`
   pub fn filter_recommended(&mut self) {
-    self.cluster.cluster_health.retain(|f| !f.finding.remediation.is_recommended());
-    self.subnets.control_plane_ips.retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .cluster
+      .cluster_health
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .subnets
+      .control_plane_ips
+      .retain(|f| !f.finding.remediation.is_recommended());
     self.subnets.pod_ips.retain(|f| !f.finding.remediation.is_recommended());
     self.addons.health.retain(|f| !f.finding.remediation.is_recommended());
-    self.addons.version_compatibility.retain(|f| !f.finding.remediation.is_recommended());
-    self.data_plane.eks_managed_nodegroup_health.retain(|f| !f.finding.remediation.is_recommended());
-    self.data_plane.eks_managed_nodegroup_update.retain(|f| !f.finding.remediation.is_recommended());
-    self.data_plane.self_managed_nodegroup_update.retain(|f| !f.finding.remediation.is_recommended());
-    self.data_plane.al2_ami_deprecation.retain(|f| !f.finding.remediation.is_recommended());
-    self.data_plane.node_ips.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.version_skew.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.min_replicas.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.min_ready_seconds.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.pod_topology_distribution.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.readiness_probe.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.termination_grace_period.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.docker_socket.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.kube_proxy_version_skew.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.kube_proxy_ipvs_mode.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.ingress_nginx_retirement.retain(|f| !f.finding.remediation.is_recommended());
-    self.kubernetes.pod_disruption_budgets.retain(|f| !f.finding.remediation.is_recommended());
-    self.service_limits.ec2_limits.retain(|f| !f.finding.remediation.is_recommended());
-    self.service_limits.ebs_gp2_limits.retain(|f| !f.finding.remediation.is_recommended());
-    self.service_limits.ebs_gp3_limits.retain(|f| !f.finding.remediation.is_recommended());
-    self.insights.upgrade_readiness.retain(|f| !f.finding.remediation.is_recommended());
-    self.insights.misconfiguration.retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .addons
+      .version_compatibility
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .data_plane
+      .eks_managed_nodegroup_health
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .data_plane
+      .eks_managed_nodegroup_update
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .data_plane
+      .self_managed_nodegroup_update
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .data_plane
+      .al2_ami_deprecation
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .data_plane
+      .node_ips
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .version_skew
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .min_replicas
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .min_ready_seconds
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .pod_topology_distribution
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .readiness_probe
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .termination_grace_period
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .docker_socket
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .kube_proxy_version_skew
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .kube_proxy_ipvs_mode
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .ingress_nginx_retirement
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .pod_disruption_budgets
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .service_limits
+      .ec2_limits
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .service_limits
+      .ebs_gp2_limits
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .service_limits
+      .ebs_gp3_limits
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .insights
+      .upgrade_readiness
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .insights
+      .misconfiguration
+      .retain(|f| !f.finding.remediation.is_recommended());
   }
 
   /// Renders all findings as a formatted stdout table string
@@ -96,11 +173,24 @@ pub async fn analyze(
 
   let cluster_findings = eks::get_cluster_findings(cluster)?;
 
-  let (subnet_findings, addon_findings, dataplane_findings, kubernetes_findings, service_limit_findings, insights_findings) = tokio::try_join!(
+  let (
+    subnet_findings,
+    addon_findings,
+    dataplane_findings,
+    kubernetes_findings,
+    service_limit_findings,
+    insights_findings,
+  ) = tokio::try_join!(
     eks::get_subnet_findings(aws, k8s, cluster),
     eks::get_addon_findings(aws, cluster_name, cluster_version, target_minor),
     eks::get_data_plane_findings(aws, cluster, target_minor),
-    k8s::get_kubernetes_findings(k8s, control_plane_minor, target_minor, &config.checks.k8s002, &config.checks.k8s004),
+    k8s::get_kubernetes_findings(
+      k8s,
+      control_plane_minor,
+      target_minor,
+      &config.checks.k8s002,
+      &config.checks.k8s004
+    ),
     eks::get_service_limit_findings(aws),
     eks::get_insights_findings(aws, cluster_name),
   )?;

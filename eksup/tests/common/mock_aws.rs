@@ -1,11 +1,14 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 
 use anyhow::{Result, bail};
 use aws_sdk_autoscaling::types::AutoScalingGroup;
 use aws_sdk_eks::types::{Addon, Cluster, FargateProfile, Nodegroup};
-
-use eksup::clients::AwsClients;
-use eksup::eks::resources::{AddonVersion, ClusterInsight, LaunchTemplate, VpcSubnet};
+use eksup::{
+  clients::AwsClients,
+  eks::resources::{AddonVersion, ClusterInsight, LaunchTemplate, VpcSubnet},
+};
 
 /// Mock AWS client for testing. All fields default to "healthy" empty data.
 /// Override specific fields to simulate different cluster states.
@@ -28,10 +31,7 @@ pub struct MockAwsClients {
 impl Default for MockAwsClients {
   fn default() -> Self {
     Self {
-      cluster: Cluster::builder()
-        .name("test-cluster")
-        .version("1.30")
-        .build(),
+      cluster: Cluster::builder().name("test-cluster").version("1.30").build(),
       subnet_ips: vec![],
       addons: vec![],
       addon_versions: HashMap::new(),
@@ -62,7 +62,10 @@ impl AwsClients for MockAwsClients {
 
   async fn get_addon_versions(&self, name: &str, kubernetes_version: &str) -> Result<AddonVersion> {
     let key = (name.to_string(), kubernetes_version.to_string());
-    self.addon_versions.get(&key).cloned()
+    self
+      .addon_versions
+      .get(&key)
+      .cloned()
       .ok_or_else(|| anyhow::anyhow!("No mock addon version for {name} @ {kubernetes_version}"))
   }
 
@@ -79,13 +82,19 @@ impl AwsClients for MockAwsClients {
   }
 
   async fn get_launch_template(&self, id: &str) -> Result<LaunchTemplate> {
-    self.launch_templates.get(id).cloned()
+    self
+      .launch_templates
+      .get(id)
+      .cloned()
       .ok_or_else(|| anyhow::anyhow!("No mock launch template for id {id}"))
   }
 
   async fn get_service_quota_usage(&self, service_code: &str, quota_code: &str) -> Result<(String, f64, String)> {
     let key = (service_code.to_string(), quota_code.to_string());
-    self.service_quotas.get(&key).cloned()
+    self
+      .service_quotas
+      .get(&key)
+      .cloned()
       .ok_or_else(|| anyhow::anyhow!("No mock quota for {service_code}/{quota_code}"))
   }
 
@@ -106,16 +115,40 @@ impl AwsClients for MockAwsClients {
 pub struct MockAwsClientsError;
 
 impl AwsClients for MockAwsClientsError {
-  async fn get_cluster(&self, _name: &str) -> Result<Cluster> { bail!("mock AWS error") }
-  async fn get_subnet_ips(&self, _subnet_ids: Vec<String>) -> Result<Vec<VpcSubnet>> { bail!("mock AWS error") }
-  async fn get_addons(&self, _cluster_name: &str) -> Result<Vec<Addon>> { bail!("mock AWS error") }
-  async fn get_addon_versions(&self, _name: &str, _kubernetes_version: &str) -> Result<AddonVersion> { bail!("mock AWS error") }
-  async fn get_eks_managed_nodegroups(&self, _cluster_name: &str) -> Result<Vec<Nodegroup>> { bail!("mock AWS error") }
-  async fn get_self_managed_nodegroups(&self, _cluster_name: &str) -> Result<Vec<AutoScalingGroup>> { bail!("mock AWS error") }
-  async fn get_fargate_profiles(&self, _cluster_name: &str) -> Result<Vec<FargateProfile>> { bail!("mock AWS error") }
-  async fn get_launch_template(&self, _id: &str) -> Result<LaunchTemplate> { bail!("mock AWS error") }
-  async fn get_service_quota_usage(&self, _: &str, _: &str) -> Result<(String, f64, String)> { bail!("mock AWS error") }
-  async fn get_ec2_on_demand_vcpu_count(&self) -> Result<f64> { bail!("mock AWS error") }
-  async fn get_ebs_volume_storage(&self, _: &str) -> Result<f64> { bail!("mock AWS error") }
-  async fn get_cluster_insights(&self, _cluster_name: &str) -> Result<Vec<ClusterInsight>> { bail!("mock AWS error") }
+  async fn get_cluster(&self, _name: &str) -> Result<Cluster> {
+    bail!("mock AWS error")
+  }
+  async fn get_subnet_ips(&self, _subnet_ids: Vec<String>) -> Result<Vec<VpcSubnet>> {
+    bail!("mock AWS error")
+  }
+  async fn get_addons(&self, _cluster_name: &str) -> Result<Vec<Addon>> {
+    bail!("mock AWS error")
+  }
+  async fn get_addon_versions(&self, _name: &str, _kubernetes_version: &str) -> Result<AddonVersion> {
+    bail!("mock AWS error")
+  }
+  async fn get_eks_managed_nodegroups(&self, _cluster_name: &str) -> Result<Vec<Nodegroup>> {
+    bail!("mock AWS error")
+  }
+  async fn get_self_managed_nodegroups(&self, _cluster_name: &str) -> Result<Vec<AutoScalingGroup>> {
+    bail!("mock AWS error")
+  }
+  async fn get_fargate_profiles(&self, _cluster_name: &str) -> Result<Vec<FargateProfile>> {
+    bail!("mock AWS error")
+  }
+  async fn get_launch_template(&self, _id: &str) -> Result<LaunchTemplate> {
+    bail!("mock AWS error")
+  }
+  async fn get_service_quota_usage(&self, _: &str, _: &str) -> Result<(String, f64, String)> {
+    bail!("mock AWS error")
+  }
+  async fn get_ec2_on_demand_vcpu_count(&self) -> Result<f64> {
+    bail!("mock AWS error")
+  }
+  async fn get_ebs_volume_storage(&self, _: &str) -> Result<f64> {
+    bail!("mock AWS error")
+  }
+  async fn get_cluster_insights(&self, _cluster_name: &str) -> Result<Vec<ClusterInsight>> {
+    bail!("mock AWS error")
+  }
 }

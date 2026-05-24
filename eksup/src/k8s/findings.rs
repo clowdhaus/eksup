@@ -48,7 +48,10 @@ pub async fn get_kubernetes_findings(
     .filter_map(|s| match s.docker_socket() {
       Ok(finding) => finding,
       Err(e) => {
-        warn!("Failed to check docker socket for {}/{}: {e}", s.metadata.namespace, s.metadata.name);
+        warn!(
+          "Failed to check docker socket for {}/{}: {e}",
+          s.metadata.namespace, s.metadata.name
+        );
         None
       }
     })

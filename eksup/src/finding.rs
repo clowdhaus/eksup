@@ -76,7 +76,9 @@ macro_rules! impl_findings {
 
         let mut table = ::tabled::Table::new(self);
         table
-          .with(::tabled::settings::Remove::column(::tabled::settings::location::ByColumnName::new("CHECK")))
+          .with(::tabled::settings::Remove::column(
+            ::tabled::settings::location::ByColumnName::new("CHECK"),
+          ))
           .with(::tabled::settings::Margin::new(1, 0, 0, 0).fill('\t', 'x', 'x', 'x'))
           .with(::tabled::settings::Style::markdown());
 
@@ -242,8 +244,13 @@ mod tests {
   #[test]
   fn always_relevant_codes_apply_to_any_version() {
     let always = [
-      Code::AWS001, Code::AWS002, Code::EKS001, Code::K8S001,
-      Code::K8S002, Code::K8S008, Code::K8S011,
+      Code::AWS001,
+      Code::AWS002,
+      Code::EKS001,
+      Code::K8S001,
+      Code::K8S002,
+      Code::K8S008,
+      Code::K8S011,
     ];
     for code in &always {
       assert!(code.is_applicable(30), "{code} should be applicable at 1.30");
@@ -269,15 +276,27 @@ mod tests {
 
   #[test]
   fn code_description() {
-    assert_eq!(Code::AWS001.description(), "Insufficient available subnet IPs for nodes");
-    assert_eq!(Code::EKS008.description(), "AL2 AMI deprecation (deprecated in 1.32, removed in 1.33+)");
+    assert_eq!(
+      Code::AWS001.description(),
+      "Insufficient available subnet IPs for nodes"
+    );
+    assert_eq!(
+      Code::EKS008.description(),
+      "AL2 AMI deprecation (deprecated in 1.32, removed in 1.33+)"
+    );
     assert!(Code::K8S009.description().contains("Pod security policies"));
   }
 
   #[test]
   fn code_url() {
-    assert_eq!(Code::AWS001.url(), "https://clowdhaus.github.io/eksup/info/checks/#aws001");
-    assert_eq!(Code::K8S013.url(), "https://clowdhaus.github.io/eksup/info/checks/#k8s013");
+    assert_eq!(
+      Code::AWS001.url(),
+      "https://clowdhaus.github.io/eksup/info/checks/#aws001"
+    );
+    assert_eq!(
+      Code::K8S013.url(),
+      "https://clowdhaus.github.io/eksup/info/checks/#k8s013"
+    );
   }
 
   #[test]

@@ -11,23 +11,48 @@ use crate::{
 /// Trait abstracting all AWS API operations used by eksup
 pub trait AwsClients {
   fn get_cluster(&self, name: &str) -> impl std::future::Future<Output = Result<Cluster>> + Send;
-  fn get_subnet_ips(&self, subnet_ids: Vec<String>) -> impl std::future::Future<Output = Result<Vec<VpcSubnet>>> + Send;
+  fn get_subnet_ips(&self, subnet_ids: Vec<String>)
+  -> impl std::future::Future<Output = Result<Vec<VpcSubnet>>> + Send;
   fn get_addons(&self, cluster_name: &str) -> impl std::future::Future<Output = Result<Vec<Addon>>> + Send;
-  fn get_addon_versions(&self, name: &str, kubernetes_version: &str) -> impl std::future::Future<Output = Result<AddonVersion>> + Send;
-  fn get_eks_managed_nodegroups(&self, cluster_name: &str) -> impl std::future::Future<Output = Result<Vec<Nodegroup>>> + Send;
-  fn get_self_managed_nodegroups(&self, cluster_name: &str) -> impl std::future::Future<Output = Result<Vec<AutoScalingGroup>>> + Send;
-  fn get_fargate_profiles(&self, cluster_name: &str) -> impl std::future::Future<Output = Result<Vec<FargateProfile>>> + Send;
+  fn get_addon_versions(
+    &self,
+    name: &str,
+    kubernetes_version: &str,
+  ) -> impl std::future::Future<Output = Result<AddonVersion>> + Send;
+  fn get_eks_managed_nodegroups(
+    &self,
+    cluster_name: &str,
+  ) -> impl std::future::Future<Output = Result<Vec<Nodegroup>>> + Send;
+  fn get_self_managed_nodegroups(
+    &self,
+    cluster_name: &str,
+  ) -> impl std::future::Future<Output = Result<Vec<AutoScalingGroup>>> + Send;
+  fn get_fargate_profiles(
+    &self,
+    cluster_name: &str,
+  ) -> impl std::future::Future<Output = Result<Vec<FargateProfile>>> + Send;
   fn get_launch_template(&self, id: &str) -> impl std::future::Future<Output = Result<LaunchTemplate>> + Send;
-  fn get_service_quota_usage(&self, service_code: &str, quota_code: &str) -> impl std::future::Future<Output = Result<(String, f64, String)>> + Send;
+  fn get_service_quota_usage(
+    &self,
+    service_code: &str,
+    quota_code: &str,
+  ) -> impl std::future::Future<Output = Result<(String, f64, String)>> + Send;
   fn get_ec2_on_demand_vcpu_count(&self) -> impl std::future::Future<Output = Result<f64>> + Send;
   fn get_ebs_volume_storage(&self, volume_type: &str) -> impl std::future::Future<Output = Result<f64>> + Send;
-  fn get_cluster_insights(&self, cluster_name: &str) -> impl std::future::Future<Output = Result<Vec<ClusterInsight>>> + Send;
+  fn get_cluster_insights(
+    &self,
+    cluster_name: &str,
+  ) -> impl std::future::Future<Output = Result<Vec<ClusterInsight>>> + Send;
 }
 
 /// Trait abstracting all Kubernetes API operations used by eksup
 pub trait K8sClients {
   fn get_nodes(&self) -> impl std::future::Future<Output = Result<Vec<Node>>> + Send;
-  fn get_configmap(&self, namespace: &str, name: &str) -> impl std::future::Future<Output = Result<Option<ConfigMap>>> + Send;
+  fn get_configmap(
+    &self,
+    namespace: &str,
+    name: &str,
+  ) -> impl std::future::Future<Output = Result<Option<ConfigMap>>> + Send;
   fn get_eniconfigs(&self) -> impl std::future::Future<Output = Result<Vec<ENIConfig>>> + Send;
   fn get_resources(&self) -> impl std::future::Future<Output = Result<Vec<StdResource>>> + Send;
   fn get_pod_disruption_budgets(&self) -> impl std::future::Future<Output = Result<Vec<StdPdb>>> + Send;

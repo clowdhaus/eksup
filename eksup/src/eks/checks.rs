@@ -91,7 +91,10 @@ pub struct InsufficientSubnetIps {
   pub available_ips: i32,
 }
 
-finding::impl_findings!(InsufficientSubnetIps, "✅ - There is sufficient IP space in the subnets provided");
+finding::impl_findings!(
+  InsufficientSubnetIps,
+  "✅ - There is sufficient IP space in the subnets provided"
+);
 
 pub(crate) fn control_plane_ips(subnet_ips: &[resources::VpcSubnet]) -> Vec<InsufficientSubnetIps> {
   let mut az_ips: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
@@ -102,12 +105,7 @@ pub(crate) fn control_plane_ips(subnet_ips: &[resources::VpcSubnet]) -> Vec<Insu
   availability_zone_ips.sort_by(|a, b| a.0.cmp(&b.0));
 
   // There are at least 2 different availability zones with 5 or more IPs; no finding
-  if availability_zone_ips
-    .iter()
-    .filter(|(_az, ips)| ips >= &5)
-    .count()
-    >= 2
-  {
+  if availability_zone_ips.iter().filter(|(_az, ips)| ips >= &5).count() >= 2 {
     return vec![];
   }
 
@@ -241,7 +239,10 @@ pub struct AddonVersionCompatibility {
   pub target_kubernetes_version: resources::AddonVersion,
 }
 
-finding::impl_findings!(AddonVersionCompatibility, "✅ - There are no reported addon version compatibility issues.");
+finding::impl_findings!(
+  AddonVersionCompatibility,
+  "✅ - There are no reported addon version compatibility issues."
+);
 
 /// Check for any version compatibility issues for the EKS addons enabled
 pub(crate) fn addon_version_compatibility(
@@ -347,7 +348,10 @@ pub struct NodegroupHealthIssue {
   pub message: String,
 }
 
-finding::impl_findings!(NodegroupHealthIssue, "✅ - There are no reported nodegroup health issues.");
+finding::impl_findings!(
+  NodegroupHealthIssue,
+  "✅ - There are no reported nodegroup health issues."
+);
 
 /// Check for any reported health issues on EKS managed node groups
 pub(crate) fn eks_managed_nodegroup_health(nodegroups: &[Nodegroup]) -> Result<Vec<NodegroupHealthIssue>> {
@@ -396,7 +400,10 @@ pub struct ManagedNodeGroupUpdate {
   pub launch_template: resources::LaunchTemplate,
 }
 
-finding::impl_findings!(ManagedNodeGroupUpdate, "✅ - There are no pending updates for the EKS managed nodegroup(s)");
+finding::impl_findings!(
+  ManagedNodeGroupUpdate,
+  "✅ - There are no pending updates for the EKS managed nodegroup(s)"
+);
 
 pub(crate) fn eks_managed_nodegroup_update(
   nodegroup: &Nodegroup,
@@ -408,21 +415,17 @@ pub(crate) fn eks_managed_nodegroup_update(
   };
 
   match nodegroup.resources() {
-    Some(resources) => {
-      resources
-        .auto_scaling_groups()
-        .iter()
-        .map(|asg| {
-          ManagedNodeGroupUpdate {
-            finding: Finding::new(Code::EKS006, Remediation::Recommended),
-            name: nodegroup.nodegroup_name().unwrap_or_default().to_owned(),
-            autoscaling_group_name: asg.name().unwrap_or_default().to_owned(),
-            launch_template: launch_template.to_owned(),
-          }
-        })
-        .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
-        .collect()
-    }
+    Some(resources) => resources
+      .auto_scaling_groups()
+      .iter()
+      .map(|asg| ManagedNodeGroupUpdate {
+        finding: Finding::new(Code::EKS006, Remediation::Recommended),
+        name: nodegroup.nodegroup_name().unwrap_or_default().to_owned(),
+        autoscaling_group_name: asg.name().unwrap_or_default().to_owned(),
+        launch_template: launch_template.to_owned(),
+      })
+      .filter(|asg| asg.launch_template.current_version != asg.launch_template.latest_version)
+      .collect(),
     None => vec![],
   }
 }
@@ -440,7 +443,10 @@ pub struct AutoscalingGroupUpdate {
   pub launch_template: resources::LaunchTemplate,
 }
 
-finding::impl_findings!(AutoscalingGroupUpdate, "✅ - There are no pending updates for the self-managed nodegroup(s)");
+finding::impl_findings!(
+  AutoscalingGroupUpdate,
+  "✅ - There are no pending updates for the self-managed nodegroup(s)"
+);
 
 /// Returns the autoscaling groups that are not using the latest launch template version
 ///
@@ -479,7 +485,10 @@ pub struct Al2AmiDeprecation {
   pub ami_type: String,
 }
 
-finding::impl_findings!(Al2AmiDeprecation, "✅ - No EKS managed nodegroups are using deprecated AL2 AMI types");
+finding::impl_findings!(
+  Al2AmiDeprecation,
+  "✅ - No EKS managed nodegroups are using deprecated AL2 AMI types"
+);
 
 /// Check for EKS managed nodegroups using AL2 AMI types which are deprecated in 1.32 and
 /// no longer supported starting in 1.33
@@ -501,7 +510,10 @@ pub(crate) fn al2_ami_deprecation(nodegroups: &[Nodegroup], target_minor: i32) -
       None => continue,
     };
 
-    let is_al2 = matches!(ami_type, AmiTypes::Al2X8664 | AmiTypes::Al2Arm64 | AmiTypes::Al2X8664Gpu);
+    let is_al2 = matches!(
+      ami_type,
+      AmiTypes::Al2X8664 | AmiTypes::Al2Arm64 | AmiTypes::Al2X8664Gpu
+    );
     if is_al2 {
       findings.push(Al2AmiDeprecation {
         finding: Finding::new(Code::EKS008, remediation.clone()),
@@ -529,7 +541,10 @@ pub struct ServiceLimitFinding {
   pub usage_pct: String,
 }
 
-finding::impl_findings!(ServiceLimitFinding, "✅ - Service limits have sufficient headroom for the upgrade");
+finding::impl_findings!(
+  ServiceLimitFinding,
+  "✅ - Service limits have sufficient headroom for the upgrade"
+);
 
 /// Check if a service quota usage is approaching or exceeding the limit
 pub(crate) fn service_limit(
@@ -588,9 +603,7 @@ finding::impl_findings!(InsightFinding, "✅ - No cluster insight issues found")
 /// Returns (upgrade_readiness, misconfiguration) tuples.
 /// PASSING insights are pre-filtered by the API call; this function
 /// maps ERROR → Required and WARNING/UNKNOWN → Recommended.
-pub(crate) fn cluster_insights(
-  insights: &[resources::ClusterInsight],
-) -> (Vec<InsightFinding>, Vec<InsightFinding>) {
+pub(crate) fn cluster_insights(insights: &[resources::ClusterInsight]) -> (Vec<InsightFinding>, Vec<InsightFinding>) {
   let mut upgrade_readiness = Vec::new();
   let mut misconfiguration = Vec::new();
 
@@ -628,19 +641,18 @@ pub(crate) fn cluster_insights(
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use aws_sdk_eks::types::{
-    Addon, AddonHealth, AddonIssue, AddonIssueCode, AmiTypes, Cluster, ClusterHealth, ClusterIssue,
-    ClusterIssueCode, Issue, Nodegroup, NodegroupHealth, NodegroupIssueCode,
+    Addon, AddonHealth, AddonIssue, AddonIssueCode, AmiTypes, Cluster, ClusterHealth, ClusterIssue, ClusterIssueCode,
+    Issue, Nodegroup, NodegroupHealth, NodegroupIssueCode,
   };
+
+  use super::*;
 
   // ---------- cluster_health ----------
 
   #[test]
   fn cluster_health_no_issues() {
-    let cluster = Cluster::builder()
-      .health(ClusterHealth::builder().build())
-      .build();
+    let cluster = Cluster::builder().health(ClusterHealth::builder().build()).build();
 
     let result = cluster_health(&cluster).unwrap();
     assert!(result.is_empty());
@@ -705,10 +717,7 @@ mod tests {
     assert_eq!(result[0].name, "vpc-cni");
     assert_eq!(result[0].code, "AccessDenied");
     assert_eq!(result[0].message, "Access denied");
-    assert_eq!(
-      result[0].resource_ids,
-      vec!["arn:aws:iam::123456789012:role/test"]
-    );
+    assert_eq!(result[0].resource_ids, vec!["arn:aws:iam::123456789012:role/test"]);
   }
 
   #[test]
@@ -789,10 +798,7 @@ mod tests {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].name, "test-ng");
     assert_eq!(result[0].ami_type, "AL2_x86_64");
-    assert!(matches!(
-      result[0].finding.remediation,
-      Remediation::Recommended
-    ));
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
   }
 
   #[test]
@@ -805,10 +811,7 @@ mod tests {
     let result = al2_ami_deprecation(&[ng], 33).unwrap();
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].name, "test-ng");
-    assert!(matches!(
-      result[0].finding.remediation,
-      Remediation::Required
-    ));
+    assert!(matches!(result[0].finding.remediation, Remediation::Required));
   }
 
   #[test]
@@ -852,15 +855,16 @@ mod tests {
       .ami_type(AmiTypes::BottlerocketX8664)
       .build();
 
-    let result =
-      al2_ami_deprecation(&[al2_ng, al2_arm_ng, al2023_ng, bottlerocket_ng], 32).unwrap();
+    let result = al2_ami_deprecation(&[al2_ng, al2_arm_ng, al2023_ng, bottlerocket_ng], 32).unwrap();
     // Only the two AL2 nodegroups should produce findings
     assert_eq!(result.len(), 2);
     assert_eq!(result[0].name, "al2-ng");
     assert_eq!(result[1].name, "al2-arm-ng");
-    assert!(result
-      .iter()
-      .all(|f| matches!(f.finding.remediation, Remediation::Recommended)));
+    assert!(
+      result
+        .iter()
+        .all(|f| matches!(f.finding.remediation, Remediation::Recommended))
+    );
   }
 
   use crate::eks::resources::VpcSubnet;
@@ -876,8 +880,16 @@ mod tests {
   #[test]
   fn control_plane_ips_two_azs_sufficient() {
     let subnets = vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
-      VpcSubnet { id: "subnet-2".into(), available_ips: 8, availability_zone_id: "use1-az2".into() },
+      VpcSubnet {
+        id: "subnet-1".into(),
+        available_ips: 10,
+        availability_zone_id: "use1-az1".into(),
+      },
+      VpcSubnet {
+        id: "subnet-2".into(),
+        available_ips: 8,
+        availability_zone_id: "use1-az2".into(),
+      },
     ];
     let result = control_plane_ips(&subnets);
     assert!(result.is_empty(), "2 AZs with >= 5 IPs should produce no findings");
@@ -886,19 +898,39 @@ mod tests {
   #[test]
   fn control_plane_ips_one_az_insufficient() {
     let subnets = vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
-      VpcSubnet { id: "subnet-2".into(), available_ips: 3, availability_zone_id: "use1-az2".into() },
+      VpcSubnet {
+        id: "subnet-1".into(),
+        available_ips: 10,
+        availability_zone_id: "use1-az1".into(),
+      },
+      VpcSubnet {
+        id: "subnet-2".into(),
+        available_ips: 3,
+        availability_zone_id: "use1-az2".into(),
+      },
     ];
     let result = control_plane_ips(&subnets);
     assert!(!result.is_empty(), "only 1 AZ with >= 5 IPs should produce findings");
-    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Required)));
+    assert!(
+      result
+        .iter()
+        .all(|f| matches!(f.finding.remediation, Remediation::Required))
+    );
   }
 
   #[test]
   fn control_plane_ips_boundary_exactly_5() {
     let subnets = vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 5, availability_zone_id: "use1-az1".into() },
-      VpcSubnet { id: "subnet-2".into(), available_ips: 5, availability_zone_id: "use1-az2".into() },
+      VpcSubnet {
+        id: "subnet-1".into(),
+        available_ips: 5,
+        availability_zone_id: "use1-az1".into(),
+      },
+      VpcSubnet {
+        id: "subnet-2".into(),
+        available_ips: 5,
+        availability_zone_id: "use1-az2".into(),
+      },
     ];
     let result = control_plane_ips(&subnets);
     assert!(result.is_empty(), "exactly 5 IPs in 2 AZs should pass");
@@ -907,9 +939,21 @@ mod tests {
   #[test]
   fn control_plane_ips_aggregates_across_subnets_in_same_az() {
     let subnets = vec![
-      VpcSubnet { id: "subnet-1a".into(), available_ips: 3, availability_zone_id: "use1-az1".into() },
-      VpcSubnet { id: "subnet-1b".into(), available_ips: 3, availability_zone_id: "use1-az1".into() },
-      VpcSubnet { id: "subnet-2".into(), available_ips: 6, availability_zone_id: "use1-az2".into() },
+      VpcSubnet {
+        id: "subnet-1a".into(),
+        available_ips: 3,
+        availability_zone_id: "use1-az1".into(),
+      },
+      VpcSubnet {
+        id: "subnet-1b".into(),
+        available_ips: 3,
+        availability_zone_id: "use1-az1".into(),
+      },
+      VpcSubnet {
+        id: "subnet-2".into(),
+        available_ips: 6,
+        availability_zone_id: "use1-az2".into(),
+      },
     ];
     let result = control_plane_ips(&subnets);
     assert!(result.is_empty(), "3+3=6 in az1 and 6 in az2 should pass");
@@ -926,8 +970,16 @@ mod tests {
   #[test]
   fn pod_ips_above_recommended() {
     let subnets = vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 200, availability_zone_id: "use1-az1".into() },
-      VpcSubnet { id: "subnet-2".into(), available_ips: 100, availability_zone_id: "use1-az2".into() },
+      VpcSubnet {
+        id: "subnet-1".into(),
+        available_ips: 200,
+        availability_zone_id: "use1-az1".into(),
+      },
+      VpcSubnet {
+        id: "subnet-2".into(),
+        available_ips: 100,
+        availability_zone_id: "use1-az2".into(),
+      },
     ];
     let result = pod_ips(&subnets, 16, 256);
     assert!(result.is_empty(), "300 IPs >= 256 recommended threshold");
@@ -935,22 +987,34 @@ mod tests {
 
   #[test]
   fn pod_ips_between_required_and_recommended() {
-    let subnets = vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 100, availability_zone_id: "use1-az1".into() },
-    ];
+    let subnets = vec![VpcSubnet {
+      id: "subnet-1".into(),
+      available_ips: 100,
+      availability_zone_id: "use1-az1".into(),
+    }];
     let result = pod_ips(&subnets, 16, 256);
     assert!(!result.is_empty());
-    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Recommended)));
+    assert!(
+      result
+        .iter()
+        .all(|f| matches!(f.finding.remediation, Remediation::Recommended))
+    );
   }
 
   #[test]
   fn pod_ips_below_required() {
-    let subnets = vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
-    ];
+    let subnets = vec![VpcSubnet {
+      id: "subnet-1".into(),
+      available_ips: 10,
+      availability_zone_id: "use1-az1".into(),
+    }];
     let result = pod_ips(&subnets, 16, 256);
     assert!(!result.is_empty());
-    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Required)));
+    assert!(
+      result
+        .iter()
+        .all(|f| matches!(f.finding.remediation, Remediation::Required))
+    );
   }
 
   // ---------- data_plane_ips ----------
@@ -964,8 +1028,16 @@ mod tests {
   #[test]
   fn data_plane_ips_above_recommended() {
     let subnets = vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 80, availability_zone_id: "use1-az1".into() },
-      VpcSubnet { id: "subnet-2".into(), available_ips: 80, availability_zone_id: "use1-az2".into() },
+      VpcSubnet {
+        id: "subnet-1".into(),
+        available_ips: 80,
+        availability_zone_id: "use1-az1".into(),
+      },
+      VpcSubnet {
+        id: "subnet-2".into(),
+        available_ips: 80,
+        availability_zone_id: "use1-az2".into(),
+      },
     ];
     let result = data_plane_ips(&subnets, 30, 100);
     assert!(result.is_empty());
@@ -973,68 +1045,90 @@ mod tests {
 
   #[test]
   fn data_plane_ips_between_required_and_recommended() {
-    let subnets = vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 40, availability_zone_id: "use1-az1".into() },
-    ];
+    let subnets = vec![VpcSubnet {
+      id: "subnet-1".into(),
+      available_ips: 40,
+      availability_zone_id: "use1-az1".into(),
+    }];
     let result = data_plane_ips(&subnets, 30, 100);
     assert!(!result.is_empty());
-    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Recommended)));
+    assert!(
+      result
+        .iter()
+        .all(|f| matches!(f.finding.remediation, Remediation::Recommended))
+    );
   }
 
   #[test]
   fn data_plane_ips_below_required() {
-    let subnets = vec![
-      VpcSubnet { id: "subnet-1".into(), available_ips: 10, availability_zone_id: "use1-az1".into() },
-    ];
+    let subnets = vec![VpcSubnet {
+      id: "subnet-1".into(),
+      available_ips: 10,
+      availability_zone_id: "use1-az1".into(),
+    }];
     let result = data_plane_ips(&subnets, 30, 100);
     assert!(!result.is_empty());
-    assert!(result.iter().all(|f| matches!(f.finding.remediation, Remediation::Required)));
+    assert!(
+      result
+        .iter()
+        .all(|f| matches!(f.finding.remediation, Remediation::Required))
+    );
   }
 
   // ---------- addon_version_compatibility ----------
 
   use std::collections::{HashMap as StdHashMap, HashSet};
+
   use crate::eks::resources::AddonVersion;
 
   #[test]
   fn addon_version_compat_all_supported() {
-    let addon = Addon::builder()
-      .addon_name("vpc-cni")
-      .addon_version("v1.15.0")
-      .build();
+    let addon = Addon::builder().addon_name("vpc-cni").addon_version("v1.15.0").build();
 
-    let current = StdHashMap::from([("vpc-cni".into(), AddonVersion {
-      latest: "v1.15.0".into(),
-      default: "v1.14.0".into(),
-      supported_versions: HashSet::from(["v1.15.0".into(), "v1.14.0".into()]),
-    })]);
-    let target = StdHashMap::from([("vpc-cni".into(), AddonVersion {
-      latest: "v1.16.0".into(),
-      default: "v1.15.0".into(),
-      supported_versions: HashSet::from(["v1.16.0".into(), "v1.15.0".into()]),
-    })]);
+    let current = StdHashMap::from([(
+      "vpc-cni".into(),
+      AddonVersion {
+        latest: "v1.15.0".into(),
+        default: "v1.14.0".into(),
+        supported_versions: HashSet::from(["v1.15.0".into(), "v1.14.0".into()]),
+      },
+    )]);
+    let target = StdHashMap::from([(
+      "vpc-cni".into(),
+      AddonVersion {
+        latest: "v1.16.0".into(),
+        default: "v1.15.0".into(),
+        supported_versions: HashSet::from(["v1.16.0".into(), "v1.15.0".into()]),
+      },
+    )]);
 
     let result = addon_version_compatibility(&[addon], &current, &target);
-    assert!(result.is_empty(), "version supported in both should produce no findings");
+    assert!(
+      result.is_empty(),
+      "version supported in both should produce no findings"
+    );
   }
 
   #[test]
   fn addon_version_compat_not_latest_recommended() {
-    let addon = Addon::builder()
-      .addon_name("vpc-cni")
-      .addon_version("v1.14.0")
-      .build();
+    let addon = Addon::builder().addon_name("vpc-cni").addon_version("v1.14.0").build();
 
-    let current = StdHashMap::from([("vpc-cni".into(), AddonVersion {
-      latest: "v1.15.0".into(),
-      default: "v1.14.0".into(),
-      supported_versions: HashSet::from(["v1.15.0".into(), "v1.14.0".into()]),
-    })]);
-    let target = StdHashMap::from([("vpc-cni".into(), AddonVersion {
-      latest: "v1.16.0".into(),
-      default: "v1.15.0".into(),
-      supported_versions: HashSet::from(["v1.16.0".into(), "v1.15.0".into(), "v1.14.0".into()]),
-    })]);
+    let current = StdHashMap::from([(
+      "vpc-cni".into(),
+      AddonVersion {
+        latest: "v1.15.0".into(),
+        default: "v1.14.0".into(),
+        supported_versions: HashSet::from(["v1.15.0".into(), "v1.14.0".into()]),
+      },
+    )]);
+    let target = StdHashMap::from([(
+      "vpc-cni".into(),
+      AddonVersion {
+        latest: "v1.16.0".into(),
+        default: "v1.15.0".into(),
+        supported_versions: HashSet::from(["v1.16.0".into(), "v1.15.0".into(), "v1.14.0".into()]),
+      },
+    )]);
 
     let result = addon_version_compatibility(&[addon], &current, &target);
     assert_eq!(result.len(), 1);
@@ -1043,21 +1137,24 @@ mod tests {
 
   #[test]
   fn addon_version_compat_unsupported_on_target_required() {
-    let addon = Addon::builder()
-      .addon_name("vpc-cni")
-      .addon_version("v1.12.0")
-      .build();
+    let addon = Addon::builder().addon_name("vpc-cni").addon_version("v1.12.0").build();
 
-    let current = StdHashMap::from([("vpc-cni".into(), AddonVersion {
-      latest: "v1.15.0".into(),
-      default: "v1.14.0".into(),
-      supported_versions: HashSet::from(["v1.15.0".into(), "v1.14.0".into(), "v1.12.0".into()]),
-    })]);
-    let target = StdHashMap::from([("vpc-cni".into(), AddonVersion {
-      latest: "v1.16.0".into(),
-      default: "v1.15.0".into(),
-      supported_versions: HashSet::from(["v1.16.0".into(), "v1.15.0".into()]),
-    })]);
+    let current = StdHashMap::from([(
+      "vpc-cni".into(),
+      AddonVersion {
+        latest: "v1.15.0".into(),
+        default: "v1.14.0".into(),
+        supported_versions: HashSet::from(["v1.15.0".into(), "v1.14.0".into(), "v1.12.0".into()]),
+      },
+    )]);
+    let target = StdHashMap::from([(
+      "vpc-cni".into(),
+      AddonVersion {
+        latest: "v1.16.0".into(),
+        default: "v1.15.0".into(),
+        supported_versions: HashSet::from(["v1.16.0".into(), "v1.15.0".into()]),
+      },
+    )]);
 
     let result = addon_version_compatibility(&[addon], &current, &target);
     assert_eq!(result.len(), 1);
@@ -1067,6 +1164,7 @@ mod tests {
   // ---------- eks_managed_nodegroup_update ----------
 
   use aws_sdk_eks::types::{AutoScalingGroup as EksAutoScalingGroup, NodegroupResources};
+
   use crate::eks::resources::LaunchTemplate;
 
   #[test]
@@ -1082,10 +1180,8 @@ mod tests {
       .nodegroup_name("test")
       .resources(
         NodegroupResources::builder()
-          .auto_scaling_groups(
-            EksAutoScalingGroup::builder().name("asg-1").build()
-          )
-          .build()
+          .auto_scaling_groups(EksAutoScalingGroup::builder().name("asg-1").build())
+          .build(),
       )
       .build();
     let lt = LaunchTemplate {
@@ -1104,10 +1200,8 @@ mod tests {
       .nodegroup_name("test")
       .resources(
         NodegroupResources::builder()
-          .auto_scaling_groups(
-            EksAutoScalingGroup::builder().name("asg-1").build()
-          )
-          .build()
+          .auto_scaling_groups(EksAutoScalingGroup::builder().name("asg-1").build())
+          .build(),
       )
       .build();
     let lt = LaunchTemplate {
@@ -1125,9 +1219,7 @@ mod tests {
 
   #[test]
   fn smng_update_current_equals_latest() {
-    let asg = AutoScalingGroup::builder()
-      .auto_scaling_group_name("asg-1")
-      .build();
+    let asg = AutoScalingGroup::builder().auto_scaling_group_name("asg-1").build();
     let lt = LaunchTemplate {
       name: "lt-1".into(),
       id: "lt-abc".into(),
@@ -1140,9 +1232,7 @@ mod tests {
 
   #[test]
   fn smng_update_current_behind_latest() {
-    let asg = AutoScalingGroup::builder()
-      .auto_scaling_group_name("asg-1")
-      .build();
+    let asg = AutoScalingGroup::builder().auto_scaling_group_name("asg-1").build();
     let lt = LaunchTemplate {
       name: "lt-1".into(),
       id: "lt-abc".into(),

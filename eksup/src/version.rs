@@ -67,8 +67,9 @@ pub fn validate_target_version(target: &str, cluster_version: &str) -> Result<i3
   let target_minor = if target_str.contains('.') {
     parse_minor(target_str)?
   } else {
-    target_str.parse::<i32>()
-      .context(format!("Invalid target version '{target}', expected format like '1.34' or '34'"))?
+    target_str.parse::<i32>().context(format!(
+      "Invalid target version '{target}', expected format like '1.34' or '34'"
+    ))?
   };
 
   let current_minor = parse_minor(cluster_version)?;
@@ -97,7 +98,8 @@ pub fn validate_target_version(target: &str, cluster_version: &str) -> Result<i3
 /// Or the format of v1.22.7 returns 22
 pub fn parse_minor(version: &str) -> Result<i32> {
   let parts: Vec<&str> = version.split('.').collect();
-  let minor_str = parts.get(1)
+  let minor_str = parts
+    .get(1)
     .context(format!("Invalid version format '{version}', expected 'X.Y[.Z]'"))?;
   let minor = minor_str.parse::<i32>()?;
 
@@ -153,7 +155,10 @@ mod tests {
     let result = get_target_version("1.29");
     assert!(result.is_err(), "should error when below MINIMUM");
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("below the minimum supported version"), "error message: {msg}");
+    assert!(
+      msg.contains("below the minimum supported version"),
+      "error message: {msg}"
+    );
   }
 
   #[test]
