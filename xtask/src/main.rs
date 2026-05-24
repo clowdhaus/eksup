@@ -1,4 +1,6 @@
 use anyhow::{Context, Result, bail};
+use clap::CommandFactory;
+use clap_complete::{Generator, Shell, generate};
 use std::path::Path;
 
 /// Parsed check code from `define_codes!`
@@ -16,8 +18,12 @@ fn main() -> Result<()> {
             let check_mode = args.iter().any(|a| a == "--check");
             generate_docs(check_mode)
         }
+        Some("generate-completions") => {
+            let check_mode = args.iter().any(|a| a == "--check");
+            generate_completions(check_mode)
+        }
         _ => {
-            eprintln!("Usage: cargo xtask generate-docs [--check]");
+            eprintln!("Usage: cargo xtask <generate-docs|generate-completions> [--check]");
             std::process::exit(1);
         }
     }
@@ -184,4 +190,41 @@ fn splice_generated_section(content: &str, table: &str) -> Result<String> {
     let after = &content[end_pos..];
 
     Ok(format!("{before}\n\n{table}\n\n{after}"))
+}
+
+fn generate_completions(check_mode: bool) -> Result<()> {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let out_dir = workspace_root.join("completions");
+
+    let mut cmd = eksup::Cli::command();
+
+    for shell in [Shell::Bash, Shell::Elvish, Shell::Fish, Shell::PowerShell, Shell::Zsh] {
+        let mut buf = Vec::new();
+        generate(shell, &mut cmd, "eksup", &mut buf);
+
+        let filename = Generator::file_name(&shell, "eksup");
+        let final_path = out_dir.join(&filename);
+
+        if check_mode {
+            let current = std::fs::read(&final_path).unwrap_or_default();
+            if current != buf {
+                bail!(
+                    "{} is out of date. Run `cargo xtask generate-completions`.",
+                    final_path.display()
+                );
+            }
+        } else {
+            std::fs::create_dir_all(&out_dir)
+                .with_context(|| format!("Failed to create {}", out_dir.display()))?;
+            std::fs::write(&final_path, &buf)
+                .with_context(|| format!("Failed to write {}", final_path.display()))?;
+            println!("Updated {}", final_path.display());
+        }
+    }
+
+    if check_mode {
+        println!("completions/ is up to date.");
+    }
+
+    Ok(())
 }
