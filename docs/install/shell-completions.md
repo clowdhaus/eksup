@@ -9,8 +9,11 @@ If you have `eksup` installed (via `cargo install`, Homebrew, or any other metho
 ### Bash
 
 ```sh
-eksup completion bash > /etc/bash_completion.d/eksup
-# or, for current user:
+# System-wide (requires root — `sudo` on the command alone won't work because
+# the shell redirect runs as your user, so pipe through `sudo tee` instead):
+eksup completion bash | sudo tee /etc/bash_completion.d/eksup > /dev/null
+
+# Or, for current user:
 eksup completion bash > ~/.local/share/bash-completion/completions/eksup
 ```
 
