@@ -126,7 +126,7 @@ expression: output
     "ingress_nginx_retirement": [],
     "pod_disruption_budgets": []
   },
-  "kubernetes_suppressed": {
+  "suppressed": {
     "min_replicas": [],
     "min_ready_seconds": [],
     "readiness_probe": [],

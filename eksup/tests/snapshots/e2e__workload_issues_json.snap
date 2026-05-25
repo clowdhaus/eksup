@@ -150,7 +150,7 @@ expression: output
       }
     ]
   },
-  "kubernetes_suppressed": {
+  "suppressed": {
     "min_replicas": [],
     "min_ready_seconds": [],
     "readiness_probe": [],

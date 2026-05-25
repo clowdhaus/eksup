@@ -17,6 +17,7 @@ pub struct Results {
   pub data_plane: eks::DataPlaneFindings,
   pub addons: eks::AddonFindings,
   pub kubernetes: k8s::KubernetesFindings,
+  #[serde(rename = "suppressed")]
   pub kubernetes_suppressed: k8s::KubernetesSuppressed,
   pub service_limits: eks::ServiceLimitFindings,
   pub insights: eks::InsightsFindings,
