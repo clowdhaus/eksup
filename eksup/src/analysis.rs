@@ -17,6 +17,7 @@ pub struct Results {
   pub data_plane: eks::DataPlaneFindings,
   pub addons: eks::AddonFindings,
   pub kubernetes: k8s::KubernetesFindings,
+  pub kubernetes_suppressed: k8s::KubernetesSuppressed,
   pub service_limits: eks::ServiceLimitFindings,
   pub insights: eks::InsightsFindings,
 }
@@ -173,33 +174,22 @@ pub async fn analyze(
 
   let cluster_findings = eks::get_cluster_findings(cluster)?;
 
-  // Bridge: K8S004 still uses the legacy `K8s004Config` shape; Batch B unifies on
-  // `WorkloadCheckConfig`. Translate by cloning the ignore list.
-  let k8s004_legacy = crate::config::K8s004Config {
-    ignore: config.checks.k8s004.ignore.clone(),
-  };
-
   let (
     subnet_findings,
     addon_findings,
     dataplane_findings,
-    kubernetes_findings,
+    kubernetes_result,
     service_limit_findings,
     insights_findings,
   ) = tokio::try_join!(
     eks::get_subnet_findings(aws, k8s, cluster),
     eks::get_addon_findings(aws, cluster_name, cluster_version, target_minor),
     eks::get_data_plane_findings(aws, cluster, target_minor),
-    k8s::get_kubernetes_findings(
-      k8s,
-      control_plane_minor,
-      target_minor,
-      &config.checks.k8s002,
-      &k8s004_legacy
-    ),
+    k8s::get_kubernetes_findings(k8s, control_plane_minor, target_minor, &config.checks),
     eks::get_service_limit_findings(aws),
     eks::get_insights_findings(aws, cluster_name),
   )?;
+  let (kubernetes_findings, kubernetes_suppressed) = kubernetes_result;
 
   Ok(Results {
     cluster: cluster_findings,
@@ -207,6 +197,7 @@ pub async fn analyze(
     addons: addon_findings,
     data_plane: dataplane_findings,
     kubernetes: kubernetes_findings,
+    kubernetes_suppressed,
     service_limits: service_limit_findings,
     insights: insights_findings,
   })

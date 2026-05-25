@@ -522,7 +522,6 @@ impl WorkloadFinding for MissingPdb {
 pub fn pod_disruption_budgets(
   resources: &[resources::StdResource],
   pdbs: &[resources::StdPdb],
-  config: &crate::config::K8s004Config,
 ) -> Vec<MissingPdb> {
   let mut findings = Vec::new();
 
@@ -542,10 +541,7 @@ pub fn pod_disruption_budgets(
       _ => {}
     }
 
-    // Check if resource is ignored via config
-    if !config.should_check(&resource.metadata.name, &resource.metadata.namespace) {
-      continue;
-    }
+    // Note: ignore-list filtering happens post-construction via apply_ignores.
 
     // Get pod template labels for matching
     let pod_labels = resource
@@ -1046,7 +1042,7 @@ mod tests {
 
   #[test]
   fn pdb_no_workloads() {
-    let result = pod_disruption_budgets(&[], &[], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[], &[]);
     assert!(result.is_empty());
   }
 
@@ -1056,7 +1052,7 @@ mod tests {
     let deploy = make_deployment_with_labels("web", "default", 3, labels.clone());
     let pdb = make_pdb_fixture("web-pdb", "default", labels, Some(IntOrString::Int(1)), None);
 
-    let result = pod_disruption_budgets(&[deploy], &[pdb], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[pdb]);
     assert!(result.is_empty(), "workload with valid PDB should produce no findings");
   }
 
@@ -1065,7 +1061,7 @@ mod tests {
     let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
     let deploy = make_deployment_with_labels("web", "default", 3, labels);
 
-    let result = pod_disruption_budgets(&[deploy], &[], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[]);
     assert_eq!(result.len(), 1);
     assert!(!result[0].has_pdb);
   }
@@ -1076,7 +1072,7 @@ mod tests {
     let deploy = make_deployment_with_labels("web", "default", 3, labels.clone());
     let pdb = make_pdb_fixture("web-pdb", "default", labels, None, None);
 
-    let result = pod_disruption_budgets(&[deploy], &[pdb], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[pdb]);
     assert_eq!(result.len(), 1);
     assert!(result[0].has_pdb);
     assert!(!result[0].has_min_available);
@@ -1088,14 +1084,14 @@ mod tests {
     let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
     let deploy = make_deployment_with_labels("web", "default", 1, labels);
 
-    let result = pod_disruption_budgets(&[deploy], &[], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[]);
     assert!(result.is_empty(), "single replica should be skipped");
   }
 
   #[test]
   fn pdb_daemonset_skipped() {
     let ds = make_daemonset_with_image("agent", "kube-system", "agent:v1");
-    let result = pod_disruption_budgets(&[ds], &[], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[ds], &[]);
     assert!(result.is_empty(), "DaemonSet should be skipped");
   }
 
@@ -1105,7 +1101,7 @@ mod tests {
     let deploy = make_deployment_with_labels("web", "default", 3, labels.clone());
     let pdb = make_pdb_fixture("web-pdb", "other-ns", labels, Some(IntOrString::Int(1)), None);
 
-    let result = pod_disruption_budgets(&[deploy], &[pdb], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[pdb]);
     assert_eq!(result.len(), 1, "PDB in different namespace should not match");
   }
 }
