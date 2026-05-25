@@ -9,7 +9,7 @@ use tabled::{
 };
 
 use crate::{
-  finding::{self, Code, Finding, Findings, Remediation},
+  finding::{self, Code, Finding, Findings, Remediation, WorkloadFinding},
   k8s::resources::{self, Resource},
   version,
 };
@@ -147,6 +147,15 @@ finding::impl_findings!(
   "✅ - All relevant Kubernetes workloads meet the configured minimum replicas"
 );
 
+impl WorkloadFinding for MinReplicas {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S002
+  }
+}
+
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct MinReadySeconds {
@@ -162,6 +171,15 @@ finding::impl_findings!(
   MinReadySeconds,
   "✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0"
 );
+
+impl WorkloadFinding for MinReadySeconds {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S003
+  }
+}
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -180,6 +198,15 @@ finding::impl_findings!(
   "✅ - All relevant Kubernetes workloads have either podAntiAffinity or topologySpreadConstraints set"
 );
 
+impl WorkloadFinding for PodTopologyDistribution {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S005
+  }
+}
+
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct Probe {
@@ -196,6 +223,15 @@ finding::impl_findings!(
   Probe,
   "✅ - All relevant Kubernetes workloads have a readiness probe configured"
 );
+
+impl WorkloadFinding for Probe {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S006
+  }
+}
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -214,6 +250,15 @@ finding::impl_findings!(
   "✅ - No StatefulSet workloads have a terminationGracePeriodSeconds set to more than 0"
 );
 
+impl WorkloadFinding for TerminationGracePeriod {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S007
+  }
+}
+
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct DockerSocket {
@@ -230,6 +275,15 @@ finding::impl_findings!(
   DockerSocket,
   "✅ - No relevant Kubernetes workloads are found to be utilizing the Docker socket"
 );
+
+impl WorkloadFinding for DockerSocket {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S008
+  }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -370,6 +424,15 @@ finding::impl_findings!(
   "✅ - No Ingress NGINX controller images detected that require migration"
 );
 
+impl WorkloadFinding for IngressNginxRetirement {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S013
+  }
+}
+
 /// Check for the retired Kubernetes community Ingress NGINX controller images
 /// which are no longer maintained as of 1.35+
 pub fn ingress_nginx_retirement(
@@ -444,6 +507,15 @@ finding::impl_findings!(
   MissingPdb,
   "✅ - All relevant Kubernetes workloads have a PodDisruptionBudget configured"
 );
+
+impl WorkloadFinding for MissingPdb {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S004
+  }
+}
 
 /// K8S004 - Check if workloads have an associated PodDisruptionBudget with
 /// at least one of minAvailable or maxUnavailable configured

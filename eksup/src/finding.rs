@@ -213,6 +213,15 @@ impl Code {
   }
 }
 
+/// Implemented by workload-level finding types so the ignore-filter can match
+/// them against name+namespace selectors. Cluster-level findings (version skew,
+/// control-plane health, kube-proxy IPVS mode) deliberately do NOT implement
+/// this — they have no resource to ignore by.
+pub trait WorkloadFinding {
+  fn resource(&self) -> (&str, &str);
+  fn code(&self) -> Code;
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
