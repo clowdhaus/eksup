@@ -1,4 +1,5 @@
 pub mod checks;
+pub mod filter;
 pub mod findings;
 pub mod resources;
 
