@@ -55,5 +55,26 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["s
 insta = { version = "1", default-features = false, features = ["yaml"] }
 tempfile = { version = "3", default-features = false, features = ["getrandom"] }
 
+[package.metadata.release]
+# Do not publish to crates.io. eksup is distributed via GitHub releases + Homebrew.
+publish = false
+
+# Regenerate completions and man page BEFORE the version bump commit, so the
+# committed `man/eksup.1` (which embeds the version in its `.TH` header) reflects
+# the new version. `completions/*` don't embed the version but no harm regenerating.
+pre-release-hook = ["cargo", "xtask", "generate-all"]
+
+# Update the README's example version output (line 33 today) to match the new
+# version. Cargo.toml's own `version =` is updated by cargo-release automatically.
+pre-release-replacements = [
+  { file = "../README.md", search = '^\d+\.\d+\.\d+$', replace = "{{version}}", exactly = 1 },
+]
+
+# Tag format: v0.14.0 (matches existing convention in release.yaml triggers).
+tag-name = "v{{version}}"
+
+# Conventional-commits prefix, matches recent project history.
+pre-release-commit-message = "chore: release v{{version}}"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin_include)"] }
