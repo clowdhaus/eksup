@@ -525,7 +525,9 @@ async fn kubernetes_findings_min_replicas_strict_threshold() {
     min_replicas: 3,
     ..Default::default()
   };
-  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks).await.unwrap();
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks)
+    .await
+    .unwrap();
   assert_eq!(
     result.min_replicas.len(),
     1,
@@ -547,7 +549,9 @@ async fn kubernetes_findings_min_replicas_ignored() {
     }],
     ..Default::default()
   };
-  let (result, suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks).await.unwrap();
+  let (result, suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks)
+    .await
+    .unwrap();
   assert!(
     result.min_replicas.is_empty(),
     "ignored workload should not trigger finding"
@@ -576,7 +580,9 @@ async fn kubernetes_findings_min_replicas_per_workload_override() {
     }],
     ..Default::default()
   };
-  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks).await.unwrap();
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks)
+    .await
+    .unwrap();
   assert_eq!(result.min_replicas.len(), 1, "only etcd should fail (3 < 5)");
   assert_eq!(result.min_replicas[0].resource.name, "etcd");
 }
@@ -642,10 +648,16 @@ async fn kubernetes_findings_pdb_ignored() {
       namespace: "default".into(),
     }],
   };
-  let (result, suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks).await.unwrap();
+  let (result, suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks)
+    .await
+    .unwrap();
   assert!(
     result.pod_disruption_budgets.is_empty(),
     "ignored workload should not trigger PDB finding"
   );
-  assert_eq!(suppressed.pod_disruption_budgets.len(), 1, "suppressed bucket should capture it");
+  assert_eq!(
+    suppressed.pod_disruption_budgets.len(),
+    1,
+    "suppressed bucket should capture it"
+  );
 }

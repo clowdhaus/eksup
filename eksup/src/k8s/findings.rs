@@ -107,8 +107,7 @@ pub async fn get_kubernetes_findings(
   let (min_replicas, sup_min_replicas) = apply_ignores(min_replicas, compiled);
   let (min_ready_seconds, sup_min_ready_seconds) = apply_ignores(min_ready_seconds, compiled);
   let (readiness_probe, sup_readiness_probe) = apply_ignores(readiness_probe, compiled);
-  let (pod_topology_distribution, sup_pod_topology_distribution) =
-    apply_ignores(pod_topology_distribution, compiled);
+  let (pod_topology_distribution, sup_pod_topology_distribution) = apply_ignores(pod_topology_distribution, compiled);
   let (termination_grace_period, sup_termination_grace_period) = apply_ignores(termination_grace_period, compiled);
   let (docker_socket, sup_docker_socket) = apply_ignores(docker_socket, compiled);
   let (ingress_nginx_retirement, sup_ingress_nginx_retirement) = apply_ignores(ingress_nginx_retirement, compiled);

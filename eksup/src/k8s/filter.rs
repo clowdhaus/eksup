@@ -1,16 +1,12 @@
 //! Generic ignore-filter for workload-level findings.
 
-use crate::config::CompiledChecks;
-use crate::finding::WorkloadFinding;
+use crate::{config::CompiledChecks, finding::WorkloadFinding};
 
 /// Split findings into (kept, suppressed) based on ignore rules in `compiled`.
 ///
 /// A finding is suppressed when its `(name, namespace)` matches any selector
 /// in `compiled.all` or in `compiled.per_code[finding.code()]`.
-pub fn apply_ignores<T: WorkloadFinding>(
-  findings: Vec<T>,
-  compiled: &CompiledChecks,
-) -> (Vec<T>, Vec<T>) {
+pub fn apply_ignores<T: WorkloadFinding>(findings: Vec<T>, compiled: &CompiledChecks) -> (Vec<T>, Vec<T>) {
   let mut kept = Vec::with_capacity(findings.len());
   let mut suppressed = Vec::new();
 
@@ -35,8 +31,7 @@ pub fn apply_ignores<T: WorkloadFinding>(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::config::ChecksConfig;
-  use crate::finding::Code;
+  use crate::{config::ChecksConfig, finding::Code};
 
   #[derive(Debug, PartialEq)]
   struct TestFinding {
@@ -62,11 +57,7 @@ mod tests {
     }
   }
 
-  fn cfg(
-    all: Vec<(&str, &str)>,
-    k8s002: Vec<(&str, &str)>,
-    k8s003: Vec<(&str, &str)>,
-  ) -> ChecksConfig {
+  fn cfg(all: Vec<(&str, &str)>, k8s002: Vec<(&str, &str)>, k8s003: Vec<(&str, &str)>) -> ChecksConfig {
     let render = |v: Vec<(&str, &str)>| -> String {
       v.into_iter()
         .map(|(n, ns)| format!("      - name: \"{n}\"\n        namespace: \"{ns}\"\n"))
@@ -83,10 +74,7 @@ mod tests {
 
   #[test]
   fn empty_config_keeps_everything() {
-    let findings = vec![
-      finding("a", "ns", Code::K8S002),
-      finding("b", "ns", Code::K8S003),
-    ];
+    let findings = vec![finding("a", "ns", Code::K8S002), finding("b", "ns", Code::K8S003)];
     let config = ChecksConfig::default();
     let compiled = config.compiled().unwrap();
     let (kept, suppressed) = apply_ignores(findings, compiled);

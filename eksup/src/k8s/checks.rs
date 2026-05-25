@@ -519,10 +519,7 @@ impl WorkloadFinding for MissingPdb {
 
 /// K8S004 - Check if workloads have an associated PodDisruptionBudget with
 /// at least one of minAvailable or maxUnavailable configured
-pub fn pod_disruption_budgets(
-  resources: &[resources::StdResource],
-  pdbs: &[resources::StdPdb],
-) -> Vec<MissingPdb> {
+pub fn pod_disruption_budgets(resources: &[resources::StdResource], pdbs: &[resources::StdPdb]) -> Vec<MissingPdb> {
   let mut findings = Vec::new();
 
   for resource in resources {

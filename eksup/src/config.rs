@@ -233,25 +233,6 @@ impl K8s002Config {
   }
 }
 
-/// Configuration for the K8S004 PodDisruptionBudget check.
-///
-/// The `ignore` list uses workload names (Deployment, StatefulSet, etc.),
-/// not PDB names.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct K8s004Config {
-  /// Resources to ignore entirely (no finding emitted).
-  #[serde(default)]
-  pub ignore: Vec<ResourceSelector>,
-}
-
-impl K8s004Config {
-  /// Returns true if the resource should be checked (not ignored).
-  pub fn should_check(&self, name: &str, namespace: &str) -> bool {
-    !self.ignore.iter().any(|s| s.name == name && s.namespace == namespace)
-  }
-}
-
 impl Config {
   /// Validate configuration values after deserialization.
   fn validate(&self) -> Result<()> {
@@ -310,6 +291,9 @@ fn load_from(path: Option<&str>, base_dir: Option<&std::path::Path>) -> Result<C
 }
 
 #[cfg(test)]
+// Many tests `ChecksConfig::default()` then assign public fields, because the
+// private `compiled` OnceLock prevents a struct-literal `ChecksConfig { ... }`.
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
   use std::io::Write;
 
