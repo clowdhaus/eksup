@@ -59,6 +59,9 @@ Options:
       --config <CONFIG>
           Path to an eksup configuration file (default: .eksup.yaml in cwd)
 
+      --show-suppressed
+          Include findings suppressed by .eksup.yaml ignore rules
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -127,6 +130,8 @@ Options:
           Exclude recommendations from the output
       --config <CONFIG>
           Path to an eksup configuration file (default: .eksup.yaml in cwd)
+      --show-suppressed
+          Include findings suppressed by .eksup.yaml ignore rules
   -h, --help
           Print help
   -V, --version
