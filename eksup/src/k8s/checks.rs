@@ -603,7 +603,11 @@ pub trait K8sFindings {
   fn get_resource(&self) -> Resource;
 
   /// K8S002 - check if resources meet the configured minimum replicas
-  fn min_replicas(&self, config: &crate::config::K8s002Config) -> Option<MinReplicas>;
+  fn min_replicas(
+    &self,
+    config: &crate::config::K8s002Config,
+    compiled: &crate::config::CompiledChecks,
+  ) -> Option<MinReplicas>;
 
   /// K8S003 - check if resources contain minReadySeconds > 0
   fn min_ready_seconds(&self) -> Option<MinReadySeconds>;

@@ -219,29 +219,17 @@ pub struct ReplicaOverride {
 }
 
 impl K8s002Config {
-  /// Returns the effective minimum replica threshold for a given resource.
-  ///
-  /// - `None` if the resource is in the ignore list (no finding should be emitted).
-  /// - The override threshold if a matching override exists.
-  /// - The global `min_replicas` default otherwise.
-  ///
-  /// Ignore takes precedence over overrides.
-  pub fn effective_min_replicas(&self, name: &str, namespace: &str) -> Option<i32> {
-    // Check ignore list first
-    if self.ignore.iter().any(|s| s.name == name && s.namespace == namespace) {
-      return None;
-    }
-
-    // Check overrides
-    if let Some(ovr) = self
-      .overrides
+  /// Returns the effective minimum-replica threshold for a resource.
+  /// Glob-matches against `overrides`; first match wins. Falls back to the
+  /// global `min_replicas` default. The ignore list is NOT consulted here —
+  /// the post-construction filter (`apply_ignores`) handles that.
+  pub fn threshold_for(&self, name: &str, namespace: &str, compiled: &CompiledChecks) -> i32 {
+    compiled
+      .k8s002_overrides
       .iter()
-      .find(|o| o.name == name && o.namespace == namespace)
-    {
-      return Some(ovr.min_replicas);
-    }
-
-    Some(self.min_replicas)
+      .find(|(sel, _)| sel.matches(name, namespace))
+      .map(|(_, min)| *min)
+      .unwrap_or(self.min_replicas)
   }
 }
 
@@ -343,38 +331,30 @@ mod tests {
     assert_eq!(cfg.min_replicas, 2);
   }
 
-  // ── effective_min_replicas ──────────────────────────────────────────
+  // ── threshold_for ───────────────────────────────────────────────────
 
   #[test]
-  fn effective_min_replicas_global_default() {
-    let cfg = K8s002Config::default();
-    assert_eq!(cfg.effective_min_replicas("my-app", "default"), Some(2));
+  fn threshold_for_global_default() {
+    let cfg = ChecksConfig::default();
+    let compiled = cfg.compiled().unwrap();
+    assert_eq!(cfg.k8s002.threshold_for("my-app", "default", compiled), 2);
   }
 
   #[test]
-  fn effective_min_replicas_custom_global() {
-    let cfg = K8s002Config {
+  fn threshold_for_custom_global() {
+    let mut cfg = ChecksConfig::default();
+    cfg.k8s002 = K8s002Config {
       min_replicas: 5,
       ..Default::default()
     };
-    assert_eq!(cfg.effective_min_replicas("my-app", "default"), Some(5));
+    let compiled = cfg.compiled().unwrap();
+    assert_eq!(cfg.k8s002.threshold_for("my-app", "default", compiled), 5);
   }
 
   #[test]
-  fn effective_min_replicas_ignored() {
-    let cfg = K8s002Config {
-      ignore: vec![ResourceSelector {
-        name: "coredns".to_string(),
-        namespace: "kube-system".to_string(),
-      }],
-      ..Default::default()
-    };
-    assert_eq!(cfg.effective_min_replicas("coredns", "kube-system"), None);
-  }
-
-  #[test]
-  fn effective_min_replicas_override() {
-    let cfg = K8s002Config {
+  fn threshold_for_override() {
+    let mut cfg = ChecksConfig::default();
+    cfg.k8s002 = K8s002Config {
       overrides: vec![ReplicaOverride {
         name: "special-app".to_string(),
         namespace: "prod".to_string(),
@@ -382,29 +362,14 @@ mod tests {
       }],
       ..Default::default()
     };
-    assert_eq!(cfg.effective_min_replicas("special-app", "prod"), Some(10));
+    let compiled = cfg.compiled().unwrap();
+    assert_eq!(cfg.k8s002.threshold_for("special-app", "prod", compiled), 10);
   }
 
   #[test]
-  fn effective_min_replicas_ignore_takes_precedence_over_override() {
-    let cfg = K8s002Config {
-      ignore: vec![ResourceSelector {
-        name: "special-app".to_string(),
-        namespace: "prod".to_string(),
-      }],
-      overrides: vec![ReplicaOverride {
-        name: "special-app".to_string(),
-        namespace: "prod".to_string(),
-        min_replicas: 10,
-      }],
-      ..Default::default()
-    };
-    assert_eq!(cfg.effective_min_replicas("special-app", "prod"), None);
-  }
-
-  #[test]
-  fn effective_min_replicas_no_match_falls_through_to_global() {
-    let cfg = K8s002Config {
+  fn threshold_for_no_match_falls_through_to_global() {
+    let mut cfg = ChecksConfig::default();
+    cfg.k8s002 = K8s002Config {
       min_replicas: 3,
       ignore: vec![ResourceSelector {
         name: "other".to_string(),
@@ -416,37 +381,48 @@ mod tests {
         min_replicas: 99,
       }],
     };
-    assert_eq!(cfg.effective_min_replicas("my-app", "default"), Some(3));
-  }
-
-  // ── K8s004Config::should_check ─────────────────────────────────────
-
-  #[test]
-  fn k8s004_should_check_default() {
-    let cfg = K8s004Config::default();
-    assert!(cfg.should_check("my-app", "default"));
+    let compiled = cfg.compiled().unwrap();
+    assert_eq!(cfg.k8s002.threshold_for("my-app", "default", compiled), 3);
   }
 
   #[test]
-  fn k8s004_should_check_ignored() {
-    let cfg = K8s004Config {
-      ignore: vec![ResourceSelector {
-        name: "coredns".to_string(),
-        namespace: "kube-system".to_string(),
+  fn threshold_for_override_glob_match() {
+    let mut cfg = ChecksConfig::default();
+    cfg.k8s002 = K8s002Config {
+      min_replicas: 2,
+      ignore: vec![],
+      overrides: vec![ReplicaOverride {
+        name: "web-*".to_string(),
+        namespace: "prod".to_string(),
+        min_replicas: 5,
       }],
     };
-    assert!(!cfg.should_check("coredns", "kube-system"));
+    let compiled = cfg.compiled().unwrap();
+    assert_eq!(cfg.k8s002.threshold_for("web-a", "prod", compiled), 5);
+    assert_eq!(cfg.k8s002.threshold_for("api", "prod", compiled), 2);
   }
 
   #[test]
-  fn k8s004_should_check_not_ignored() {
-    let cfg = K8s004Config {
-      ignore: vec![ResourceSelector {
-        name: "coredns".to_string(),
-        namespace: "kube-system".to_string(),
-      }],
+  fn threshold_for_first_override_match_wins() {
+    let mut cfg = ChecksConfig::default();
+    cfg.k8s002 = K8s002Config {
+      min_replicas: 2,
+      ignore: vec![],
+      overrides: vec![
+        ReplicaOverride {
+          name: "web-*".to_string(),
+          namespace: "prod".to_string(),
+          min_replicas: 5,
+        },
+        ReplicaOverride {
+          name: "*-a".to_string(),
+          namespace: "prod".to_string(),
+          min_replicas: 9,
+        },
+      ],
     };
-    assert!(cfg.should_check("other-app", "default"));
+    let compiled = cfg.compiled().unwrap();
+    assert_eq!(cfg.k8s002.threshold_for("web-a", "prod", compiled), 5);
   }
 
   // ── YAML deserialization ───────────────────────────────────────────

@@ -66,14 +66,14 @@ pub async fn get_kubernetes_findings(
   let pdbs = k8s.get_pod_disruption_budgets().await?;
 
   let version_skew = checks::version_skew(&nodes, control_plane_minor);
+  let compiled = checks_config.compiled()?;
 
-  // K8S002: still uses the existing s.min_replicas(&K8s002Config) which
-  // pre-filters by ignore. Task 6 refactors this to threshold_for + no ignore.
-  // For this commit, ignored K8S002 resources still vanish at construction; they
-  // appear in KubernetesSuppressed only after Task 6 lands.
+  // K8S002 now always constructs a finding when below threshold; the
+  // post-construction filter (`apply_ignores`) handles ignored resources, so
+  // they appear in the `KubernetesSuppressed` bucket below.
   let min_replicas: Vec<checks::MinReplicas> = resources
     .iter()
-    .filter_map(|s| s.min_replicas(&checks_config.k8s002))
+    .filter_map(|s| s.min_replicas(&checks_config.k8s002, compiled))
     .collect();
 
   let min_ready_seconds: Vec<checks::MinReadySeconds> =
@@ -104,7 +104,6 @@ pub async fn get_kubernetes_findings(
   // Apply ignores to the 8 workload-level finding Vecs. Cluster-level Vecs
   // (version_skew, kube_proxy_version_skew, kube_proxy_ipvs_mode) skip the
   // filter — their finding structs don't impl WorkloadFinding.
-  let compiled = checks_config.compiled()?;
   let (min_replicas, sup_min_replicas) = apply_ignores(min_replicas, compiled);
   let (min_ready_seconds, sup_min_ready_seconds) = apply_ignores(min_ready_seconds, compiled);
   let (readiness_probe, sup_readiness_probe) = apply_ignores(readiness_probe, compiled);
