@@ -13,6 +13,12 @@ pub struct Config {
 }
 
 /// Per-check configuration knobs.
+///
+/// **To add a new workload check (e.g., K8S014)**: update all four of (a) a new
+/// `pub k8sNNN: WorkloadCheckConfig` field below, (b) the manual `Clone` impl
+/// to copy the new field, (c) the tuple array in `build_compiled()`, (d) an
+/// `impl WorkloadFinding` block in `eksup/src/k8s/checks.rs`. The compiler
+/// will not catch missing (b) or (c) — both silently drop the new field.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChecksConfig {
@@ -741,7 +747,7 @@ checks:
   }
 
   #[test]
-  fn validate_compiles_globs_lazily_and_errors_on_invalid() {
+  fn validate_rejects_invalid_globs() {
     let yaml = r#"
 checks:
   K8S003:
