@@ -117,7 +117,7 @@ macro_rules! define_codes {
     from: $from:expr,
     until: $until:expr $(,)?
   }),* $(,)?) => {
-    #[derive(Clone, Debug, Serialize, Deserialize)]
+    #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub enum Code { $($variant,)* }
 
     impl std::fmt::Display for Code {

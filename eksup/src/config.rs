@@ -1,5 +1,9 @@
+use std::{collections::HashMap, sync::OnceLock};
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+
+use crate::finding::Code;
 
 /// Top-level configuration loaded from `.eksup.yaml` or an explicit path.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -9,13 +13,88 @@ pub struct Config {
 }
 
 /// Per-check configuration knobs.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ChecksConfig {
+  #[serde(default)]
+  pub all: WorkloadCheckConfig,
+
   #[serde(default, rename = "K8S002")]
   pub k8s002: K8s002Config,
 
+  #[serde(default, rename = "K8S003")]
+  pub k8s003: WorkloadCheckConfig,
+
   #[serde(default, rename = "K8S004")]
-  pub k8s004: K8s004Config,
+  pub k8s004: WorkloadCheckConfig,
+
+  #[serde(default, rename = "K8S005")]
+  pub k8s005: WorkloadCheckConfig,
+
+  #[serde(default, rename = "K8S006")]
+  pub k8s006: WorkloadCheckConfig,
+
+  #[serde(default, rename = "K8S007")]
+  pub k8s007: WorkloadCheckConfig,
+
+  #[serde(default, rename = "K8S008")]
+  pub k8s008: WorkloadCheckConfig,
+
+  #[serde(default, rename = "K8S013")]
+  pub k8s013: WorkloadCheckConfig,
+
+  // K8S012 (KubeProxyIpvsMode) is intentionally absent — its finding type has
+  // no `resource` field, so name+namespace ignore doesn't apply.
+  #[serde(skip)]
+  compiled: OnceLock<CompiledChecks>,
+}
+
+// Manual Clone because OnceLock doesn't derive Clone. Cache resets; the clone
+// rebuilds on first compiled() call.
+impl Clone for ChecksConfig {
+  fn clone(&self) -> Self {
+    Self {
+      all: self.all.clone(),
+      k8s002: self.k8s002.clone(),
+      k8s003: self.k8s003.clone(),
+      k8s004: self.k8s004.clone(),
+      k8s005: self.k8s005.clone(),
+      k8s006: self.k8s006.clone(),
+      k8s007: self.k8s007.clone(),
+      k8s008: self.k8s008.clone(),
+      k8s013: self.k8s013.clone(),
+      compiled: OnceLock::new(),
+    }
+  }
+}
+
+/// Shared shape for every workload check that only needs ignore rules.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkloadCheckConfig {
+  #[serde(default)]
+  pub ignore: Vec<ResourceSelector>,
+}
+
+/// A `ResourceSelector` with its name/namespace patterns compiled into globset matchers.
+#[derive(Debug)]
+pub struct CompiledSelector {
+  name: globset::GlobMatcher,
+  namespace: globset::GlobMatcher,
+}
+
+impl CompiledSelector {
+  pub fn matches(&self, name: &str, namespace: &str) -> bool {
+    self.name.is_match(name) && self.namespace.is_match(namespace)
+  }
+}
+
+/// Aggregated compiled selectors for the run.
+#[derive(Debug)]
+pub struct CompiledChecks {
+  pub all: Vec<CompiledSelector>,
+  pub per_code: HashMap<Code, Vec<CompiledSelector>>,
+  pub k8s002_overrides: Vec<(CompiledSelector, i32)>,
 }
 
 /// Configuration for the K8S002 minimum-replicas check.
@@ -55,6 +134,73 @@ impl Default for K8s002Config {
 pub struct ResourceSelector {
   pub name: String,
   pub namespace: String,
+}
+
+impl ResourceSelector {
+  pub fn compile(&self) -> Result<CompiledSelector> {
+    let name = globset::Glob::new(&self.name)
+      .with_context(|| format!("Invalid name glob: {}", self.name))?
+      .compile_matcher();
+    let namespace = globset::Glob::new(&self.namespace)
+      .with_context(|| format!("Invalid namespace glob: {}", self.namespace))?
+      .compile_matcher();
+    Ok(CompiledSelector { name, namespace })
+  }
+}
+
+impl ChecksConfig {
+  pub fn compiled(&self) -> Result<&CompiledChecks> {
+    if let Some(c) = self.compiled.get() {
+      return Ok(c);
+    }
+    let built = self.build_compiled()?;
+    Ok(self.compiled.get_or_init(|| built))
+  }
+
+  fn build_compiled(&self) -> Result<CompiledChecks> {
+    let all = self
+      .all
+      .ignore
+      .iter()
+      .map(|s| s.compile())
+      .collect::<Result<Vec<_>>>()?;
+
+    let mut per_code = HashMap::new();
+    for (code, selectors) in [
+      (Code::K8S002, &self.k8s002.ignore),
+      (Code::K8S003, &self.k8s003.ignore),
+      (Code::K8S004, &self.k8s004.ignore),
+      (Code::K8S005, &self.k8s005.ignore),
+      (Code::K8S006, &self.k8s006.ignore),
+      (Code::K8S007, &self.k8s007.ignore),
+      (Code::K8S008, &self.k8s008.ignore),
+      (Code::K8S013, &self.k8s013.ignore),
+    ] {
+      let compiled = selectors.iter().map(|s| s.compile()).collect::<Result<Vec<_>>>()?;
+      if !compiled.is_empty() {
+        per_code.insert(code, compiled);
+      }
+    }
+
+    let k8s002_overrides = self
+      .k8s002
+      .overrides
+      .iter()
+      .map(|o| {
+        let sel = ResourceSelector {
+          name: o.name.clone(),
+          namespace: o.namespace.clone(),
+        };
+        Ok((sel.compile()?, o.min_replicas))
+      })
+      .collect::<Result<Vec<_>>>()?;
+
+    Ok(CompiledChecks {
+      all,
+      per_code,
+      k8s002_overrides,
+    })
+  }
 }
 
 /// Per-resource override for the minimum replica threshold.
@@ -131,6 +277,7 @@ impl Config {
         );
       }
     }
+    self.checks.compiled()?;
     Ok(())
   }
 }
@@ -459,5 +606,173 @@ checks:
     .unwrap();
     let result = load_from(Some(path.to_str().unwrap()), None);
     assert!(result.is_err(), "override min_replicas: 0 should be rejected");
+  }
+
+  // ── New: WorkloadCheckConfig + glob compilation ──────────────────
+
+  #[test]
+  fn workload_check_config_default_empty() {
+    let cfg = WorkloadCheckConfig::default();
+    assert!(cfg.ignore.is_empty());
+  }
+
+  #[test]
+  fn resource_selector_compile_literal() {
+    let sel = ResourceSelector {
+      name: "my-app".to_string(),
+      namespace: "default".to_string(),
+    };
+    let compiled = sel.compile().unwrap();
+    assert!(compiled.matches("my-app", "default"));
+    assert!(!compiled.matches("other-app", "default"));
+    assert!(!compiled.matches("my-app", "other-ns"));
+  }
+
+  #[test]
+  fn resource_selector_compile_glob() {
+    let sel = ResourceSelector {
+      name: "preview-*".to_string(),
+      namespace: "*-dev".to_string(),
+    };
+    let compiled = sel.compile().unwrap();
+    assert!(compiled.matches("preview-foo", "team-a-dev"));
+    assert!(compiled.matches("preview-bar", "team-b-dev"));
+    assert!(!compiled.matches("prod-foo", "team-a-dev"));
+    assert!(!compiled.matches("preview-foo", "production"));
+  }
+
+  #[test]
+  fn resource_selector_compile_brace_expansion() {
+    let sel = ResourceSelector {
+      name: "{web,api}-*".to_string(),
+      namespace: "prod".to_string(),
+    };
+    let compiled = sel.compile().unwrap();
+    assert!(compiled.matches("web-a", "prod"));
+    assert!(compiled.matches("api-b", "prod"));
+    assert!(!compiled.matches("worker-a", "prod"));
+  }
+
+  #[test]
+  fn resource_selector_compile_invalid_glob_errors() {
+    let sel = ResourceSelector {
+      name: "[unclosed".to_string(),
+      namespace: "default".to_string(),
+    };
+    let err = sel.compile().unwrap_err();
+    assert!(err.to_string().contains("Invalid name glob"));
+  }
+
+  #[test]
+  fn checks_config_default_includes_all_workload_codes() {
+    let cfg = ChecksConfig::default();
+    assert!(cfg.all.ignore.is_empty());
+    assert!(cfg.k8s003.ignore.is_empty());
+    assert!(cfg.k8s005.ignore.is_empty());
+    assert!(cfg.k8s006.ignore.is_empty());
+    assert!(cfg.k8s007.ignore.is_empty());
+    assert!(cfg.k8s008.ignore.is_empty());
+    assert!(cfg.k8s013.ignore.is_empty());
+  }
+
+  #[test]
+  fn deserialize_all_block() {
+    let yaml = r#"
+checks:
+  all:
+    ignore:
+      - name: "*"
+        namespace: "*-dev*"
+"#;
+    let cfg: Config = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(cfg.checks.all.ignore.len(), 1);
+    assert_eq!(cfg.checks.all.ignore[0].name, "*");
+    assert_eq!(cfg.checks.all.ignore[0].namespace, "*-dev*");
+  }
+
+  #[test]
+  fn deserialize_k8s003_through_k8s013() {
+    let yaml = r#"
+checks:
+  K8S003: { ignore: [{ name: "a", namespace: "x" }] }
+  K8S005: { ignore: [{ name: "b", namespace: "y" }] }
+  K8S006: { ignore: [{ name: "c", namespace: "z" }] }
+  K8S007: { ignore: [{ name: "d", namespace: "w" }] }
+  K8S008: { ignore: [{ name: "e", namespace: "v" }] }
+  K8S013: { ignore: [{ name: "g", namespace: "t" }] }
+"#;
+    let cfg: Config = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(cfg.checks.k8s003.ignore[0].name, "a");
+    assert_eq!(cfg.checks.k8s005.ignore[0].name, "b");
+    assert_eq!(cfg.checks.k8s006.ignore[0].name, "c");
+    assert_eq!(cfg.checks.k8s007.ignore[0].name, "d");
+    assert_eq!(cfg.checks.k8s008.ignore[0].name, "e");
+    assert_eq!(cfg.checks.k8s013.ignore[0].name, "g");
+  }
+
+  #[test]
+  fn k8s012_is_not_a_config_field() {
+    // K8S012 (KubeProxyIpvsMode) is cluster-level — has no resource field.
+    let yaml = r#"
+checks:
+  K8S012: { ignore: [{ name: "kube-proxy", namespace: "kube-system" }] }
+"#;
+    let result: Result<Config, _> = serde_yaml::from_str(yaml);
+    assert!(
+      result.is_err(),
+      "K8S012 in checks: should be rejected (cluster-level check)"
+    );
+  }
+
+  #[test]
+  fn deserialize_unknown_check_code_rejected() {
+    let yaml = r#"
+checks:
+  AWS001:
+    ignore:
+      - name: foo
+        namespace: bar
+"#;
+    let result: Result<Config, _> = serde_yaml::from_str(yaml);
+    assert!(
+      result.is_err(),
+      "cluster-level code AWS001 in checks: should be rejected"
+    );
+  }
+
+  #[test]
+  fn validate_compiles_globs_lazily_and_errors_on_invalid() {
+    let yaml = r#"
+checks:
+  K8S003:
+    ignore:
+      - name: "[unclosed"
+        namespace: "default"
+"#;
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("bad-glob.yaml");
+    std::fs::write(&path, yaml).unwrap();
+    let result = load_from(Some(path.to_str().unwrap()), None);
+    assert!(result.is_err(), "invalid glob in K8S003.ignore should error at load");
+  }
+
+  #[test]
+  fn compiled_checks_caches_all_codes() {
+    let yaml = r#"
+checks:
+  all:
+    ignore: [{ name: "*-tmp", namespace: "default" }]
+  K8S002:
+    ignore: [{ name: "k8s002-app", namespace: "default" }]
+  K8S013:
+    ignore: [{ name: "ingress-*", namespace: "ingress" }]
+"#;
+    let cfg: Config = serde_yaml::from_str(yaml).unwrap();
+    cfg.validate().unwrap();
+    let compiled = cfg.checks.compiled().unwrap();
+    assert_eq!(compiled.all.len(), 1);
+    assert!(compiled.per_code.contains_key(&Code::K8S002));
+    assert!(compiled.per_code.contains_key(&Code::K8S013));
+    assert!(!compiled.per_code.contains_key(&Code::K8S003));
   }
 }

@@ -173,6 +173,12 @@ pub async fn analyze(
 
   let cluster_findings = eks::get_cluster_findings(cluster)?;
 
+  // Bridge: K8S004 still uses the legacy `K8s004Config` shape; Batch B unifies on
+  // `WorkloadCheckConfig`. Translate by cloning the ignore list.
+  let k8s004_legacy = crate::config::K8s004Config {
+    ignore: config.checks.k8s004.ignore.clone(),
+  };
+
   let (
     subnet_findings,
     addon_findings,
@@ -189,7 +195,7 @@ pub async fn analyze(
       control_plane_minor,
       target_minor,
       &config.checks.k8s002,
-      &config.checks.k8s004
+      &k8s004_legacy
     ),
     eks::get_service_limit_findings(aws),
     eks::get_insights_findings(aws, cluster_name),
