@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
+# Exclude xtask from `cargo release` workspace bumps. xtask is internal build
+# infrastructure, not a shipped artifact — its version doesn't track eksup's.
+[package.metadata.release]
+release = false
+
 [dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }
 eksup = { path = "../eksup" }

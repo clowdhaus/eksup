@@ -5,130 +5,224 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
 jobs:
-  changelog:
-    name: create-release
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    outputs:
-      eksup_version: ${{ env.EKSUP_VERSION }}
-      release_body: ${{ steps.git-cliff.outputs.content }}
+  validate:
+    name: Validate version
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: Get the release version from the tag
-        shell: bash
-        if: env.EKSUP_VERSION == ''
-        run: |
-          echo "EKSUP_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-          echo "version is: ${{ env.EKSUP_VERSION }}"
-
-      - name: Generate a changelog
-        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
-        id: git-cliff
-        with:
-          config: cliff.toml
-          args: -vv --latest --strip header
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Check tag matches Cargo.toml version
         env:
-          OUTPUT: CHANGES.md
-          GITHUB_REPO: ${{ github.repository }}
+          TAG_VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${TAG_VERSION#v}"
+          CARGO_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' eksup/Cargo.toml | head -1)"
+          if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error file=eksup/Cargo.toml::version is ${CARGO_VERSION}, tag is v${TAG_VERSION}"
+            exit 1
+          fi
 
-  build-release:
-    name: build-release
-    needs: ['changelog']
-    permissions:
-      contents: write
-    runs-on: ${{ matrix.os }}
-    env:
-      # For some builds, we use cross to test on 32-bit and big-endian systems
-      CARGO: cargo
-      # When CARGO is set to CROSS, this is set to `--target matrix.target`
-      TARGET_FLAGS: ""
-      # When CARGO is set to CROSS, TARGET_DIR includes matrix.target
-      TARGET_DIR: ./target
-      # Emit backtraces on panics.
-      RUST_BACKTRACE: 1
+  build-unix:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    needs: validate
     strategy:
       matrix:
-        build: [linux, linux-arm, macos, macos-arm, win-msvc]
         include:
-        - build: linux
-          os: ubuntu-latest
-          rust: nightly
-          target: x86_64-unknown-linux-gnu
-        - build: linux-arm
-          os: ubuntu-latest
-          rust: nightly
-          target: aarch64-unknown-linux-gnu
-        - build: macos
-          os: macos-15-large
-          rust: nightly
-          target: x86_64-apple-darwin
-        - build: macos-arm
-          os: macos-15
-          rust: nightly
-          target: aarch64-apple-darwin
-        - build: win-msvc
-          os: windows-2025
-          rust: nightly
-          target: x86_64-pc-windows-msvc
-
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            runner: macos-13
+          - target: aarch64-apple-darwin
+            runner: macos-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: release-${{ matrix.target }}
+      - name: Build
+        run: cargo build --package eksup --release --target ${{ matrix.target }} --locked
+      - name: Build archive
+        env:
+          STAGING: eksup-${{ github.ref_name }}-${{ matrix.target }}
+        run: |
+          mkdir -p "$STAGING"
+          cp {README.md,LICENSE} "$STAGING/"
+          cp -r completions man "$STAGING/"
+          cp "target/${{ matrix.target }}/release/eksup" "$STAGING/"
+          tar czf "$STAGING.tar.gz" "$STAGING"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: eksup-${{ github.ref_name }}-${{ matrix.target }}
+          path: eksup-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
-      with:
-        toolchain: ${{ matrix.rust }}
-        target: ${{ matrix.target }}
+  build-windows:
+    name: Build Windows (x86_64)
+    runs-on: windows-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: release-windows
+      - name: Build
+        run: cargo build --package eksup --release --target x86_64-pc-windows-msvc --locked
+      - name: Build archive
+        shell: bash
+        env:
+          STAGING: eksup-${{ github.ref_name }}-x86_64-pc-windows-msvc
+        run: |
+          mkdir -p "$STAGING"
+          cp {README.md,LICENSE} "$STAGING/"
+          cp -r completions man "$STAGING/"
+          cp "target/x86_64-pc-windows-msvc/release/eksup.exe" "$STAGING/"
+          7z a "$STAGING.zip" "$STAGING"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: eksup-${{ github.ref_name }}-x86_64-pc-windows-msvc
+          path: eksup-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip
 
-    - name: Use Cross
-      shell: bash
-      run: |
-        cargo install cross
-        echo "CARGO=cross" >> $GITHUB_ENV
-        echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
-        echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-24.04
+    needs: [build-unix, build-windows]
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum eksup-* > sha256sums.txt
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            artifacts/eksup-*.tar.gz
+            artifacts/eksup-*.zip
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
+        id: cliff
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+      - name: Create release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          body: ${{ steps.cliff.outputs.content }}
+          files: |
+            artifacts/eksup-*.tar.gz
+            artifacts/eksup-*.zip
+            artifacts/sha256sums.txt
 
-    - name: Show command used for Cargo
-      run: |
-        echo "cargo command is: ${{ env.CARGO }}"
-        echo "target flag is: ${{ env.TARGET_FLAGS }}"
-        echo "target dir is: ${{ env.TARGET_DIR }}"
+  homebrew:
+    name: Homebrew tap
+    runs-on: ubuntu-24.04
+    needs: release
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: clowdhaus/homebrew-taps
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Download checksums from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: gh release download "$TAG" --repo "$REPO" --pattern sha256sums.txt
+      - name: Render formula
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          macos_x86=$(awk -v t="eksup-${TAG}-x86_64-apple-darwin.tar.gz" '$2 == t { print $1 }' sha256sums.txt)
+          macos_arm=$(awk -v t="eksup-${TAG}-aarch64-apple-darwin.tar.gz" '$2 == t { print $1 }' sha256sums.txt)
+          linux_x86=$(awk -v t="eksup-${TAG}-x86_64-unknown-linux-gnu.tar.gz" '$2 == t { print $1 }' sha256sums.txt)
+          linux_arm=$(awk -v t="eksup-${TAG}-aarch64-unknown-linux-gnu.tar.gz" '$2 == t { print $1 }' sha256sums.txt)
+          for sha in "$macos_x86" "$macos_arm" "$linux_x86" "$linux_arm"; do
+            [ -n "$sha" ] || { echo "missing sha in sha256sums.txt" >&2; exit 1; }
+          done
+          cat > Formula/eksup.rb <<EOF
+          class Eksup < Formula
+            desc "A CLI to aid in upgrading Amazon EKS clusters"
+            homepage "https://github.com/clowdhaus/eksup"
+            version "${VERSION}"
+            license "Apache-2.0"
 
-    - name: Build release binary
-      run: ${{ env.CARGO }} build --package eksup --verbose --release ${{ env.TARGET_FLAGS }}
+            if OS.mac? && Hardware::CPU.arm?
+              url "https://github.com/clowdhaus/eksup/releases/download/v#{version}/eksup-v#{version}-aarch64-apple-darwin.tar.gz"
+              sha256 "${macos_arm}"
+            end
 
-    - name: Build archive
-      shell: bash
-      run: |
-        STAGING="eksup-${{ needs.changelog.outputs.eksup_version }}-${{ matrix.target }}"
-        mkdir -p "${STAGING}"
+            if OS.mac? && Hardware::CPU.intel?
+              url "https://github.com/clowdhaus/eksup/releases/download/v#{version}/eksup-v#{version}-x86_64-apple-darwin.tar.gz"
+              sha256 "${macos_x86}"
+            end
 
-        cp {README.md,LICENSE} "${STAGING}/"
-        cp -r completions man "${STAGING}/"
+            if OS.linux? && Hardware::CPU.arm?
+              url "https://github.com/clowdhaus/eksup/releases/download/v#{version}/eksup-v#{version}-aarch64-unknown-linux-gnu.tar.gz"
+              sha256 "${linux_arm}"
+            end
 
-        if [ "${{ matrix.os }}" = "windows-2025" ]; then
-          cp "target/${{ matrix.target }}/release/eksup.exe" "${STAGING}/"
-          7z a "${STAGING}.zip" "${STAGING}"
-          echo "ASSET=${STAGING}.zip" >> $GITHUB_ENV
-        else
-          cp "target/${{ matrix.target }}/release/eksup" "${STAGING}/"
-          tar czf "${STAGING}.tar.gz" "${STAGING}"
-          echo "ASSET=${STAGING}.tar.gz" >> $GITHUB_ENV
-        fi
+            if OS.linux? && Hardware::CPU.intel?
+              url "https://github.com/clowdhaus/eksup/releases/download/v#{version}/eksup-v#{version}-x86_64-unknown-linux-gnu.tar.gz"
+              sha256 "${linux_x86}"
+            end
 
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # 2.11.5
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ${{ env.ASSET }}
-        asset_name: ${{ env.ASSET }}
-        tag: ${{ github.ref }}
-        overwrite: true
-        body: ${{ needs.changelog.outputs.release_body }}
+            def install
+              bin.install "eksup"
+              bash_completion.install "completions/eksup.bash" => "eksup"
+              zsh_completion.install "completions/_eksup"
+              fish_completion.install "completions/eksup.fish"
+              man1.install "man/eksup.1"
+            end
+          end
+          EOF
+          rm sha256sums.txt
+      - name: Commit and push
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/eksup.rb
+          if git diff --cached --quiet; then
+            echo "Formula unchanged, skipping commit"
+            exit 0
+          fi
+          git commit -m "eksup: ${VERSION}"
+          git push
