@@ -6,9 +6,7 @@ on:
       - "v*.*.*"
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -35,8 +33,8 @@ jobs:
             exit 1
           fi
 
-  build-linux:
-    name: Build Linux (${{ matrix.target }})
+  build-unix:
+    name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
     needs: validate
     strategy:
@@ -46,38 +44,6 @@ jobs:
             runner: ubuntu-24.04
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
-        with:
-          toolchain: stable
-          targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-        with:
-          key: release-${{ matrix.target }}
-      - name: Build
-        run: cargo build --package eksup --release --target ${{ matrix.target }} --locked
-      - name: Build archive
-        env:
-          STAGING: eksup-${{ github.ref_name }}-${{ matrix.target }}
-        run: |
-          mkdir -p "$STAGING"
-          cp {README.md,LICENSE} "$STAGING/"
-          cp -r completions man "$STAGING/"
-          cp "target/${{ matrix.target }}/release/eksup" "$STAGING/"
-          tar czf "$STAGING.tar.gz" "$STAGING"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: eksup-${{ github.ref_name }}-${{ matrix.target }}
-          path: eksup-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
-
-  build-macos:
-    name: Build macOS (${{ matrix.target }})
-    runs-on: ${{ matrix.runner }}
-    needs: validate
-    strategy:
-      matrix:
-        include:
           - target: x86_64-apple-darwin
             runner: macos-13
           - target: aarch64-apple-darwin
@@ -140,7 +106,11 @@ jobs:
   release:
     name: GitHub Release
     runs-on: ubuntu-24.04
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-unix, build-windows]
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
