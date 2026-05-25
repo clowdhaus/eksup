@@ -82,7 +82,7 @@ _eksup() {
             return 0
             ;;
         eksup__subcmd__analyze)
-            opts="-c -r -p -f -o -t -v -q -h -V --cluster --region --profile --format --output --target-version --ignore-recommended --config --verbose --quiet --help --version"
+            opts="-c -r -p -f -o -t -v -q -h -V --cluster --region --profile --format --output --target-version --ignore-recommended --config --show-suppressed --verbose --quiet --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -218,7 +218,7 @@ _eksup() {
             return 0
             ;;
         eksup__subcmd__create__subcmd__playbook)
-            opts="-c -r -p -f -t -v -q -h -V --cluster --region --profile --filename --target-version --ignore-recommended --config --verbose --quiet --help --version"
+            opts="-c -r -p -f -t -v -q -h -V --cluster --region --profile --filename --target-version --ignore-recommended --config --show-suppressed --verbose --quiet --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

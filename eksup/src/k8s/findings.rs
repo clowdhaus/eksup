@@ -22,20 +22,60 @@ pub struct KubernetesFindings {
   pub pod_disruption_budgets: Vec<checks::MissingPdb>,
 }
 
+/// Findings that were dropped by the ignore filter — same shape as
+/// `KubernetesFindings`, minus the cluster-level checks (version_skew,
+/// kube_proxy_version_skew, kube_proxy_ipvs_mode) which the filter never
+/// touches. The wrapper struct always serializes (no `skip_serializing_if`
+/// anywhere) so the JSON `suppressed:` key is always present.
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct KubernetesSuppressed {
+  pub min_replicas: Vec<checks::MinReplicas>,
+  pub min_ready_seconds: Vec<checks::MinReadySeconds>,
+  pub readiness_probe: Vec<checks::Probe>,
+  pub pod_topology_distribution: Vec<checks::PodTopologyDistribution>,
+  pub termination_grace_period: Vec<checks::TerminationGracePeriod>,
+  pub docker_socket: Vec<checks::DockerSocket>,
+  pub ingress_nginx_retirement: Vec<checks::IngressNginxRetirement>,
+  pub pod_disruption_budgets: Vec<checks::MissingPdb>,
+}
+
+impl KubernetesSuppressed {
+  pub fn total(&self) -> usize {
+    self.min_replicas.len()
+      + self.min_ready_seconds.len()
+      + self.readiness_probe.len()
+      + self.pod_topology_distribution.len()
+      + self.termination_grace_period.len()
+      + self.docker_socket.len()
+      + self.ingress_nginx_retirement.len()
+      + self.pod_disruption_budgets.len()
+  }
+}
+
 pub async fn get_kubernetes_findings(
   k8s: &impl K8sClients,
   control_plane_minor: i32,
   target_minor: i32,
-  k8s002_config: &crate::config::K8s002Config,
-  k8s004_config: &crate::config::K8s004Config,
-) -> Result<KubernetesFindings> {
+  checks_config: &crate::config::ChecksConfig,
+) -> Result<(KubernetesFindings, KubernetesSuppressed)> {
+  use crate::k8s::filter::apply_ignores;
+
   let resources = k8s.get_resources().await?;
   let nodes = k8s.get_nodes().await?;
   let kube_proxy_config = k8s.get_configmap("kube-system", "kube-proxy-config").await?;
   let pdbs = k8s.get_pod_disruption_budgets().await?;
 
   let version_skew = checks::version_skew(&nodes, control_plane_minor);
-  let min_replicas: Vec<checks::MinReplicas> = resources.iter().filter_map(|s| s.min_replicas(k8s002_config)).collect();
+  let compiled = checks_config.compiled()?;
+
+  // K8S002 now always constructs a finding when below threshold; the
+  // post-construction filter (`apply_ignores`) handles ignored resources, so
+  // they appear in the `KubernetesSuppressed` bucket below.
+  let min_replicas: Vec<checks::MinReplicas> = resources
+    .iter()
+    .filter_map(|s| s.min_replicas(&checks_config.k8s002, compiled))
+    .collect();
+
   let min_ready_seconds: Vec<checks::MinReadySeconds> =
     resources.iter().filter_map(|s| s.min_ready_seconds()).collect();
   let pod_topology_distribution: Vec<checks::PodTopologyDistribution> =
@@ -59,19 +99,53 @@ pub async fn get_kubernetes_findings(
   let kube_proxy_version_skew = checks::kube_proxy_version_skew(&resources, control_plane_minor)?;
   let kube_proxy_ipvs_mode = checks::kube_proxy_ipvs_mode(kube_proxy_config.as_ref(), target_minor)?;
   let ingress_nginx_retirement = checks::ingress_nginx_retirement(&resources, target_minor)?;
-  let pod_disruption_budgets = checks::pod_disruption_budgets(&resources, &pdbs, k8s004_config);
+  let pod_disruption_budgets = checks::pod_disruption_budgets(&resources, &pdbs);
 
-  Ok(KubernetesFindings {
-    version_skew,
-    min_replicas,
-    min_ready_seconds,
-    readiness_probe,
-    pod_topology_distribution,
-    termination_grace_period,
-    docker_socket,
-    kube_proxy_version_skew,
-    kube_proxy_ipvs_mode,
-    ingress_nginx_retirement,
-    pod_disruption_budgets,
-  })
+  // Apply ignores to the 8 workload-level finding Vecs. Cluster-level Vecs
+  // (version_skew, kube_proxy_version_skew, kube_proxy_ipvs_mode) skip the
+  // filter — their finding structs don't impl WorkloadFinding.
+  let (min_replicas, sup_min_replicas) = apply_ignores(min_replicas, compiled);
+  let (min_ready_seconds, sup_min_ready_seconds) = apply_ignores(min_ready_seconds, compiled);
+  let (readiness_probe, sup_readiness_probe) = apply_ignores(readiness_probe, compiled);
+  let (pod_topology_distribution, sup_pod_topology_distribution) = apply_ignores(pod_topology_distribution, compiled);
+  let (termination_grace_period, sup_termination_grace_period) = apply_ignores(termination_grace_period, compiled);
+  let (docker_socket, sup_docker_socket) = apply_ignores(docker_socket, compiled);
+  let (ingress_nginx_retirement, sup_ingress_nginx_retirement) = apply_ignores(ingress_nginx_retirement, compiled);
+  let (pod_disruption_budgets, sup_pod_disruption_budgets) = apply_ignores(pod_disruption_budgets, compiled);
+
+  Ok((
+    KubernetesFindings {
+      version_skew,
+      min_replicas,
+      min_ready_seconds,
+      readiness_probe,
+      pod_topology_distribution,
+      termination_grace_period,
+      docker_socket,
+      kube_proxy_version_skew,
+      kube_proxy_ipvs_mode,
+      ingress_nginx_retirement,
+      pod_disruption_budgets,
+    },
+    KubernetesSuppressed {
+      min_replicas: sup_min_replicas,
+      min_ready_seconds: sup_min_ready_seconds,
+      readiness_probe: sup_readiness_probe,
+      pod_topology_distribution: sup_pod_topology_distribution,
+      termination_grace_period: sup_termination_grace_period,
+      docker_socket: sup_docker_socket,
+      ingress_nginx_retirement: sup_ingress_nginx_retirement,
+      pod_disruption_budgets: sup_pod_disruption_budgets,
+    },
+  ))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn suppressed_total_default_is_zero() {
+    assert_eq!(KubernetesSuppressed::default().total(), 0);
+  }
 }

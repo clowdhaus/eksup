@@ -1058,6 +1058,7 @@ dependencies = [
  "clap-verbosity-flag",
  "clap_complete",
  "clap_mangen",
+ "globset",
  "handlebars",
  "indicatif",
  "insta",

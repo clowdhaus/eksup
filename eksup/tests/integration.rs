@@ -2,7 +2,7 @@ mod common;
 
 use common::{fixtures, mock_k8s::MockK8sClients};
 use eksup::{
-  config::{Config, K8s002Config, K8s004Config},
+  config::{ChecksConfig, Config, K8s002Config},
   eks::resources::VpcSubnet,
 };
 
@@ -167,7 +167,7 @@ async fn data_plane_findings_node_ips() {
 #[tokio::test]
 async fn kubernetes_findings_empty() {
   let k8s = fixtures::healthy_k8s();
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &ChecksConfig::default())
     .await
     .unwrap();
   assert!(result.version_skew.is_empty());
@@ -181,7 +181,7 @@ async fn kubernetes_findings_version_skew() {
     ..Default::default()
   };
 
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &ChecksConfig::default())
     .await
     .unwrap();
   assert_eq!(result.version_skew.len(), 1);
@@ -194,7 +194,7 @@ async fn kubernetes_findings_workload_issues() {
     ..Default::default()
   };
 
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &ChecksConfig::default())
     .await
     .unwrap();
   assert!(!result.min_replicas.is_empty(), "1 replica should trigger finding");
@@ -244,7 +244,7 @@ async fn kubernetes_findings_missing_pdb() {
     ..Default::default()
   };
 
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &ChecksConfig::default())
     .await
     .unwrap();
   assert!(
@@ -504,7 +504,7 @@ async fn kubernetes_findings_min_replicas_default_threshold() {
     resources: vec![fixtures::make_deployment("web", "default", 2)],
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &ChecksConfig::default())
     .await
     .unwrap();
   assert!(
@@ -520,11 +520,12 @@ async fn kubernetes_findings_min_replicas_strict_threshold() {
     resources: vec![fixtures::make_deployment("web", "default", 2)],
     ..Default::default()
   };
-  let strict = K8s002Config {
+  let mut checks = ChecksConfig::default();
+  checks.k8s002 = K8s002Config {
     min_replicas: 3,
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &strict, &K8s004Config::default())
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks)
     .await
     .unwrap();
   assert_eq!(
@@ -540,19 +541,25 @@ async fn kubernetes_findings_min_replicas_ignored() {
     resources: vec![fixtures::make_deployment("singleton", "batch", 1)],
     ..Default::default()
   };
-  let config = K8s002Config {
+  let mut checks = ChecksConfig::default();
+  checks.k8s002 = K8s002Config {
     ignore: vec![eksup::config::ResourceSelector {
       name: "singleton".into(),
       namespace: "batch".into(),
     }],
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config, &K8s004Config::default())
+  let (result, suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks)
     .await
     .unwrap();
   assert!(
     result.min_replicas.is_empty(),
-    "ignored workload should not trigger finding"
+    "ignored workload should not appear in kept findings"
+  );
+  assert_eq!(
+    suppressed.min_replicas.len(),
+    1,
+    "ignored K8S002 finding is constructed then dropped to suppressed bucket"
   );
 }
 
@@ -565,7 +572,8 @@ async fn kubernetes_findings_min_replicas_per_workload_override() {
     ],
     ..Default::default()
   };
-  let config = K8s002Config {
+  let mut checks = ChecksConfig::default();
+  checks.k8s002 = K8s002Config {
     overrides: vec![eksup::config::ReplicaOverride {
       name: "etcd".into(),
       namespace: "infra".into(),
@@ -573,7 +581,7 @@ async fn kubernetes_findings_min_replicas_per_workload_override() {
     }],
     ..Default::default()
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &config, &K8s004Config::default())
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks)
     .await
     .unwrap();
   assert_eq!(result.min_replicas.len(), 1, "only etcd should fail (3 < 5)");
@@ -625,7 +633,7 @@ async fn kubernetes_findings_pdb_ignored() {
   };
 
   // Without ignore: should trigger PDB finding
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &K8s004Config::default())
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &ChecksConfig::default())
     .await
     .unwrap();
   assert!(
@@ -633,18 +641,24 @@ async fn kubernetes_findings_pdb_ignored() {
     "missing PDB should trigger finding"
   );
 
-  // With ignore: should NOT trigger
-  let config = K8s004Config {
+  // With ignore: should NOT trigger (finding constructed, then filtered into suppressed)
+  let mut checks = ChecksConfig::default();
+  checks.k8s004 = eksup::config::WorkloadCheckConfig {
     ignore: vec![eksup::config::ResourceSelector {
       name: "web".into(),
       namespace: "default".into(),
     }],
   };
-  let result = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &K8s002Config::default(), &config)
+  let (result, suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 30, 31, &checks)
     .await
     .unwrap();
   assert!(
     result.pod_disruption_budgets.is_empty(),
     "ignored workload should not trigger PDB finding"
+  );
+  assert_eq!(
+    suppressed.pod_disruption_budgets.len(),
+    1,
+    "suppressed bucket should capture it"
   );
 }

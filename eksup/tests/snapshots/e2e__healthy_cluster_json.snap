@@ -37,6 +37,16 @@ expression: output
     "ingress_nginx_retirement": [],
     "pod_disruption_budgets": []
   },
+  "suppressed": {
+    "min_replicas": [],
+    "min_ready_seconds": [],
+    "readiness_probe": [],
+    "pod_topology_distribution": [],
+    "termination_grace_period": [],
+    "docker_socket": [],
+    "ingress_nginx_retirement": [],
+    "pod_disruption_budgets": []
+  },
   "service_limits": {
     "ec2_limits": [],
     "ebs_gp2_limits": [],

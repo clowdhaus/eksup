@@ -20,10 +20,15 @@ pub enum Format {
   Text,
 }
 
-pub(crate) fn output(results: &analysis::Results, format: &Format, filename: &Option<String>) -> Result<()> {
+pub(crate) fn output(
+  results: &analysis::Results,
+  format: &Format,
+  filename: &Option<String>,
+  show_suppressed: bool,
+) -> Result<()> {
   let output = match format {
     Format::Json => serde_json::to_string_pretty(&results)?,
-    Format::Text => results.to_stdout_table()?,
+    Format::Text => results.to_stdout_table(show_suppressed)?,
   };
 
   match filename {

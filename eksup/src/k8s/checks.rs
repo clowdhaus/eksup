@@ -9,7 +9,7 @@ use tabled::{
 };
 
 use crate::{
-  finding::{self, Code, Finding, Findings, Remediation},
+  finding::{self, Code, Finding, Findings, Remediation, WorkloadFinding},
   k8s::resources::{self, Resource},
   version,
 };
@@ -147,6 +147,15 @@ finding::impl_findings!(
   "✅ - All relevant Kubernetes workloads meet the configured minimum replicas"
 );
 
+impl WorkloadFinding for MinReplicas {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S002
+  }
+}
+
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct MinReadySeconds {
@@ -162,6 +171,15 @@ finding::impl_findings!(
   MinReadySeconds,
   "✅ - All relevant Kubernetes workloads minReadySeconds set to more than 0"
 );
+
+impl WorkloadFinding for MinReadySeconds {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S003
+  }
+}
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -180,6 +198,15 @@ finding::impl_findings!(
   "✅ - All relevant Kubernetes workloads have either podAntiAffinity or topologySpreadConstraints set"
 );
 
+impl WorkloadFinding for PodTopologyDistribution {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S005
+  }
+}
+
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct Probe {
@@ -196,6 +223,15 @@ finding::impl_findings!(
   Probe,
   "✅ - All relevant Kubernetes workloads have a readiness probe configured"
 );
+
+impl WorkloadFinding for Probe {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S006
+  }
+}
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -214,6 +250,15 @@ finding::impl_findings!(
   "✅ - No StatefulSet workloads have a terminationGracePeriodSeconds set to more than 0"
 );
 
+impl WorkloadFinding for TerminationGracePeriod {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S007
+  }
+}
+
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct DockerSocket {
@@ -230,6 +275,15 @@ finding::impl_findings!(
   DockerSocket,
   "✅ - No relevant Kubernetes workloads are found to be utilizing the Docker socket"
 );
+
+impl WorkloadFinding for DockerSocket {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S008
+  }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
@@ -370,6 +424,15 @@ finding::impl_findings!(
   "✅ - No Ingress NGINX controller images detected that require migration"
 );
 
+impl WorkloadFinding for IngressNginxRetirement {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S013
+  }
+}
+
 /// Check for the retired Kubernetes community Ingress NGINX controller images
 /// which are no longer maintained as of 1.35+
 pub fn ingress_nginx_retirement(
@@ -445,13 +508,18 @@ finding::impl_findings!(
   "✅ - All relevant Kubernetes workloads have a PodDisruptionBudget configured"
 );
 
+impl WorkloadFinding for MissingPdb {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S004
+  }
+}
+
 /// K8S004 - Check if workloads have an associated PodDisruptionBudget with
 /// at least one of minAvailable or maxUnavailable configured
-pub fn pod_disruption_budgets(
-  resources: &[resources::StdResource],
-  pdbs: &[resources::StdPdb],
-  config: &crate::config::K8s004Config,
-) -> Vec<MissingPdb> {
+pub fn pod_disruption_budgets(resources: &[resources::StdResource], pdbs: &[resources::StdPdb]) -> Vec<MissingPdb> {
   let mut findings = Vec::new();
 
   for resource in resources {
@@ -470,10 +538,7 @@ pub fn pod_disruption_budgets(
       _ => {}
     }
 
-    // Check if resource is ignored via config
-    if !config.should_check(&resource.metadata.name, &resource.metadata.namespace) {
-      continue;
-    }
+    // Note: ignore-list filtering happens post-construction via apply_ignores.
 
     // Get pod template labels for matching
     let pod_labels = resource
@@ -535,7 +600,11 @@ pub trait K8sFindings {
   fn get_resource(&self) -> Resource;
 
   /// K8S002 - check if resources meet the configured minimum replicas
-  fn min_replicas(&self, config: &crate::config::K8s002Config) -> Option<MinReplicas>;
+  fn min_replicas(
+    &self,
+    config: &crate::config::K8s002Config,
+    compiled: &crate::config::CompiledChecks,
+  ) -> Option<MinReplicas>;
 
   /// K8S003 - check if resources contain minReadySeconds > 0
   fn min_ready_seconds(&self) -> Option<MinReadySeconds>;
@@ -974,7 +1043,7 @@ mod tests {
 
   #[test]
   fn pdb_no_workloads() {
-    let result = pod_disruption_budgets(&[], &[], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[], &[]);
     assert!(result.is_empty());
   }
 
@@ -984,7 +1053,7 @@ mod tests {
     let deploy = make_deployment_with_labels("web", "default", 3, labels.clone());
     let pdb = make_pdb_fixture("web-pdb", "default", labels, Some(IntOrString::Int(1)), None);
 
-    let result = pod_disruption_budgets(&[deploy], &[pdb], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[pdb]);
     assert!(result.is_empty(), "workload with valid PDB should produce no findings");
   }
 
@@ -993,7 +1062,7 @@ mod tests {
     let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
     let deploy = make_deployment_with_labels("web", "default", 3, labels);
 
-    let result = pod_disruption_budgets(&[deploy], &[], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[]);
     assert_eq!(result.len(), 1);
     assert!(!result[0].has_pdb);
   }
@@ -1004,7 +1073,7 @@ mod tests {
     let deploy = make_deployment_with_labels("web", "default", 3, labels.clone());
     let pdb = make_pdb_fixture("web-pdb", "default", labels, None, None);
 
-    let result = pod_disruption_budgets(&[deploy], &[pdb], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[pdb]);
     assert_eq!(result.len(), 1);
     assert!(result[0].has_pdb);
     assert!(!result[0].has_min_available);
@@ -1016,14 +1085,14 @@ mod tests {
     let labels = BTreeMap::from([("app".to_string(), "web".to_string())]);
     let deploy = make_deployment_with_labels("web", "default", 1, labels);
 
-    let result = pod_disruption_budgets(&[deploy], &[], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[]);
     assert!(result.is_empty(), "single replica should be skipped");
   }
 
   #[test]
   fn pdb_daemonset_skipped() {
     let ds = make_daemonset_with_image("agent", "kube-system", "agent:v1");
-    let result = pod_disruption_budgets(&[ds], &[], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[ds], &[]);
     assert!(result.is_empty(), "DaemonSet should be skipped");
   }
 
@@ -1033,7 +1102,7 @@ mod tests {
     let deploy = make_deployment_with_labels("web", "default", 3, labels.clone());
     let pdb = make_pdb_fixture("web-pdb", "other-ns", labels, Some(IntOrString::Int(1)), None);
 
-    let result = pod_disruption_budgets(&[deploy], &[pdb], &crate::config::K8s004Config::default());
+    let result = pod_disruption_budgets(&[deploy], &[pdb]);
     assert_eq!(result.len(), 1, "PDB in different namespace should not match");
   }
 }

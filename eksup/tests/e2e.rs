@@ -15,7 +15,7 @@ async fn run_analysis(aws: &MockAwsClients, k8s: &MockK8sClients) -> Results {
 
 /// Helper: render Results as text
 fn render_text(results: &Results) -> String {
-  results.to_stdout_table().unwrap()
+  results.to_stdout_table(false).unwrap()
 }
 
 /// Helper: render Results as JSON
@@ -204,7 +204,7 @@ async fn render_playbook(aws: &MockAwsClients, k8s: &MockK8sClients) -> String {
   let cluster_version = aws.cluster.version().unwrap();
   let target_minor = eksup::version::get_target_version(cluster_version).unwrap();
   let results = run_analysis(aws, k8s).await;
-  eksup::playbook::render("us-east-1", &aws.cluster, results, target_minor).unwrap()
+  eksup::playbook::render("us-east-1", &aws.cluster, results, target_minor, false).unwrap()
 }
 
 /// Helper: build a MockAwsClients at a specific cluster version

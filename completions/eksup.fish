@@ -42,6 +42,7 @@ complete -c eksup -n "__fish_eksup_using_subcommand analyze" -s o -l output -d '
 complete -c eksup -n "__fish_eksup_using_subcommand analyze" -s t -l target-version -d 'Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1' -r
 complete -c eksup -n "__fish_eksup_using_subcommand analyze" -l config -d 'Path to an eksup configuration file (default: .eksup.yaml in cwd)' -r
 complete -c eksup -n "__fish_eksup_using_subcommand analyze" -l ignore-recommended -d 'Exclude recommendations from the output'
+complete -c eksup -n "__fish_eksup_using_subcommand analyze" -l show-suppressed -d 'Include findings suppressed by .eksup.yaml ignore rules'
 complete -c eksup -n "__fish_eksup_using_subcommand analyze" -s v -l verbose -d 'Increase logging verbosity'
 complete -c eksup -n "__fish_eksup_using_subcommand analyze" -s q -l quiet -d 'Decrease logging verbosity'
 complete -c eksup -n "__fish_eksup_using_subcommand analyze" -s h -l help -d 'Print help (see more with \'--help\')'
@@ -59,6 +60,7 @@ complete -c eksup -n "__fish_eksup_using_subcommand create; and __fish_seen_subc
 complete -c eksup -n "__fish_eksup_using_subcommand create; and __fish_seen_subcommand_from playbook" -s t -l target-version -d 'Target Kubernetes version for the upgrade (e.g. "1.34"). Defaults to current + 1' -r
 complete -c eksup -n "__fish_eksup_using_subcommand create; and __fish_seen_subcommand_from playbook" -l config -d 'Path to an eksup configuration file (default: .eksup.yaml in cwd)' -r
 complete -c eksup -n "__fish_eksup_using_subcommand create; and __fish_seen_subcommand_from playbook" -l ignore-recommended -d 'Exclude recommendations from the output'
+complete -c eksup -n "__fish_eksup_using_subcommand create; and __fish_seen_subcommand_from playbook" -l show-suppressed -d 'Include findings suppressed by .eksup.yaml ignore rules'
 complete -c eksup -n "__fish_eksup_using_subcommand create; and __fish_seen_subcommand_from playbook" -s v -l verbose -d 'Increase logging verbosity'
 complete -c eksup -n "__fish_eksup_using_subcommand create; and __fish_seen_subcommand_from playbook" -s q -l quiet -d 'Decrease logging verbosity'
 complete -c eksup -n "__fish_eksup_using_subcommand create; and __fish_seen_subcommand_from playbook" -s h -l help -d 'Print help'

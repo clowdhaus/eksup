@@ -441,10 +441,14 @@ impl checks::K8sFindings for StdResource {
     }
   }
 
-  fn min_replicas(&self, config: &crate::config::K8s002Config) -> Option<checks::MinReplicas> {
+  fn min_replicas(
+    &self,
+    config: &crate::config::K8s002Config,
+    compiled: &crate::config::CompiledChecks,
+  ) -> Option<checks::MinReplicas> {
     let replicas = self.spec.replicas?;
 
-    let threshold = config.effective_min_replicas(&self.metadata.name, &self.metadata.namespace)?;
+    let threshold = config.threshold_for(&self.metadata.name, &self.metadata.namespace, compiled);
 
     if replicas < threshold && replicas > 0 {
       Some(checks::MinReplicas {
@@ -786,18 +790,20 @@ mod tests {
 
   // ── min_replicas ──────────────────────────────────────────────────────
 
-  fn default_k8s002_config() -> crate::config::K8s002Config {
-    crate::config::K8s002Config::default()
+  fn default_checks() -> crate::config::ChecksConfig {
+    crate::config::ChecksConfig::default()
   }
 
   #[test]
   fn min_replicas_below_threshold() {
-    let cfg = crate::config::K8s002Config {
+    let mut checks = default_checks();
+    checks.k8s002 = crate::config::K8s002Config {
       min_replicas: 3,
       ..Default::default()
     };
+    let compiled = checks.compiled().unwrap();
     let r = make_resource(Kind::Deployment, "web", Some(2), None, Some(basic_template()));
-    let result = r.min_replicas(&cfg);
+    let result = r.min_replicas(&checks.k8s002, compiled);
     assert!(result.is_some());
     let finding = result.unwrap();
     assert_eq!(finding.replicas, 2);
@@ -806,57 +812,68 @@ mod tests {
 
   #[test]
   fn min_replicas_at_threshold() {
-    let cfg = default_k8s002_config();
+    let checks = default_checks();
+    let compiled = checks.compiled().unwrap();
     let r = make_resource(Kind::Deployment, "web", Some(2), None, Some(basic_template()));
-    assert!(r.min_replicas(&cfg).is_none());
+    assert!(r.min_replicas(&checks.k8s002, compiled).is_none());
   }
 
   #[test]
   fn min_replicas_statefulset_1() {
-    let cfg = default_k8s002_config();
+    let checks = default_checks();
+    let compiled = checks.compiled().unwrap();
     let r = make_resource(Kind::StatefulSet, "db", Some(1), None, Some(basic_template()));
-    let result = r.min_replicas(&cfg);
+    let result = r.min_replicas(&checks.k8s002, compiled);
     assert!(result.is_some());
     assert_eq!(result.unwrap().replicas, 1);
   }
 
   #[test]
   fn min_replicas_replicaset_0() {
-    let cfg = default_k8s002_config();
+    let checks = default_checks();
+    let compiled = checks.compiled().unwrap();
     let r = make_resource(Kind::ReplicaSet, "old", Some(0), None, Some(basic_template()));
-    assert!(r.min_replicas(&cfg).is_none());
+    assert!(r.min_replicas(&checks.k8s002, compiled).is_none());
   }
 
   #[test]
   fn min_replicas_job_skipped() {
-    let cfg = default_k8s002_config();
+    let checks = default_checks();
+    let compiled = checks.compiled().unwrap();
     let r = make_resource(Kind::Job, "batch", None, None, Some(basic_template()));
-    assert!(r.min_replicas(&cfg).is_none());
+    assert!(r.min_replicas(&checks.k8s002, compiled).is_none());
   }
 
   #[test]
   fn min_replicas_none() {
-    let cfg = default_k8s002_config();
+    let checks = default_checks();
+    let compiled = checks.compiled().unwrap();
     let r = make_resource(Kind::Deployment, "web", None, None, Some(basic_template()));
-    assert!(r.min_replicas(&cfg).is_none());
+    assert!(r.min_replicas(&checks.k8s002, compiled).is_none());
   }
 
   #[test]
-  fn min_replicas_ignored_resource() {
-    let cfg = crate::config::K8s002Config {
+  fn min_replicas_ignore_no_longer_pre_filters() {
+    // After the K8S002 refactor, the ignore list is NOT consulted at
+    // construction. The finding is emitted regardless; the post-construction
+    // filter (apply_ignores) is what drops ignored resources.
+    let mut checks = default_checks();
+    checks.k8s002 = crate::config::K8s002Config {
       ignore: vec![crate::config::ResourceSelector {
         name: "coredns".to_string(),
         namespace: "default".to_string(),
       }],
       ..Default::default()
     };
+    let compiled = checks.compiled().unwrap();
     let r = make_resource(Kind::Deployment, "coredns", Some(1), None, Some(basic_template()));
-    assert!(r.min_replicas(&cfg).is_none());
+    assert!(r.min_replicas(&checks.k8s002, compiled).is_some());
   }
 
   #[test]
   fn min_replicas_override_threshold() {
-    let cfg = crate::config::K8s002Config {
+    let mut checks = default_checks();
+    checks.k8s002 = crate::config::K8s002Config {
       overrides: vec![crate::config::ReplicaOverride {
         name: "web".to_string(),
         namespace: "default".to_string(),
@@ -864,8 +881,9 @@ mod tests {
       }],
       ..Default::default()
     };
+    let compiled = checks.compiled().unwrap();
     let r = make_resource(Kind::Deployment, "web", Some(3), None, Some(basic_template()));
-    let result = r.min_replicas(&cfg);
+    let result = r.min_replicas(&checks.k8s002, compiled);
     assert!(result.is_some());
     assert_eq!(result.unwrap().replicas, 3);
   }

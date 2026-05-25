@@ -104,6 +104,10 @@ pub struct Analysis {
   /// Path to an eksup configuration file (default: .eksup.yaml in cwd)
   #[arg(long)]
   pub config: Option<String>,
+
+  /// Include findings suppressed by .eksup.yaml ignore rules
+  #[arg(long)]
+  pub show_suppressed: bool,
 }
 
 /// Create artifacts using the analysis data
@@ -149,6 +153,10 @@ pub struct Playbook {
   /// Path to an eksup configuration file (default: .eksup.yaml in cwd)
   #[arg(long)]
   pub config: Option<String>,
+
+  /// Include findings suppressed by .eksup.yaml ignore rules
+  #[arg(long)]
+  pub show_suppressed: bool,
 }
 
 fn new_spinner() -> ProgressBar {
@@ -195,7 +203,7 @@ pub async fn analyze(args: Analysis) -> Result<()> {
   }
 
   spinner.finish_and_clear();
-  output::output(&results, &args.format, &args.output)?;
+  output::output(&results, &args.format, &args.output, args.show_suppressed)?;
 
   Ok(())
 }

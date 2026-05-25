@@ -106,7 +106,13 @@ struct FargateProfileTemplateData {
 }
 
 /// Render the upgrade playbook markdown from analysis results without writing to disk
-pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, target_minor: i32) -> Result<String> {
+pub fn render(
+  region: &str,
+  cluster: &Cluster,
+  analysis: analysis::Results,
+  target_minor: i32,
+  show_suppressed: bool,
+) -> Result<String> {
   let mut handlebars = Handlebars::new();
   handlebars.register_escape_fn(handlebars::no_escape);
   handlebars.register_embed_templates::<Templates>()?;
@@ -125,6 +131,7 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
   let subnet_findings = analysis.subnets;
   let addon_findings = analysis.addons;
   let kubernetes_findings = analysis.kubernetes;
+  let kubernetes_suppressed = analysis.kubernetes_suppressed;
 
   // Render sub-templates for data plane components
   let eks_mng_tmpl_data = EksManagedNodeGroupTemplateData {
@@ -198,7 +205,61 @@ pub fn render(region: &str, cluster: &Cluster, analysis: analysis::Results, targ
     misconfiguration_insights: analysis.insights.misconfiguration.to_markdown_table("\t")?,
   };
 
-  let rendered = handlebars.render("playbook.md", &tmpl_data)?;
+  let mut rendered = handlebars.render("playbook.md", &tmpl_data)?;
+
+  let suppressed_total = kubernetes_suppressed.total();
+  if suppressed_total > 0 {
+    if show_suppressed {
+      rendered.push_str(&format!(
+        "\n## Suppressed by configuration ({suppressed_total})\n\nThe following findings were suppressed by `.eksup.yaml` ignore rules.\n\n"
+      ));
+      if !kubernetes_suppressed.min_replicas.is_empty() {
+        rendered.push_str("#### Check [[K8S002]](https://clowdhaus.github.io/eksup/info/checks/#k8s002)\n");
+        rendered.push_str(&kubernetes_suppressed.min_replicas.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+      if !kubernetes_suppressed.min_ready_seconds.is_empty() {
+        rendered.push_str("#### Check [[K8S003]](https://clowdhaus.github.io/eksup/info/checks/#k8s003)\n");
+        rendered.push_str(&kubernetes_suppressed.min_ready_seconds.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+      if !kubernetes_suppressed.pod_disruption_budgets.is_empty() {
+        rendered.push_str("#### Check [[K8S004]](https://clowdhaus.github.io/eksup/info/checks/#k8s004)\n");
+        rendered.push_str(&kubernetes_suppressed.pod_disruption_budgets.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+      if !kubernetes_suppressed.pod_topology_distribution.is_empty() {
+        rendered.push_str("#### Check [[K8S005]](https://clowdhaus.github.io/eksup/info/checks/#k8s005)\n");
+        rendered.push_str(&kubernetes_suppressed.pod_topology_distribution.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+      if !kubernetes_suppressed.readiness_probe.is_empty() {
+        rendered.push_str("#### Check [[K8S006]](https://clowdhaus.github.io/eksup/info/checks/#k8s006)\n");
+        rendered.push_str(&kubernetes_suppressed.readiness_probe.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+      if !kubernetes_suppressed.termination_grace_period.is_empty() {
+        rendered.push_str("#### Check [[K8S007]](https://clowdhaus.github.io/eksup/info/checks/#k8s007)\n");
+        rendered.push_str(&kubernetes_suppressed.termination_grace_period.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+      if !kubernetes_suppressed.docker_socket.is_empty() {
+        rendered.push_str("#### Check [[K8S008]](https://clowdhaus.github.io/eksup/info/checks/#k8s008)\n");
+        rendered.push_str(&kubernetes_suppressed.docker_socket.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+      if !kubernetes_suppressed.ingress_nginx_retirement.is_empty() {
+        rendered.push_str("#### Check [[K8S013]](https://clowdhaus.github.io/eksup/info/checks/#k8s013)\n");
+        rendered.push_str(&kubernetes_suppressed.ingress_nginx_retirement.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+    } else {
+      rendered.push_str(&format!(
+        "\n_{suppressed_total} additional finding(s) suppressed by `.eksup.yaml`. Run with `--show-suppressed` to view._\n"
+      ));
+    }
+  }
+
   Ok(rendered)
 }
 
@@ -213,7 +274,7 @@ pub(crate) fn create(
   let target_version = version::format_version(target_minor);
   let default_playbook_name = format!("{cluster_name}_v{target_version}_upgrade.md");
 
-  let rendered = render(&region, cluster, analysis, target_minor)?;
+  let rendered = render(&region, cluster, analysis, target_minor, args.show_suppressed)?;
 
   let filename = args.filename.as_deref().unwrap_or(&default_playbook_name);
   fs::write(filename, rendered)?;
