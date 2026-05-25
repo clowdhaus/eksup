@@ -554,12 +554,13 @@ async fn kubernetes_findings_min_replicas_ignored() {
     .unwrap();
   assert!(
     result.min_replicas.is_empty(),
-    "ignored workload should not trigger finding"
+    "ignored workload should not appear in kept findings"
   );
-  // Task 5 still pre-filters K8S002 inside `min_replicas`, so the suppressed
-  // bucket is empty here. Task 6 moves the ignore drop to the filter and the
-  // suppressed bucket starts populating.
-  let _ = suppressed.min_replicas;
+  assert_eq!(
+    suppressed.min_replicas.len(),
+    1,
+    "ignored K8S002 finding is constructed then dropped to suppressed bucket"
+  );
 }
 
 #[tokio::test]

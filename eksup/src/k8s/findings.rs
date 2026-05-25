@@ -139,3 +139,13 @@ pub async fn get_kubernetes_findings(
     },
   ))
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn suppressed_total_default_is_zero() {
+    assert_eq!(KubernetesSuppressed::default().total(), 0);
+  }
+}
