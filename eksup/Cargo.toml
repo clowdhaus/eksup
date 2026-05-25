@@ -34,7 +34,7 @@ aws-sdk-servicequotas = { version = "1.101", default-features = false, features 
 clap = { version = "4.6", default-features = false, features = ["std", "derive", "string", "color", "unstable-styles", "help", "usage", "error-context", "suggestions"] }
 clap-verbosity-flag = { version = "3.0", default-features = false, features = ["tracing"] }
 clap_complete = { version = "4.5", default-features = false }
-clap_mangen = { version = "0.2", default-features = false }
+clap_mangen = { version = "0.3", default-features = false }
 globset = { version = "0.4", default-features = false }
 indicatif = { version = "0.18", default-features = false, features = ["unicode-width"] }
 handlebars = { version = "6.4", default-features = false, features = ["rust-embed"] }
