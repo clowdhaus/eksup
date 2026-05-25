@@ -15,7 +15,7 @@ async fn run_analysis(aws: &MockAwsClients, k8s: &MockK8sClients) -> Results {
 
 /// Helper: render Results as text
 fn render_text(results: &Results) -> String {
-  results.to_stdout_table().unwrap()
+  results.to_stdout_table(false).unwrap()
 }
 
 /// Helper: render Results as JSON

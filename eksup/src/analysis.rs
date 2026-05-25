@@ -126,7 +126,9 @@ impl Results {
   }
 
   /// Renders all findings as a formatted stdout table string
-  pub fn to_stdout_table(&self) -> Result<String> {
+  pub fn to_stdout_table(&self, show_suppressed: bool) -> Result<String> {
+    use std::fmt::Write;
+
     let mut output = String::new();
 
     output.push_str(&self.subnets.pod_ips.to_stdout_table()?);
@@ -155,6 +157,26 @@ impl Results {
     output.push_str(&self.service_limits.ebs_gp3_limits.to_stdout_table()?);
     output.push_str(&self.insights.upgrade_readiness.to_stdout_table()?);
     output.push_str(&self.insights.misconfiguration.to_stdout_table()?);
+
+    let suppressed_total = self.kubernetes_suppressed.total();
+    if suppressed_total > 0 {
+      if show_suppressed {
+        writeln!(output, "\nSuppressed by .eksup.yaml ({suppressed_total}):")?;
+        output.push_str(&self.kubernetes_suppressed.min_replicas.to_stdout_table()?);
+        output.push_str(&self.kubernetes_suppressed.min_ready_seconds.to_stdout_table()?);
+        output.push_str(&self.kubernetes_suppressed.readiness_probe.to_stdout_table()?);
+        output.push_str(&self.kubernetes_suppressed.pod_topology_distribution.to_stdout_table()?);
+        output.push_str(&self.kubernetes_suppressed.termination_grace_period.to_stdout_table()?);
+        output.push_str(&self.kubernetes_suppressed.docker_socket.to_stdout_table()?);
+        output.push_str(&self.kubernetes_suppressed.ingress_nginx_retirement.to_stdout_table()?);
+        output.push_str(&self.kubernetes_suppressed.pod_disruption_budgets.to_stdout_table()?);
+      } else {
+        writeln!(
+          output,
+          "\n{suppressed_total} findings suppressed by .eksup.yaml (use --show-suppressed to view)"
+        )?;
+      }
+    }
 
     Ok(output)
   }

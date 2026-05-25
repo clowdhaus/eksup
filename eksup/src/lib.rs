@@ -203,7 +203,7 @@ pub async fn analyze(args: Analysis) -> Result<()> {
   }
 
   spinner.finish_and_clear();
-  output::output(&results, &args.format, &args.output)?;
+  output::output(&results, &args.format, &args.output, args.show_suppressed)?;
 
   Ok(())
 }
