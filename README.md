@@ -30,7 +30,7 @@ git clone https://github.com/clowdhaus/eksup
 cd eksup
 cargo build --release
 ./target/release/eksup --version
-0.13.0
+0.14.0
 ```
 
 ### Shell completions

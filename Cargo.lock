@@ -1046,7 +1046,7 @@ checksum = "91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e"
 
 [[package]]
 name = "eksup"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "aws-config",
