@@ -27,10 +27,10 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { version = "1.0", default-features = false, features = ["std"] }
 aws-config = { version = "1.8", default-features = false, features = ["behavior-version-latest", "default-https-client", "rt-tokio", "credentials-process", "sso"] }
-aws-sdk-autoscaling = { version = "1.116", default-features = false, features = ["rustls", "default-https-client", "rt-tokio"] }
-aws-sdk-ec2 = { version = "1.227", default-features = false, features = ["rustls", "default-https-client", "rt-tokio"] }
-aws-sdk-eks = { version = "1.131", default-features = false, features = ["rustls", "default-https-client", "rt-tokio"] }
-aws-sdk-servicequotas = { version = "1.101", default-features = false, features = ["rustls", "default-https-client", "rt-tokio"] }
+aws-sdk-autoscaling = { version = "1.118", default-features = false, features = ["rustls", "default-https-client", "rt-tokio"] }
+aws-sdk-ec2 = { version = "1.228", default-features = false, features = ["rustls", "default-https-client", "rt-tokio"] }
+aws-sdk-eks = { version = "1.132", default-features = false, features = ["rustls", "default-https-client", "rt-tokio"] }
+aws-sdk-servicequotas = { version = "1.102", default-features = false, features = ["rustls", "default-https-client", "rt-tokio"] }
 clap = { version = "4.6", default-features = false, features = ["std", "derive", "string", "color", "unstable-styles", "help", "usage", "error-context", "suggestions"] }
 clap-verbosity-flag = { version = "3.0", default-features = false, features = ["tracing"] }
 clap_complete = { version = "4.5", default-features = false }
@@ -46,7 +46,7 @@ schemars = { version = "1.2.1", default-features = false, features = ["std", "de
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["std"] }
 serde_yaml = { version = "0.9", default-features = false }
-tabled = { version = "0.20", default-features = false, features = ["derive"] }
+tabled = { version = "0.21", default-features = false, features = ["derive"] }
 tokio = { version = "1.52", default-features = false, features = ["macros", "rt-multi-thread"] }
 tracing = { version = "0.1", default-features = false, features = ["std", "log-always"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "ansi"] }
