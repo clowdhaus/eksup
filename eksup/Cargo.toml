@@ -39,14 +39,14 @@ globset = { version = "0.4", default-features = false }
 indicatif = { version = "0.18", default-features = false, features = ["unicode-width"] }
 handlebars = { version = "6.4", default-features = false, features = ["rust-embed"] }
 # https://kube.rs/kubernetes-version/
-k8s-openapi = { version = "0.27.1", default-features = false, features = ["earliest"] }
+k8s-openapi = { version = "0.28.0", default-features = false, features = ["earliest"] }
 kube = { version = "3.1", default-features = false, features = ["client", "derive", "aws-lc-rs", "rustls-tls"] }
 rust-embed = { version = "8.11", default-features = false, features = ["compression"] }
 schemars = { version = "1.2.1", default-features = false, features = ["std", "derive"] }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["std"] }
 serde_yaml = { version = "0.9", default-features = false }
-tabled = { version = "0.20", default-features = false, features = ["derive"] }
+tabled = { version = "0.21", default-features = false, features = ["derive"] }
 tokio = { version = "1.52", default-features = false, features = ["macros", "rt-multi-thread"] }
 tracing = { version = "0.1", default-features = false, features = ["std", "log-always"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "ansi"] }
