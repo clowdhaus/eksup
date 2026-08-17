@@ -223,9 +223,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-autoscaling"
-version = "1.125.0"
+version = "1.126.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81edeff0ec95f72340b19de661f8cc1f1944853fcb8998f5d6ed09551d397e59"
+checksum = "a8a67fa91daca5b7f92b60ffac9a8a640cad33ee8dfe1332a0e4a512f5497183"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
@@ -250,9 +250,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-ec2"
-version = "1.245.0"
+version = "1.246.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ea0c210d0644edd89684295ea7b1f17a5c34c11c1ddc0febb9f809af4876ba4"
+checksum = "366e913d6ae975b6c0c79c61841026714ed5dd4e3284dac6b9ab00d9f06d96b2"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
@@ -277,9 +277,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-eks"
-version = "1.140.0"
+version = "1.141.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "091c8a74c38f6de3d0eaf172a6577becc3f2db4efecc59820b1238df2c005f17"
+checksum = "083febe6f05648dd1da1ed3075788fac0377351164b97b691cd678aa228edd60"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
@@ -805,9 +805,9 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "clap_mangen"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c630ddc90572b3d9abd3f887f0007b4e048faf5c5a59ae607f8ac1c5e3790873"
+checksum = "211d617eaa4b735c96c9e0228fcbdb5120ef623f2b8cb67ffb84c3e02dbc28a4"
 dependencies = [
  "clap",
  "roff",
@@ -1432,9 +1432,9 @@ dependencies = [
 
 [[package]]
 name = "handlebars"
-version = "6.4.3"
+version = "6.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4633d16a2350341713c379d6d06a4b9e1845329386026a49ce4fd09c2f3b16f6"
+checksum = "75c54236f9045c8004a77942bebc52145b4844639db934a5c70fe08617fbe61a"
 dependencies = [
  "derive_builder",
  "log",
