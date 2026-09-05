@@ -51,3 +51,27 @@ jobs:
         with:
           workspaces: xtask
       - run: cargo xtask generate-all --check
+
+  # The four example workspaces pin registry modules and providers, and nothing else in
+  # this repository ever resolves them. A dependency refresh that bumps those constraints
+  # was previously only ever checked by whoever happened to run terraform by hand.
+  terraform:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [eks-managed, fargate-profile, mixed, self-managed]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      # No backend and no credentials: init resolves modules and providers, validate
+      # checks the configuration against them. `plan` would need AWS credentials and can
+      # read real infrastructure, so it stays out.
+      - run: terraform init -upgrade -input=false -backend=false
+        working-directory: examples/${{ matrix.example }}
+      - run: terraform fmt -check -recursive
+        working-directory: examples/${{ matrix.example }}
+      - run: terraform validate
+        working-directory: examples/${{ matrix.example }}
