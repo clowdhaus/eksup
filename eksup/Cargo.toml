@@ -46,7 +46,7 @@ schemars = { version = "1.2.2", default-features = false, features = ["std", "de
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["std"] }
 serde_yaml = { version = "0.9", default-features = false }
-tabled = { version = "0.21", default-features = false, features = ["derive"] }
+tabled = { version = "0.22", default-features = false, features = ["derive"] }
 tokio = { version = "1.53", default-features = false, features = ["macros", "rt-multi-thread"] }
 tracing = { version = "0.1", default-features = false, features = ["std", "log-always"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "ansi"] }
