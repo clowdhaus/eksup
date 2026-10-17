@@ -1,5 +1,6 @@
 ---
 source: eksup/tests/e2e.rs
+assertion_line: 279
 expression: output
 ---
 # EKS Cluster Upgrade
@@ -7,8 +8,8 @@ expression: output
 |                            |                           Value                           |
 | :------------------------- | :-------------------------------------------------------: |
 | Amazon EKS cluster         |                 `test-cluster`                      |
-| Current version            |                 `v1.30`                  |
-| Target version             |                  `v1.31`                  |
+| Current version            |                 `v1.32`                  |
+| Target version             |                  `v1.33`                  |
 | EKS Managed nodegroup(s)  |  ✅   |
 | Self-Managed nodegroup(s) |  ➖  |
 | Fargate profile(s)         |      ✅      |
@@ -35,8 +36,8 @@ expression: output
 
 1. Review the following resources for affected changes in the next version of Kubernetes:
 
-    - ℹ️ [Kubernetes `1.31` release announcement](https://kubernetes.io/blog/2024/08/13/kubernetes-v1-31-release/)
-    - ℹ️ [EKS `1.31` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-1.31)
+    - ℹ️ [Kubernetes `1.33` release announcement](https://kubernetes.io/blog/2025/04/23/kubernetes-v1-33-release/)
+    - ℹ️ [EKS `1.33` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-1.33)
 
 2. Per the [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/#supported-version-skew), the `kubelet` version must not be newer than `kube-apiserver`, and may be up to two minor versions older. It is recommended that the nodes in the data plane are aligned with the same minor version as the control plane before upgrading.
 
@@ -76,11 +77,11 @@ expression: output
     #### Check [[K8S001]](https://clowdhaus.github.io/eksup/info/checks/#k8s001)
 	| CHECK  |    | NODE  | CONTROL PLANE | SKEW | QUANTITY |
 	|--------|----|-------|---------------|------|----------|
-	| K8S001 | ⚠️ | v1.28 | v1.30         | +2   | 1        |
+	| K8S001 | ⚠️ | v1.30 | v1.32         | +2   | 1        |
 
 	|    | NAME   | NODE  | CONTROL PLANE | SKEW |
 	|----|--------|-------|---------------|------|
-	| ⚠️ | node-1 | v1.28 | v1.30         | +2   |
+	| ⚠️ | node-1 | v1.30 | v1.32         | +2   |
 
 
 3. Verify that there are at least 5 free IPs in the VPC subnets used by the control plane. Amazon EKS creates new elastic network interfaces (ENIs) in any of the subnets specified for the control plane. If there are not enough available IPs, then the upgrade will fail (your control plane will stay on the prior version).
@@ -126,9 +127,9 @@ expression: output
       CURRENT=$(aws eks describe-addon --cluster-name test-cluster --region us-east-1 \
         --addon-name ${ADDON} --query 'addon.addonVersion' --output text)
       LATEST=$(aws eks describe-addon-versions --region us-east-1 --addon-name ${ADDON} \
-        --kubernetes-version 1.31 --query 'addons[0].addonVersions[0].addonVersion' --output text)
+        --kubernetes-version 1.33 --query 'addons[0].addonVersions[0].addonVersion' --output text)
       LIST=$(aws eks describe-addon-versions --region us-east-1 --addon-name ${ADDON} \
-        --kubernetes-version 1.31 --query 'addons[0].addonVersions[*].addonVersion')
+        --kubernetes-version 1.33 --query 'addons[0].addonVersions[*].addonVersion')
 
       echo "${ADDON} current version: ${CURRENT}"
       echo "${ADDON} next latest version: ${LATEST}"
@@ -173,7 +174,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     ```sh
     aws eks update-cluster-version --region us-east-1 --name test-cluster \
-        --kubernetes-version 1.31
+        --kubernetes-version 1.33
     ```
 
 2. Wait for the control plane to finish upgrading before proceeding with any further modifications. The cluster status will change to `ACTIVE` once the upgrade is complete.
@@ -344,7 +345,7 @@ EKS optimized AMI provided by Amazon EKS:
 
       ```sh
       aws eks update-nodegroup-version --region us-east-1 --cluster-name test-cluster \
-        --nodegroup-name <NODEGROUP_NAME> --kubernetes-version 1.31
+        --nodegroup-name <NODEGROUP_NAME> --kubernetes-version 1.33
       ```
 
 ##### Process

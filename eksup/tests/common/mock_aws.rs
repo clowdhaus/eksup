@@ -31,7 +31,7 @@ pub struct MockAwsClients {
 impl Default for MockAwsClients {
   fn default() -> Self {
     Self {
-      cluster: Cluster::builder().name("test-cluster").version("1.30").build(),
+      cluster: Cluster::builder().name("test-cluster").version("1.32").build(),
       subnet_ips: vec![],
       addons: vec![],
       addon_versions: HashMap::new(),

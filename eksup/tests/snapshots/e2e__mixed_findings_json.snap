@@ -1,5 +1,6 @@
 ---
 source: eksup/tests/e2e.rs
+assertion_line: 176
 expression: output
 ---
 {
@@ -52,9 +53,9 @@ expression: output
           "remediation": "Recommended"
         },
         "name": "node-1",
-        "kubelet_version": "v1.28.0",
-        "kubernetes_version": "v1.28",
-        "control_plane_version": "v1.30",
+        "kubelet_version": "v1.30.0",
+        "kubernetes_version": "v1.30",
+        "control_plane_version": "v1.32",
         "version_skew": "+2"
       }
     ],

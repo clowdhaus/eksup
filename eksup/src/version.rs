@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 
 /// Minimum supported minor version — clusters below this cannot be analyzed
-pub const MINIMUM: i32 = 30;
+pub const MINIMUM: i32 = 32;
 
 /// Latest supported minor version
 pub const LATEST: i32 = 37;

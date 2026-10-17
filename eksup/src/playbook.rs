@@ -280,3 +280,20 @@ pub(crate) fn create(
   fs::write(filename, rendered)?;
   Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn release_data_covers_every_supported_target() {
+    let data = get_release_data().unwrap();
+    for minor in (version::MINIMUM + 1)..=version::LATEST {
+      let target = version::format_version(minor);
+      assert!(
+        data.contains_key(&target),
+        "data.yaml is missing release data for {target}"
+      );
+    }
+  }
+}
