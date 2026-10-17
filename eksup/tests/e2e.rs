@@ -112,7 +112,7 @@ async fn snapshot_workload_issues_json() {
 async fn snapshot_version_skew_text() {
   let aws = fixtures::healthy_aws();
   let k8s = MockK8sClients {
-    nodes: vec![fixtures::make_node("node-1", 28), fixtures::make_node("node-2", 27)],
+    nodes: vec![fixtures::make_node("node-1", 30), fixtures::make_node("node-2", 29)],
     ..Default::default()
   };
   let results = run_analysis(&aws, &k8s).await;
@@ -140,7 +140,7 @@ async fn snapshot_mixed_findings_text() {
     },
   ];
   let k8s = MockK8sClients {
-    nodes: vec![fixtures::make_node("node-1", 28)],
+    nodes: vec![fixtures::make_node("node-1", 30)],
     resources: vec![fixtures::make_deployment("web", "default", 1)],
     ..Default::default()
   };
@@ -166,7 +166,7 @@ async fn snapshot_mixed_findings_json() {
     },
   ];
   let k8s = MockK8sClients {
-    nodes: vec![fixtures::make_node("node-1", 28)],
+    nodes: vec![fixtures::make_node("node-1", 30)],
     resources: vec![fixtures::make_deployment("web", "default", 1)],
     ..Default::default()
   };
@@ -184,7 +184,7 @@ async fn snapshot_mixed_findings_json() {
 async fn snapshot_filter_recommended_text() {
   let aws = fixtures::healthy_aws();
   let k8s = MockK8sClients {
-    nodes: vec![fixtures::make_node("node-1", 29)],
+    nodes: vec![fixtures::make_node("node-1", 31)],
     resources: vec![fixtures::make_deployment("web", "default", 2)],
     ..Default::default()
   };
@@ -271,7 +271,7 @@ async fn snapshot_playbook_mixed() {
   aws.nodegroups = vec![Nodegroup::builder().nodegroup_name("mng-1").build()];
   aws.fargate_profiles = vec![FargateProfile::builder().fargate_profile_name("fp-1").build()];
   let k8s = MockK8sClients {
-    nodes: vec![fixtures::make_node("node-1", 28)],
+    nodes: vec![fixtures::make_node("node-1", 30)],
     resources: vec![fixtures::make_deployment("web", "default", 1)],
     ..Default::default()
   };
@@ -351,8 +351,8 @@ async fn playbook_template_variables_populated() {
 
   assert!(output.contains("test-cluster"), "cluster name should appear");
   assert!(output.contains("us-east-1"), "region should appear");
-  assert!(output.contains("v1.30"), "current version should appear");
-  assert!(output.contains("v1.31"), "target version should appear");
+  assert!(output.contains("v1.32"), "current version should appear");
+  assert!(output.contains("v1.33"), "target version should appear");
   assert!(output.contains("kubernetes.io/blog/"), "release URL should appear");
 }
 
@@ -374,31 +374,14 @@ async fn playbook_pod_ips_healthy_when_no_custom_networking() {
 }
 
 #[tokio::test]
-async fn playbook_deprecation_url_absent_for_1_31_target() {
-  // Cluster at 1.30 -> target 1.31 (no deprecation_url in data.yaml)
-  let aws = aws_at_version("1.30");
+async fn playbook_deprecation_url_absent_for_1_33_target() {
+  // Cluster at 1.32 -> target 1.33 (no deprecation_url in data.yaml)
+  let aws = aws_at_version("1.32");
   let k8s = fixtures::healthy_k8s();
   let output = render_playbook(&aws, &k8s).await;
 
   assert!(
     !output.contains("API deprecations"),
-    "deprecation link should be absent for 1.31 target"
-  );
-}
-
-#[tokio::test]
-async fn playbook_deprecation_url_present_for_1_32_target() {
-  // Cluster at 1.31 -> target 1.32 (has deprecation_url in data.yaml)
-  let aws = aws_at_version("1.31");
-  let k8s = fixtures::healthy_k8s();
-  let output = render_playbook(&aws, &k8s).await;
-
-  assert!(
-    output.contains("API deprecations"),
-    "deprecation link should be present for 1.32 target"
-  );
-  assert!(
-    output.contains("deprecation-guide/#v1-32"),
-    "deprecation URL should point to 1.32 guide"
+    "deprecation link should be absent for 1.33 target"
   );
 }

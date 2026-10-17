@@ -16,7 +16,7 @@ pub fn healthy_aws() -> MockAwsClients {
   MockAwsClients {
     cluster: Cluster::builder()
       .name("test-cluster")
-      .version("1.30")
+      .version("1.32")
       .health(ClusterHealth::builder().build())
       .resources_vpc_config(
         VpcConfigResponse::builder()
