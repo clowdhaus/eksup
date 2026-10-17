@@ -366,8 +366,8 @@ finding::impl_findings!(
   "✅ - `kube-proxy` is not using the deprecated IPVS mode"
 );
 
-/// Check if kube-proxy is configured with IPVS mode, which is deprecated in 1.35 and
-/// removed in 1.36
+/// Check if kube-proxy is configured with IPVS mode, which is deprecated from 1.35, expected
+/// to be disabled by default in 1.40 and removed in 1.43 (KEP-5495)
 pub fn kube_proxy_ipvs_mode(configmap: Option<&ConfigMap>, target_minor: i32) -> Result<Vec<KubeProxyIpvsMode>> {
   if target_minor < 35 {
     return Ok(vec![]);
@@ -394,14 +394,8 @@ pub fn kube_proxy_ipvs_mode(configmap: Option<&ConfigMap>, target_minor: i32) ->
   let mode = config.get("mode").and_then(|v| v.as_str()).unwrap_or("");
 
   if mode == "ipvs" {
-    let remediation = if target_minor >= 36 {
-      Remediation::Required
-    } else {
-      Remediation::Recommended
-    };
-
     Ok(vec![KubeProxyIpvsMode {
-      finding: Finding::new(Code::K8S012, remediation),
+      finding: Finding::new(Code::K8S012, Remediation::Recommended),
       current_mode: mode.to_owned(),
     }])
   } else {
@@ -897,11 +891,11 @@ mod tests {
   }
 
   #[test]
-  fn kube_proxy_ipvs_mode_ipvs_target_36_required() {
+  fn kube_proxy_ipvs_mode_ipvs_target_37_recommended() {
     let cm = make_configmap("mode: ipvs");
-    let result = kube_proxy_ipvs_mode(Some(&cm), 36).unwrap();
+    let result = kube_proxy_ipvs_mode(Some(&cm), 37).unwrap();
     assert_eq!(result.len(), 1);
-    assert!(matches!(result[0].finding.remediation, Remediation::Required));
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
     assert_eq!(result[0].current_mode, "ipvs");
   }
 

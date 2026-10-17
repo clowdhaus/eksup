@@ -41,7 +41,7 @@ See the [symbol table](https://clowdhaus.github.io/eksup/#symbol-table) for furt
 | `K8S009` | Pod security policies present (removed in 1.25) | Retired | Up to 1.24 |
 | `K8S010` | EBS CSI driver not installed | Retired | Up to 1.24 |
 | `K8S011` | kube-proxy version skew with kubelet | Active | All versions |
-| `K8S012` | kube-proxy IPVS mode deprecated (1.35+, removed 1.36) | Active | 1.35+ |
+| `K8S012` | kube-proxy IPVS mode deprecated (1.35+, removal planned 1.43) | Active | 1.35+ |
 | `K8S013` | Ingress NGINX controller retirement (1.35+) | Active | 1.35+ |
 
 <!-- END GENERATED CHECKS TABLE -->
@@ -346,17 +346,11 @@ If you recently updated your cluster to a new Kubernetes minor version, then upd
 
 #### K8S012
 
-`kube-proxy` IPVS proxy mode is deprecated starting in Kubernetes `v1.35` and will be removed in `v1.36`. Clusters using IPVS mode MUST migrate to `iptables` or `nftables` proxy mode.
-
-**❌ Remediation required**
-
-For clusters upgrading to Kubernetes `v1.36` or later — IPVS proxy mode MUST NOT be used as it is removed.
-
 **⚠️ Remediation recommended**
 
-For clusters upgrading to Kubernetes `v1.35` — IPVS proxy mode is deprecated and SHOULD be migrated.
+`kube-proxy` IPVS proxy mode is deprecated starting in Kubernetes `v1.35`. It is expected to be disabled by default in `v1.40` and removed in `v1.43`. Clusters using IPVS mode SHOULD migrate to `nftables` or `iptables` proxy mode.
 
-[Kubernetes kube-proxy documentation](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/)
+[Kubernetes kube-proxy documentation](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/), [KEP-5495](https://github.com/kubernetes/enhancements/issues/5495)
 
 #### K8S013
 

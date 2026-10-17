@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 pub const MINIMUM: i32 = 30;
 
 /// Latest supported minor version
-pub const LATEST: i32 = 35;
+pub const LATEST: i32 = 37;
 
 /// Format a minor version number as a full version string (e.g. 30 → "1.30")
 pub fn format_version(minor: i32) -> String {
