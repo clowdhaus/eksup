@@ -56,7 +56,7 @@ pub struct ChecksConfig {
   pub k8s016: WorkloadCheckConfig,
 
   // K8S012 (KubeProxyIpvsMode) and K8S014 (ContainerdVersion) are intentionally
-  // absent — their findings are cluster or node level, so name+namespace ignore
+  // absent: their findings are cluster or node level, so name+namespace ignore
   // doesn't apply.
   #[serde(skip)]
   compiled: OnceLock<CompiledChecks>,

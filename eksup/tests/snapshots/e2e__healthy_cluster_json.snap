@@ -1,6 +1,5 @@
 ---
 source: eksup/tests/e2e.rs
-assertion_line: 45
 expression: output
 ---
 {

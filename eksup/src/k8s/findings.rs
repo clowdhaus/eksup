@@ -4,6 +4,7 @@ use tracing::warn;
 
 use crate::{
   clients::K8sClients,
+  finding::Code,
   k8s::checks::{self, K8sFindings},
 };
 
@@ -71,7 +72,12 @@ pub async fn get_kubernetes_findings(
   let nodes = k8s.get_nodes().await?;
   let kube_proxy_config = k8s.get_configmap("kube-system", "kube-proxy-config").await?;
   let pdbs = k8s.get_pod_disruption_budgets().await?;
-  let services = k8s.get_services().await?;
+  // Services are only read for K8S016, so earlier targets do not need list access to them
+  let services = if Code::K8S016.is_applicable(target_minor) {
+    k8s.get_services().await?
+  } else {
+    vec![]
+  };
 
   let version_skew = checks::version_skew(&nodes, control_plane_minor);
   let compiled = checks_config.compiled()?;
@@ -114,7 +120,7 @@ pub async fn get_kubernetes_findings(
 
   // Apply ignores to the 10 workload-level finding Vecs. Cluster-level Vecs
   // (version_skew, kube_proxy_version_skew, kube_proxy_ipvs_mode,
-  // containerd_version) skip the filter — their finding structs don't impl WorkloadFinding.
+  // containerd_version) skip the filter because their finding structs don't impl WorkloadFinding.
   let (min_replicas, sup_min_replicas) = apply_ignores(min_replicas, compiled);
   let (min_ready_seconds, sup_min_ready_seconds) = apply_ignores(min_ready_seconds, compiled);
   let (readiness_probe, sup_readiness_probe) = apply_ignores(readiness_probe, compiled);

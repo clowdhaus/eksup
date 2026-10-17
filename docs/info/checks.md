@@ -374,7 +374,7 @@ This check scans Deployments and DaemonSets for container images referencing the
 
 Kubernetes `v1.35` is the last release that supports containerd 1.x. Nodes MUST run containerd 2.0 or later before upgrading to Kubernetes `v1.36` or later. The check reads the container runtime version each node reports.
 
-EKS optimized AMIs ship containerd 2.x from Kubernetes `v1.34`, so findings usually point at nodes from older or custom AMIs. The replacement nodes MUST also come from an AMI that ships containerd 2.0 or later.
+EKS optimized AMIs ship containerd 2.x from Kubernetes `v1.34`, so findings usually point at nodes from older or custom AMIs. The replacement nodes MUST also come from an AMI that ships containerd 2.0 or later. Fargate and EKS Auto Mode nodes are skipped because AWS manages their container runtime.
 
 [EKS Kubernetes 1.35 release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html)
 
@@ -383,6 +383,8 @@ EKS optimized AMIs ship containerd 2.x from Kubernetes `v1.34`, so findings usua
 **❌ Remediation required**
 
 The `gitRepo` volume type is permanently disabled in Kubernetes `v1.36`. The API server still accepts pods that use it, but the kubelet refuses to run them. Workloads using `gitRepo` volumes MUST migrate to an init container or a git-sync sidecar before upgrading to Kubernetes `v1.36` or later.
+
+Like the other workload checks, this check reads the pod templates of the workload controllers in the table above. Pods created directly, or by controllers outside that table, are not inspected.
 
 [KEP-5040](https://github.com/kubernetes/enhancements/issues/5040)
 

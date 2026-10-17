@@ -488,6 +488,12 @@ const CONTAINERD_RUNTIME_PREFIX: &str = "containerd://";
 /// Oldest containerd major version supported from Kubernetes 1.36
 const CONTAINERD_MIN_MAJOR: u32 = 2;
 
+/// Node label EKS sets to identify the compute type of a node
+const COMPUTE_TYPE_LABEL: &str = "eks.amazonaws.com/compute-type";
+
+/// Compute types where AWS manages the container runtime, so the customer cannot change it
+const AWS_MANAGED_COMPUTE_TYPES: [&str; 2] = ["fargate", "auto"];
+
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 #[tabled(rename_all = "UpperCase")]
 pub struct ContainerdVersion {
@@ -503,7 +509,8 @@ finding::impl_findings!(
   "✅ - No nodes are running a containerd version older than 2.0"
 );
 
-/// Check for nodes running containerd 1.x, which is not supported from Kubernetes 1.36
+/// Check for nodes running containerd 1.x, which is not supported from Kubernetes 1.36.
+/// Fargate and EKS Auto Mode nodes are skipped because AWS manages their runtime.
 pub fn containerd_version(nodes: &[resources::Node], target_minor: i32) -> Vec<ContainerdVersion> {
   if !Code::K8S014.is_applicable(target_minor) {
     return vec![];
@@ -511,6 +518,10 @@ pub fn containerd_version(nodes: &[resources::Node], target_minor: i32) -> Vec<C
 
   nodes
     .iter()
+    .filter(|node| {
+      let compute_type = node.labels.as_ref().and_then(|labels| labels.get(COMPUTE_TYPE_LABEL));
+      !matches!(compute_type, Some(t) if AWS_MANAGED_COMPUTE_TYPES.contains(&t.as_str()))
+    })
     .filter(|node| {
       let Some(version) = node.container_runtime_version.strip_prefix(CONTAINERD_RUNTIME_PREFIX) else {
         return false;
@@ -1150,6 +1161,25 @@ mod tests {
     assert_eq!(names, ["old", "old-v-prefix"]);
     assert!(matches!(result[0].finding.remediation, Remediation::Required));
     assert_eq!(result[0].container_runtime_version, "containerd://1.7.27");
+  }
+
+  #[test]
+  fn containerd_version_skips_aws_managed_compute() {
+    let with_compute_type = |name: &str, compute_type: &str| resources::Node {
+      labels: Some(BTreeMap::from([(
+        COMPUTE_TYPE_LABEL.to_string(),
+        compute_type.to_string(),
+      )])),
+      ..make_node_with_runtime(name, "containerd://1.7.27")
+    };
+    let nodes = vec![
+      with_compute_type("fargate-ip-10-0-1-1", "fargate"),
+      with_compute_type("auto-mode", "auto"),
+      with_compute_type("hybrid", "hybrid"),
+    ];
+    let result = containerd_version(&nodes, 36);
+    let names: Vec<&str> = result.iter().map(|f| f.name.as_str()).collect();
+    assert_eq!(names, ["hybrid"]);
   }
 
   // ===========================================================================
