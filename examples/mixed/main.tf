@@ -38,7 +38,7 @@ locals {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 21.25"
+  version = "~> 21.29"
 
   name                   = local.name
   kubernetes_version     = "1.${local.minor_version}"
@@ -150,7 +150,7 @@ resource "kubectl_manifest" "eni_config" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 6.0"
+  version = "~> 6.7"
 
   name = local.name
   cidr = local.vpc_cidr_nodes
