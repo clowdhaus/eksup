@@ -12,3 +12,6 @@
 
 '1.37':
     release_url: https://kubernetes.io/blog/2026/08/26/kubernetes-v1-37-release/
+    notes:
+      - "SELinux mount labeling is on by default. Pods that share a volume from a CSI driver with `seLinuxMount: true` must use the same `seLinuxOptions.level` and `seLinuxChangePolicy`, otherwise they stay in `ContainerCreating`. List the drivers with `kubectl get csidriver -o custom-columns=NAME:.metadata.name,SELINUXMOUNT:.spec.seLinuxMount`."
+      - "The kubelet no longer starts when a deprecated cAdvisor flag is set (other than `--housekeeping-interval`). EKS optimized AMIs do not set them; remove them from custom AMIs and extra kubelet arguments."

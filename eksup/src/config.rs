@@ -49,8 +49,15 @@ pub struct ChecksConfig {
   #[serde(default, rename = "K8S013")]
   pub k8s013: WorkloadCheckConfig,
 
-  // K8S012 (KubeProxyIpvsMode) is intentionally absent — its finding type has
-  // no `resource` field, so name+namespace ignore doesn't apply.
+  #[serde(default, rename = "K8S015")]
+  pub k8s015: WorkloadCheckConfig,
+
+  #[serde(default, rename = "K8S016")]
+  pub k8s016: WorkloadCheckConfig,
+
+  // K8S012 (KubeProxyIpvsMode) and K8S014 (ContainerdVersion) are intentionally
+  // absent — their findings are cluster or node level, so name+namespace ignore
+  // doesn't apply.
   #[serde(skip)]
   compiled: OnceLock<CompiledChecks>,
 }
@@ -69,6 +76,8 @@ impl Clone for ChecksConfig {
       k8s007: self.k8s007.clone(),
       k8s008: self.k8s008.clone(),
       k8s013: self.k8s013.clone(),
+      k8s015: self.k8s015.clone(),
+      k8s016: self.k8s016.clone(),
       compiled: OnceLock::new(),
     }
   }
@@ -181,6 +190,8 @@ impl ChecksConfig {
       (Code::K8S007, &self.k8s007.ignore),
       (Code::K8S008, &self.k8s008.ignore),
       (Code::K8S013, &self.k8s013.ignore),
+      (Code::K8S015, &self.k8s015.ignore),
+      (Code::K8S016, &self.k8s016.ignore),
     ] {
       let compiled = selectors.iter().map(|s| s.compile()).collect::<Result<Vec<_>>>()?;
       if !compiled.is_empty() {
@@ -639,6 +650,8 @@ checks:
     assert!(cfg.k8s007.ignore.is_empty());
     assert!(cfg.k8s008.ignore.is_empty());
     assert!(cfg.k8s013.ignore.is_empty());
+    assert!(cfg.k8s015.ignore.is_empty());
+    assert!(cfg.k8s016.ignore.is_empty());
   }
 
   #[test]
@@ -657,7 +670,7 @@ checks:
   }
 
   #[test]
-  fn deserialize_k8s003_through_k8s013() {
+  fn deserialize_k8s003_through_k8s016() {
     let yaml = r#"
 checks:
   K8S003: { ignore: [{ name: "a", namespace: "x" }] }
@@ -666,6 +679,8 @@ checks:
   K8S007: { ignore: [{ name: "d", namespace: "w" }] }
   K8S008: { ignore: [{ name: "e", namespace: "v" }] }
   K8S013: { ignore: [{ name: "g", namespace: "t" }] }
+  K8S015: { ignore: [{ name: "h", namespace: "s" }] }
+  K8S016: { ignore: [{ name: "i", namespace: "r" }] }
 "#;
     let cfg: Config = serde_yaml::from_str(yaml).unwrap();
     assert_eq!(cfg.checks.k8s003.ignore[0].name, "a");
@@ -674,6 +689,8 @@ checks:
     assert_eq!(cfg.checks.k8s007.ignore[0].name, "d");
     assert_eq!(cfg.checks.k8s008.ignore[0].name, "e");
     assert_eq!(cfg.checks.k8s013.ignore[0].name, "g");
+    assert_eq!(cfg.checks.k8s015.ignore[0].name, "h");
+    assert_eq!(cfg.checks.k8s016.ignore[0].name, "i");
   }
 
   #[test]

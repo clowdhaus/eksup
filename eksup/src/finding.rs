@@ -176,6 +176,9 @@ define_codes! {
   K8S011 => { desc: "kube-proxy version skew with kubelet",                          from: None,     until: None },
   K8S012 => { desc: "kube-proxy IPVS mode deprecated (1.35+, removal planned 1.43)",from: Some(35), until: None },
   K8S013 => { desc: "Ingress NGINX controller retirement (1.35+)",                   from: Some(35), until: None },
+  K8S014 => { desc: "Nodes running containerd 1.x (unsupported from 1.36)",          from: Some(36), until: None },
+  K8S015 => { desc: "gitRepo volumes in use (disabled in 1.36)",                     from: Some(36), until: None },
+  K8S016 => { desc: "Service externalIPs deprecated (1.36+, removal planned 1.43)",  from: Some(36), until: None },
 }
 
 #[allow(dead_code)]
@@ -274,6 +277,14 @@ mod tests {
     assert!(Code::K8S012.is_applicable(35));
     assert!(!Code::K8S013.is_applicable(34));
     assert!(Code::K8S013.is_applicable(35));
+  }
+
+  #[test]
+  fn k8s014_through_k8s016_applicable_from_1_36() {
+    for code in [Code::K8S014, Code::K8S015, Code::K8S016] {
+      assert!(!code.is_applicable(35), "{code} should not be applicable at 1.35");
+      assert!(code.is_applicable(36), "{code} should be applicable at 1.36");
+    }
   }
 
   #[test]

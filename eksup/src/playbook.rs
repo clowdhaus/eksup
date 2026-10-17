@@ -25,6 +25,9 @@ struct Templates;
 struct Release {
   release_url: String,
   deprecation_url: Option<String>,
+  /// Upgrade changes that eksup cannot detect from the cluster, shown in the playbook as is
+  #[serde(default)]
+  notes: Vec<String>,
 }
 
 /// Type alias for Kubernetes version string (i.e. - "1.21")
@@ -44,6 +47,7 @@ pub struct TemplateData {
   target_version: String,
   k8s_release_url: String,
   k8s_deprecation_url: String,
+  k8s_release_notes: Vec<String>,
   control_plane_ips: String,
   pod_ips: String,
   cluster_health: String,
@@ -65,6 +69,9 @@ pub struct TemplateData {
   kube_proxy_ipvs_mode: String,
   ingress_nginx_retirement: String,
   pod_disruption_budgets: String,
+  containerd_version: String,
+  git_repo_volumes: String,
+  service_external_ips: String,
   ec2_limits: String,
   ebs_gp2_limits: String,
   ebs_gp3_limits: String,
@@ -177,6 +184,7 @@ pub fn render(
       Some(url) => url.to_string(),
       None => "".to_string(),
     },
+    k8s_release_notes: release.notes.clone(),
     control_plane_ips: subnet_findings.control_plane_ips.to_markdown_table("\t")?,
     pod_ips: subnet_findings.pod_ips.to_markdown_table("\t")?,
     cluster_health: cluster_findings.cluster_health.to_markdown_table("\t")?,
@@ -198,6 +206,9 @@ pub fn render(
     kube_proxy_ipvs_mode: kubernetes_findings.kube_proxy_ipvs_mode.to_markdown_table("\t")?,
     ingress_nginx_retirement: kubernetes_findings.ingress_nginx_retirement.to_markdown_table("\t")?,
     pod_disruption_budgets: kubernetes_findings.pod_disruption_budgets.to_markdown_table("\t")?,
+    containerd_version: kubernetes_findings.containerd_version.to_markdown_table("\t")?,
+    git_repo_volumes: kubernetes_findings.git_repo_volumes.to_markdown_table("\t")?,
+    service_external_ips: kubernetes_findings.service_external_ips.to_markdown_table("\t")?,
     ec2_limits: analysis.service_limits.ec2_limits.to_markdown_table("\t")?,
     ebs_gp2_limits: analysis.service_limits.ebs_gp2_limits.to_markdown_table("\t")?,
     ebs_gp3_limits: analysis.service_limits.ebs_gp3_limits.to_markdown_table("\t")?,
@@ -251,6 +262,16 @@ pub fn render(
       if !kubernetes_suppressed.ingress_nginx_retirement.is_empty() {
         rendered.push_str("#### Check [[K8S013]](https://clowdhaus.github.io/eksup/info/checks/#k8s013)\n");
         rendered.push_str(&kubernetes_suppressed.ingress_nginx_retirement.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+      if !kubernetes_suppressed.git_repo_volumes.is_empty() {
+        rendered.push_str("#### Check [[K8S015]](https://clowdhaus.github.io/eksup/info/checks/#k8s015)\n");
+        rendered.push_str(&kubernetes_suppressed.git_repo_volumes.to_markdown_table("")?);
+        rendered.push('\n');
+      }
+      if !kubernetes_suppressed.service_external_ips.is_empty() {
+        rendered.push_str("#### Check [[K8S016]](https://clowdhaus.github.io/eksup/info/checks/#k8s016)\n");
+        rendered.push_str(&kubernetes_suppressed.service_external_ips.to_markdown_table("")?);
         rendered.push('\n');
       }
     } else {

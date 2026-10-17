@@ -374,6 +374,31 @@ async fn playbook_pod_ips_healthy_when_no_custom_networking() {
 }
 
 #[tokio::test]
+async fn playbook_release_notes_rendered_for_1_37_target() {
+  let aws = aws_at_version("1.36");
+  let k8s = fixtures::healthy_k8s();
+  let output = render_playbook(&aws, &k8s).await;
+
+  assert!(
+    output.contains("SELinux mount labeling"),
+    "1.37 notes should be rendered"
+  );
+  assert!(
+    output.contains("deprecated cAdvisor flag"),
+    "1.37 notes should be rendered"
+  );
+}
+
+#[tokio::test]
+async fn playbook_release_notes_absent_without_notes() {
+  let aws = aws_at_version("1.35");
+  let k8s = fixtures::healthy_k8s();
+  let output = render_playbook(&aws, &k8s).await;
+
+  assert!(!output.contains("SELinux mount labeling"), "1.36 has no notes");
+}
+
+#[tokio::test]
 async fn playbook_deprecation_url_absent_for_1_33_target() {
   // Cluster at 1.32 -> target 1.33 (no deprecation_url in data.yaml)
   let aws = aws_at_version("1.32");

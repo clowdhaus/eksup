@@ -188,6 +188,46 @@ async fn kubernetes_findings_version_skew() {
 }
 
 #[tokio::test]
+async fn kubernetes_findings_1_36_checks() {
+  use k8s_openapi::{
+    api::core::v1::{Service, ServiceSpec},
+    apimachinery::pkg::apis::meta::v1::ObjectMeta,
+  };
+
+  let k8s = MockK8sClients {
+    nodes: vec![eksup::k8s::resources::Node {
+      container_runtime_version: "containerd://1.7.27".into(),
+      ..fixtures::make_node("node-1", 35)
+    }],
+    services: vec![Service {
+      metadata: ObjectMeta {
+        name: Some("legacy".into()),
+        namespace: Some("default".into()),
+        ..Default::default()
+      },
+      spec: Some(ServiceSpec {
+        external_ips: Some(vec!["192.0.2.10".into()]),
+        ..Default::default()
+      }),
+      ..Default::default()
+    }],
+    ..Default::default()
+  };
+
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 35, 36, &ChecksConfig::default())
+    .await
+    .unwrap();
+  assert_eq!(result.containerd_version.len(), 1);
+  assert_eq!(result.service_external_ips.len(), 1);
+
+  let (result, _suppressed) = eksup::k8s::get_kubernetes_findings(&k8s, 34, 35, &ChecksConfig::default())
+    .await
+    .unwrap();
+  assert!(result.containerd_version.is_empty(), "K8S014 starts at 1.36");
+  assert!(result.service_external_ips.is_empty(), "K8S016 starts at 1.36");
+}
+
+#[tokio::test]
 async fn kubernetes_findings_workload_issues() {
   let k8s = MockK8sClients {
     resources: vec![fixtures::make_deployment("web", "default", 1)],

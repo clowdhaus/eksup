@@ -53,6 +53,7 @@ pub fn make_node(name: &str, minor: i32) -> Node {
     labels: None,
     kubelet_version: format!("v1.{minor}.0"),
     minor_version: minor,
+    container_runtime_version: "containerd://2.1.4".into(),
   }
 }
 

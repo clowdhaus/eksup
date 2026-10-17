@@ -20,11 +20,14 @@ pub struct KubernetesFindings {
   pub kube_proxy_ipvs_mode: Vec<checks::KubeProxyIpvsMode>,
   pub ingress_nginx_retirement: Vec<checks::IngressNginxRetirement>,
   pub pod_disruption_budgets: Vec<checks::MissingPdb>,
+  pub containerd_version: Vec<checks::ContainerdVersion>,
+  pub git_repo_volumes: Vec<checks::GitRepoVolume>,
+  pub service_external_ips: Vec<checks::ServiceExternalIps>,
 }
 
 /// Findings that were dropped by the ignore filter — same shape as
 /// `KubernetesFindings`, minus the cluster-level checks (version_skew,
-/// kube_proxy_version_skew, kube_proxy_ipvs_mode) which the filter never
+/// kube_proxy_version_skew, kube_proxy_ipvs_mode, containerd_version) which the filter never
 /// touches. The wrapper struct always serializes (no `skip_serializing_if`
 /// anywhere) so the JSON `suppressed:` key is always present.
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -37,6 +40,8 @@ pub struct KubernetesSuppressed {
   pub docker_socket: Vec<checks::DockerSocket>,
   pub ingress_nginx_retirement: Vec<checks::IngressNginxRetirement>,
   pub pod_disruption_budgets: Vec<checks::MissingPdb>,
+  pub git_repo_volumes: Vec<checks::GitRepoVolume>,
+  pub service_external_ips: Vec<checks::ServiceExternalIps>,
 }
 
 impl KubernetesSuppressed {
@@ -49,6 +54,8 @@ impl KubernetesSuppressed {
       + self.docker_socket.len()
       + self.ingress_nginx_retirement.len()
       + self.pod_disruption_budgets.len()
+      + self.git_repo_volumes.len()
+      + self.service_external_ips.len()
   }
 }
 
@@ -64,6 +71,7 @@ pub async fn get_kubernetes_findings(
   let nodes = k8s.get_nodes().await?;
   let kube_proxy_config = k8s.get_configmap("kube-system", "kube-proxy-config").await?;
   let pdbs = k8s.get_pod_disruption_budgets().await?;
+  let services = k8s.get_services().await?;
 
   let version_skew = checks::version_skew(&nodes, control_plane_minor);
   let compiled = checks_config.compiled()?;
@@ -100,10 +108,13 @@ pub async fn get_kubernetes_findings(
   let kube_proxy_ipvs_mode = checks::kube_proxy_ipvs_mode(kube_proxy_config.as_ref(), target_minor)?;
   let ingress_nginx_retirement = checks::ingress_nginx_retirement(&resources, target_minor)?;
   let pod_disruption_budgets = checks::pod_disruption_budgets(&resources, &pdbs);
+  let containerd_version = checks::containerd_version(&nodes, target_minor);
+  let git_repo_volumes = checks::git_repo_volumes(&resources, target_minor);
+  let service_external_ips = checks::service_external_ips(&services, target_minor);
 
-  // Apply ignores to the 8 workload-level finding Vecs. Cluster-level Vecs
-  // (version_skew, kube_proxy_version_skew, kube_proxy_ipvs_mode) skip the
-  // filter — their finding structs don't impl WorkloadFinding.
+  // Apply ignores to the 10 workload-level finding Vecs. Cluster-level Vecs
+  // (version_skew, kube_proxy_version_skew, kube_proxy_ipvs_mode,
+  // containerd_version) skip the filter — their finding structs don't impl WorkloadFinding.
   let (min_replicas, sup_min_replicas) = apply_ignores(min_replicas, compiled);
   let (min_ready_seconds, sup_min_ready_seconds) = apply_ignores(min_ready_seconds, compiled);
   let (readiness_probe, sup_readiness_probe) = apply_ignores(readiness_probe, compiled);
@@ -112,6 +123,8 @@ pub async fn get_kubernetes_findings(
   let (docker_socket, sup_docker_socket) = apply_ignores(docker_socket, compiled);
   let (ingress_nginx_retirement, sup_ingress_nginx_retirement) = apply_ignores(ingress_nginx_retirement, compiled);
   let (pod_disruption_budgets, sup_pod_disruption_budgets) = apply_ignores(pod_disruption_budgets, compiled);
+  let (git_repo_volumes, sup_git_repo_volumes) = apply_ignores(git_repo_volumes, compiled);
+  let (service_external_ips, sup_service_external_ips) = apply_ignores(service_external_ips, compiled);
 
   Ok((
     KubernetesFindings {
@@ -126,6 +139,9 @@ pub async fn get_kubernetes_findings(
       kube_proxy_ipvs_mode,
       ingress_nginx_retirement,
       pod_disruption_budgets,
+      containerd_version,
+      git_repo_volumes,
+      service_external_ips,
     },
     KubernetesSuppressed {
       min_replicas: sup_min_replicas,
@@ -136,6 +152,8 @@ pub async fn get_kubernetes_findings(
       docker_socket: sup_docker_socket,
       ingress_nginx_retirement: sup_ingress_nginx_retirement,
       pod_disruption_budgets: sup_pod_disruption_budgets,
+      git_repo_volumes: sup_git_repo_volumes,
+      service_external_ips: sup_service_external_ips,
     },
   ))
 }

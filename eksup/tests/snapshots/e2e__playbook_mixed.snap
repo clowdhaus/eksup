@@ -234,6 +234,15 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
     #### Check [[K8S013]](https://clowdhaus.github.io/eksup/info/checks/#k8s013)
 	✅ - No Ingress NGINX controller images detected that require migration
 
+    #### Check [[K8S014]](https://clowdhaus.github.io/eksup/info/checks/#k8s014)
+	✅ - No nodes are running a containerd version older than 2.0
+
+    #### Check [[K8S015]](https://clowdhaus.github.io/eksup/info/checks/#k8s015)
+	✅ - No workloads are using `gitRepo` volumes
+
+    #### Check [[K8S016]](https://clowdhaus.github.io/eksup/info/checks/#k8s016)
+	✅ - No Services are using `externalIPs`
+
     #### Check [[AWS001]](https://clowdhaus.github.io/eksup/info/checks/#aws001)
 	✅ - There is sufficient IP space in the subnets provided
 
