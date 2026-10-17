@@ -1,10 +1,10 @@
 use anyhow::{Context, Result, bail};
 
 /// Minimum supported minor version — clusters below this cannot be analyzed
-pub const MINIMUM: i32 = 30;
+pub const MINIMUM: i32 = 32;
 
 /// Latest supported minor version
-pub const LATEST: i32 = 35;
+pub const LATEST: i32 = 37;
 
 /// Format a minor version number as a full version string (e.g. 30 → "1.30")
 pub fn format_version(minor: i32) -> String {

@@ -105,6 +105,18 @@ impl Results {
       .pod_disruption_budgets
       .retain(|f| !f.finding.remediation.is_recommended());
     self
+      .kubernetes
+      .containerd_version
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .git_repo_volumes
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
+      .kubernetes
+      .service_external_ips
+      .retain(|f| !f.finding.remediation.is_recommended());
+    self
       .service_limits
       .ec2_limits
       .retain(|f| !f.finding.remediation.is_recommended());
@@ -153,6 +165,9 @@ impl Results {
     output.push_str(&self.kubernetes.kube_proxy_ipvs_mode.to_stdout_table()?);
     output.push_str(&self.kubernetes.ingress_nginx_retirement.to_stdout_table()?);
     output.push_str(&self.kubernetes.pod_disruption_budgets.to_stdout_table()?);
+    output.push_str(&self.kubernetes.containerd_version.to_stdout_table()?);
+    output.push_str(&self.kubernetes.git_repo_volumes.to_stdout_table()?);
+    output.push_str(&self.kubernetes.service_external_ips.to_stdout_table()?);
     output.push_str(&self.service_limits.ec2_limits.to_stdout_table()?);
     output.push_str(&self.service_limits.ebs_gp2_limits.to_stdout_table()?);
     output.push_str(&self.service_limits.ebs_gp3_limits.to_stdout_table()?);
@@ -171,6 +186,8 @@ impl Results {
         output.push_str(&self.kubernetes_suppressed.docker_socket.to_stdout_table()?);
         output.push_str(&self.kubernetes_suppressed.ingress_nginx_retirement.to_stdout_table()?);
         output.push_str(&self.kubernetes_suppressed.pod_disruption_budgets.to_stdout_table()?);
+        output.push_str(&self.kubernetes_suppressed.git_repo_volumes.to_stdout_table()?);
+        output.push_str(&self.kubernetes_suppressed.service_external_ips.to_stdout_table()?);
       } else {
         writeln!(
           output,

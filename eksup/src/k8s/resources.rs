@@ -104,6 +104,8 @@ pub struct Node {
   pub labels: Option<BTreeMap<String, String>>,
   pub kubelet_version: String,
   pub minor_version: i32,
+  /// Runtime and version as reported by the kubelet, e.g. `containerd://2.1.4`
+  pub container_runtime_version: String,
 }
 
 pub async fn get_nodes(client: &Client) -> Result<Vec<Node>> {
@@ -124,6 +126,7 @@ pub async fn get_nodes(client: &Client) -> Result<Vec<Node>> {
           labels: node.metadata.labels.to_owned(),
           kubelet_version,
           minor_version,
+          container_runtime_version: node_info.container_runtime_version.to_owned(),
         })
       })
       .collect(),
@@ -615,6 +618,11 @@ pub struct StdPdb {
   pub selector: Option<k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector>,
   pub min_available: Option<IntOrString>,
   pub max_unavailable: Option<IntOrString>,
+}
+
+pub async fn get_services(client: &Client) -> Result<Vec<core::v1::Service>> {
+  let api: Api<core::v1::Service> = Api::all(client.to_owned());
+  list_all(&api, LIST_PAGE_SIZE).await.context("Failed to list Services")
 }
 
 pub async fn get_pod_disruption_budgets(client: &Client) -> Result<Vec<StdPdb>> {
@@ -1198,6 +1206,7 @@ mod tests {
       )])),
       kubelet_version: "v1.28.3".to_string(),
       minor_version: 28,
+      container_runtime_version: "containerd://2.1.4".to_string(),
     };
     assert_eq!(node.name, "ip-10-0-1-42");
     assert!(
@@ -1217,6 +1226,7 @@ mod tests {
       labels: None,
       kubelet_version: "v1.30.0".to_string(),
       minor_version: 30,
+      container_runtime_version: "containerd://2.1.4".to_string(),
     };
     assert_eq!(node.minor_version, 30);
   }

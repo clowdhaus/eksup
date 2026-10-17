@@ -7,8 +7,8 @@ expression: output
 |                            |                           Value                           |
 | :------------------------- | :-------------------------------------------------------: |
 | Amazon EKS cluster         |                 `test-cluster`                      |
-| Current version            |                 `v1.30`                  |
-| Target version             |                  `v1.31`                  |
+| Current version            |                 `v1.32`                  |
+| Target version             |                  `v1.33`                  |
 | EKS Managed nodegroup(s)  |  ➖   |
 | Self-Managed nodegroup(s) |  ➖  |
 | Fargate profile(s)         |      ➖      |
@@ -32,8 +32,8 @@ expression: output
 
 1. Review the following resources for affected changes in the next version of Kubernetes:
 
-    - ℹ️ [Kubernetes `1.31` release announcement](https://kubernetes.io/blog/2024/08/13/kubernetes-v1-31-release/)
-    - ℹ️ [EKS `1.31` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-1.31)
+    - ℹ️ [Kubernetes `1.33` release announcement](https://kubernetes.io/blog/2025/04/23/kubernetes-v1-33-release/)
+    - ℹ️ [EKS `1.33` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-1.33)
 
 2. Per the [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/#supported-version-skew), the `kubelet` version must not be newer than `kube-apiserver`, and may be up to two minor versions older. It is recommended that the nodes in the data plane are aligned with the same minor version as the control plane before upgrading.
 
@@ -116,9 +116,9 @@ expression: output
       CURRENT=$(aws eks describe-addon --cluster-name test-cluster --region us-east-1 \
         --addon-name ${ADDON} --query 'addon.addonVersion' --output text)
       LATEST=$(aws eks describe-addon-versions --region us-east-1 --addon-name ${ADDON} \
-        --kubernetes-version 1.31 --query 'addons[0].addonVersions[0].addonVersion' --output text)
+        --kubernetes-version 1.33 --query 'addons[0].addonVersions[0].addonVersion' --output text)
       LIST=$(aws eks describe-addon-versions --region us-east-1 --addon-name ${ADDON} \
-        --kubernetes-version 1.31 --query 'addons[0].addonVersions[*].addonVersion')
+        --kubernetes-version 1.33 --query 'addons[0].addonVersions[*].addonVersion')
 
       echo "${ADDON} current version: ${CURRENT}"
       echo "${ADDON} next latest version: ${LATEST}"
@@ -163,7 +163,7 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     ```sh
     aws eks update-cluster-version --region us-east-1 --name test-cluster \
-        --kubernetes-version 1.31
+        --kubernetes-version 1.33
     ```
 
 2. Wait for the control plane to finish upgrading before proceeding with any further modifications. The cluster status will change to `ACTIVE` once the upgrade is complete.
@@ -210,6 +210,15 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     #### Check [[K8S013]](https://clowdhaus.github.io/eksup/info/checks/#k8s013)
 	✅ - No Ingress NGINX controller images detected that require migration
+
+    #### Check [[K8S014]](https://clowdhaus.github.io/eksup/info/checks/#k8s014)
+	✅ - No nodes are running a containerd version older than 2.0
+
+    #### Check [[K8S015]](https://clowdhaus.github.io/eksup/info/checks/#k8s015)
+	✅ - No workloads are using `gitRepo` volumes
+
+    #### Check [[K8S016]](https://clowdhaus.github.io/eksup/info/checks/#k8s016)
+	✅ - No Services are using `externalIPs`
 
     #### Check [[AWS001]](https://clowdhaus.github.io/eksup/info/checks/#aws001)
 	✅ - There is sufficient IP space in the subnets provided

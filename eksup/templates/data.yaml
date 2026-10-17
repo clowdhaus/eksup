@@ -1,13 +1,3 @@
-'1.30':
-    release_url: https://kubernetes.io/blog/2024/04/17/kubernetes-v1-30-release/
-
-'1.31':
-    release_url: https://kubernetes.io/blog/2024/08/13/kubernetes-v1-31-release/
-
-'1.32':
-    release_url: https://kubernetes.io/blog/2024/12/11/kubernetes-v1-32-release/
-    deprecation_url: https://kubernetes.io/docs/reference/using-api/deprecation-guide/#v1-32
-
 '1.33':
     release_url: https://kubernetes.io/blog/2025/04/23/kubernetes-v1-33-release/
 
@@ -16,3 +6,12 @@
 
 '1.35':
     release_url: https://kubernetes.io/blog/2025/12/17/kubernetes-v1-35-release/
+
+'1.36':
+    release_url: https://kubernetes.io/blog/2026/04/22/kubernetes-v1-36-release/
+
+'1.37':
+    release_url: https://kubernetes.io/blog/2026/08/26/kubernetes-v1-37-release/
+    notes:
+      - "SELinux mount labeling is on by default. Pods that share a volume from a CSI driver with `seLinuxMount: true` must use the same `seLinuxOptions.level` and `seLinuxChangePolicy`, otherwise they stay in `ContainerCreating`. List the drivers with `kubectl get csidriver -o custom-columns=NAME:.metadata.name,SELINUXMOUNT:.spec.seLinuxMount`."
+      - "The kubelet no longer starts when a deprecated cAdvisor flag is set (other than `--housekeeping-interval`). EKS optimized AMIs do not set them; remove them from custom AMIs and extra kubelet arguments."

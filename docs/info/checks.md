@@ -41,8 +41,11 @@ See the [symbol table](https://clowdhaus.github.io/eksup/#symbol-table) for furt
 | `K8S009` | Pod security policies present (removed in 1.25) | Retired | Up to 1.24 |
 | `K8S010` | EBS CSI driver not installed | Retired | Up to 1.24 |
 | `K8S011` | kube-proxy version skew with kubelet | Active | All versions |
-| `K8S012` | kube-proxy IPVS mode deprecated (1.35+, removed 1.36) | Active | 1.35+ |
+| `K8S012` | kube-proxy IPVS mode deprecated (1.35+, removal planned 1.43) | Active | 1.35+ |
 | `K8S013` | Ingress NGINX controller retirement (1.35+) | Active | 1.35+ |
+| `K8S014` | Nodes running containerd 1.x (unsupported from 1.36) | Active | 1.36+ |
+| `K8S015` | gitRepo volumes in use (disabled in 1.36) | Active | 1.36+ |
+| `K8S016` | Service externalIPs deprecated (1.36+, removal planned 1.43) | Active | 1.36+ |
 
 <!-- END GENERATED CHECKS TABLE -->
 
@@ -201,6 +204,9 @@ Table below shows the checks that are applicable, or not, to the respective Kube
 | `K8S011` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
 | `K8S012` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
 | `K8S013` |     ✅     |     ❌     |          ❌           |     ❌      | ❌  |   ❌    |    ✅     |
+| `K8S014` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
+| `K8S015` |     ✅     |     ✅     |          ❌           |     ✅      | ✅  |   ✅    |    ✅     |
+| `K8S016` |     ➖     |     ➖     |          ➖           |     ➖      | ➖  |   ➖    |    ➖     |
 
 #### K8S001
 
@@ -346,17 +352,11 @@ If you recently updated your cluster to a new Kubernetes minor version, then upd
 
 #### K8S012
 
-`kube-proxy` IPVS proxy mode is deprecated starting in Kubernetes `v1.35` and will be removed in `v1.36`. Clusters using IPVS mode MUST migrate to `iptables` or `nftables` proxy mode.
-
-**❌ Remediation required**
-
-For clusters upgrading to Kubernetes `v1.36` or later — IPVS proxy mode MUST NOT be used as it is removed.
-
 **⚠️ Remediation recommended**
 
-For clusters upgrading to Kubernetes `v1.35` — IPVS proxy mode is deprecated and SHOULD be migrated.
+`kube-proxy` IPVS proxy mode is deprecated starting in Kubernetes `v1.35`. It is expected to be disabled by default in `v1.40` and removed in `v1.43`. Clusters using IPVS mode SHOULD migrate to `nftables` or `iptables` proxy mode.
 
-[Kubernetes kube-proxy documentation](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/)
+[Kubernetes kube-proxy documentation](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/), [KEP-5495](https://github.com/kubernetes/enhancements/issues/5495)
 
 #### K8S013
 
@@ -367,6 +367,34 @@ The Kubernetes community Ingress NGINX controller (`registry.k8s.io/ingress-ngin
 This check scans Deployments and DaemonSets for container images referencing the retired Ingress NGINX controller.
 
 [Ingress NGINX Controller](https://kubernetes.github.io/ingress-nginx/)
+
+#### K8S014
+
+**❌ Remediation required**
+
+Kubernetes `v1.35` is the last release that supports containerd 1.x. Nodes MUST run containerd 2.0 or later before upgrading to Kubernetes `v1.36` or later. The check reads the container runtime version each node reports.
+
+EKS optimized AMIs ship containerd 2.x from Kubernetes `v1.34`, so findings usually point at nodes from older or custom AMIs. The replacement nodes MUST also come from an AMI that ships containerd 2.0 or later. Fargate and EKS Auto Mode nodes are skipped because AWS manages their container runtime.
+
+[EKS Kubernetes 1.35 release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html)
+
+#### K8S015
+
+**❌ Remediation required**
+
+The `gitRepo` volume type is permanently disabled in Kubernetes `v1.36`. The API server still accepts pods that use it, but the kubelet refuses to run them. Workloads using `gitRepo` volumes MUST migrate to an init container or a git-sync sidecar before upgrading to Kubernetes `v1.36` or later.
+
+Like the other workload checks, this check reads the pod templates of the workload controllers in the table above. Pods created directly, or by controllers outside that table, are not inspected.
+
+[KEP-5040](https://github.com/kubernetes/enhancements/issues/5040)
+
+#### K8S016
+
+**⚠️ Remediation recommended**
+
+The `spec.externalIPs` field of a Service is deprecated starting in Kubernetes `v1.36`, and its removal is planned for `v1.43`. Services using `externalIPs` SHOULD migrate to a `LoadBalancer` or `NodePort` Service, or to the Gateway API.
+
+[KEP-5707](https://github.com/kubernetes/enhancements/issues/5707)
 
 ---
 

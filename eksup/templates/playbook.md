@@ -43,6 +43,9 @@
 {{/if}}
     - ℹ️ [Kubernetes `{{ target_version }}` release announcement]({{ k8s_release_url }})
     - ℹ️ [EKS `{{ target_version }}` release notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-{{ target_version }})
+{{#each k8s_release_notes }}
+    - ⚠️ {{ this }}
+{{/each}}
 
 2. Per the [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/#supported-version-skew), the `kubelet` version must not be newer than `kube-apiserver`, and may be up to two minor versions older. It is recommended that the nodes in the data plane are aligned with the same minor version as the control plane before upgrading.
 
@@ -219,6 +222,15 @@ When upgrading the control plane, Amazon EKS performs standard infrastructure an
 
     #### Check [[K8S013]](https://clowdhaus.github.io/eksup/info/checks/#k8s013)
 {{ ingress_nginx_retirement }}
+
+    #### Check [[K8S014]](https://clowdhaus.github.io/eksup/info/checks/#k8s014)
+{{ containerd_version }}
+
+    #### Check [[K8S015]](https://clowdhaus.github.io/eksup/info/checks/#k8s015)
+{{ git_repo_volumes }}
+
+    #### Check [[K8S016]](https://clowdhaus.github.io/eksup/info/checks/#k8s016)
+{{ service_external_ips }}
 
     #### Check [[AWS001]](https://clowdhaus.github.io/eksup/info/checks/#aws001)
 {{ node_ips }}

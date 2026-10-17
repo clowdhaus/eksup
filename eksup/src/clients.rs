@@ -1,7 +1,7 @@
 use anyhow::Result;
 use aws_sdk_autoscaling::types::AutoScalingGroup;
 use aws_sdk_eks::types::{Addon, Cluster, FargateProfile, Nodegroup};
-use k8s_openapi::api::core::v1::ConfigMap;
+use k8s_openapi::api::core::v1::{ConfigMap, Service};
 
 use crate::{
   eks::resources::{self as eks_resources, AddonVersion, ClusterInsight, LaunchTemplate, VpcSubnet},
@@ -56,6 +56,7 @@ pub trait K8sClients {
   fn get_eniconfigs(&self) -> impl std::future::Future<Output = Result<Vec<ENIConfig>>> + Send;
   fn get_resources(&self) -> impl std::future::Future<Output = Result<Vec<StdResource>>> + Send;
   fn get_pod_disruption_budgets(&self) -> impl std::future::Future<Output = Result<Vec<StdPdb>>> + Send;
+  fn get_services(&self) -> impl std::future::Future<Output = Result<Vec<Service>>> + Send;
 }
 
 /// Real AWS client implementation wrapping the SDK clients
@@ -166,5 +167,9 @@ impl K8sClients for RealK8sClients {
 
   async fn get_pod_disruption_budgets(&self) -> Result<Vec<StdPdb>> {
     k8s_resources::get_pod_disruption_budgets(&self.client).await
+  }
+
+  async fn get_services(&self) -> Result<Vec<Service>> {
+    k8s_resources::get_services(&self.client).await
   }
 }

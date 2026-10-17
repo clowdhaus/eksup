@@ -5,7 +5,7 @@ use eksup::{
   clients::K8sClients,
   k8s::resources::{ENIConfig, Node, StdPdb, StdResource},
 };
-use k8s_openapi::api::core::v1::ConfigMap;
+use k8s_openapi::api::core::v1::{ConfigMap, Service};
 
 /// Mock K8s client for testing
 #[derive(Clone, Default)]
@@ -15,6 +15,7 @@ pub struct MockK8sClients {
   pub eniconfigs: Vec<ENIConfig>,
   pub resources: Vec<StdResource>,
   pub pdbs: Vec<StdPdb>,
+  pub services: Vec<Service>,
 }
 
 impl K8sClients for MockK8sClients {
@@ -37,6 +38,10 @@ impl K8sClients for MockK8sClients {
   async fn get_pod_disruption_budgets(&self) -> Result<Vec<StdPdb>> {
     Ok(self.pdbs.clone())
   }
+
+  async fn get_services(&self) -> Result<Vec<Service>> {
+    Ok(self.services.clone())
+  }
 }
 
 /// Mock that returns errors for all methods
@@ -56,6 +61,9 @@ impl K8sClients for MockK8sClientsError {
     bail!("mock K8s error")
   }
   async fn get_pod_disruption_budgets(&self) -> Result<Vec<StdPdb>> {
+    bail!("mock K8s error")
+  }
+  async fn get_services(&self) -> Result<Vec<Service>> {
     bail!("mock K8s error")
   }
 }

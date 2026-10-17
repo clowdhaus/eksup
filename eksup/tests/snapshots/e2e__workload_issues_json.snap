@@ -148,7 +148,10 @@ expression: output
         "has_min_available": false,
         "has_max_unavailable": false
       }
-    ]
+    ],
+    "containerd_version": [],
+    "git_repo_volumes": [],
+    "service_external_ips": []
   },
   "suppressed": {
     "min_replicas": [],
@@ -158,7 +161,9 @@ expression: output
     "termination_grace_period": [],
     "docker_socket": [],
     "ingress_nginx_retirement": [],
-    "pod_disruption_budgets": []
+    "pod_disruption_budgets": [],
+    "git_repo_volumes": [],
+    "service_external_ips": []
   },
   "service_limits": {
     "ec2_limits": [],

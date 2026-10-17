@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use k8s_openapi::api::core::v1::ConfigMap;
+use k8s_openapi::api::core::v1::{ConfigMap, Service};
 use serde::{Deserialize, Serialize};
 use tabled::{
   Table, Tabled,
@@ -366,8 +366,8 @@ finding::impl_findings!(
   "✅ - `kube-proxy` is not using the deprecated IPVS mode"
 );
 
-/// Check if kube-proxy is configured with IPVS mode, which is deprecated in 1.35 and
-/// removed in 1.36
+/// Check if kube-proxy is configured with IPVS mode, which is deprecated from 1.35, expected
+/// to be disabled by default in 1.40 and removed in 1.43 (KEP-5495)
 pub fn kube_proxy_ipvs_mode(configmap: Option<&ConfigMap>, target_minor: i32) -> Result<Vec<KubeProxyIpvsMode>> {
   if target_minor < 35 {
     return Ok(vec![]);
@@ -394,14 +394,8 @@ pub fn kube_proxy_ipvs_mode(configmap: Option<&ConfigMap>, target_minor: i32) ->
   let mode = config.get("mode").and_then(|v| v.as_str()).unwrap_or("");
 
   if mode == "ipvs" {
-    let remediation = if target_minor >= 36 {
-      Remediation::Required
-    } else {
-      Remediation::Recommended
-    };
-
     Ok(vec![KubeProxyIpvsMode {
-      finding: Finding::new(Code::K8S012, remediation),
+      finding: Finding::new(Code::K8S012, Remediation::Recommended),
       current_mode: mode.to_owned(),
     }])
   } else {
@@ -486,6 +480,161 @@ pub fn ingress_nginx_retirement(
   }
 
   Ok(findings)
+}
+
+/// Prefix the kubelet reports in `nodeInfo.containerRuntimeVersion` for containerd
+const CONTAINERD_RUNTIME_PREFIX: &str = "containerd://";
+
+/// Oldest containerd major version supported from Kubernetes 1.36
+const CONTAINERD_MIN_MAJOR: u32 = 2;
+
+/// Node label EKS sets to identify the compute type of a node
+const COMPUTE_TYPE_LABEL: &str = "eks.amazonaws.com/compute-type";
+
+/// Compute types where AWS manages the container runtime, so the customer cannot change it
+const AWS_MANAGED_COMPUTE_TYPES: [&str; 2] = ["fargate", "auto"];
+
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct ContainerdVersion {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  pub name: String,
+  #[tabled(rename = "CONTAINER RUNTIME")]
+  pub container_runtime_version: String,
+}
+
+finding::impl_findings!(
+  ContainerdVersion,
+  "✅ - No nodes are running a containerd version older than 2.0"
+);
+
+/// Check for nodes running containerd 1.x, which is not supported from Kubernetes 1.36.
+/// Fargate and EKS Auto Mode nodes are skipped because AWS manages their runtime.
+pub fn containerd_version(nodes: &[resources::Node], target_minor: i32) -> Vec<ContainerdVersion> {
+  if !Code::K8S014.is_applicable(target_minor) {
+    return vec![];
+  }
+
+  nodes
+    .iter()
+    .filter(|node| {
+      let compute_type = node.labels.as_ref().and_then(|labels| labels.get(COMPUTE_TYPE_LABEL));
+      !matches!(compute_type, Some(t) if AWS_MANAGED_COMPUTE_TYPES.contains(&t.as_str()))
+    })
+    .filter(|node| {
+      let Some(version) = node.container_runtime_version.strip_prefix(CONTAINERD_RUNTIME_PREFIX) else {
+        return false;
+      };
+      let version = version.strip_prefix('v').unwrap_or(version);
+      matches!(
+        version.split('.').next().and_then(|major| major.parse::<u32>().ok()),
+        Some(major) if major < CONTAINERD_MIN_MAJOR
+      )
+    })
+    .map(|node| ContainerdVersion {
+      finding: Finding::new(Code::K8S014, Remediation::Required),
+      name: node.name.to_owned(),
+      container_runtime_version: node.container_runtime_version.to_owned(),
+    })
+    .collect()
+}
+
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct GitRepoVolume {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  #[tabled(inline)]
+  pub resource: Resource,
+  #[tabled(rename = "VOLUME")]
+  pub volume: String,
+}
+
+finding::impl_findings!(GitRepoVolume, "✅ - No workloads are using `gitRepo` volumes");
+
+impl WorkloadFinding for GitRepoVolume {
+  fn resource(&self) -> (&str, &str) {
+    (&self.resource.name, &self.resource.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S015
+  }
+}
+
+/// Check for workloads using `gitRepo` volumes, which the kubelet refuses to run from 1.36
+pub fn git_repo_volumes(resources: &[resources::StdResource], target_minor: i32) -> Vec<GitRepoVolume> {
+  if !Code::K8S015.is_applicable(target_minor) {
+    return vec![];
+  }
+
+  let mut findings = Vec::new();
+
+  for resource in resources {
+    let volumes = resource
+      .spec
+      .template
+      .as_ref()
+      .and_then(|t| t.spec.as_ref())
+      .and_then(|s| s.volumes.as_deref())
+      .unwrap_or_default();
+
+    for volume in volumes.iter().filter(|v| v.git_repo.is_some()) {
+      findings.push(GitRepoVolume {
+        finding: Finding::new(Code::K8S015, Remediation::Required),
+        resource: resource.get_resource(),
+        volume: volume.name.to_owned(),
+      });
+    }
+  }
+
+  findings
+}
+
+#[derive(Debug, Serialize, Deserialize, Tabled)]
+#[tabled(rename_all = "UpperCase")]
+pub struct ServiceExternalIps {
+  #[tabled(inline)]
+  pub finding: finding::Finding,
+  pub name: String,
+  pub namespace: String,
+  #[tabled(rename = "EXTERNAL IPS")]
+  pub external_ips: String,
+}
+
+finding::impl_findings!(ServiceExternalIps, "✅ - No Services are using `externalIPs`");
+
+impl WorkloadFinding for ServiceExternalIps {
+  fn resource(&self) -> (&str, &str) {
+    (&self.name, &self.namespace)
+  }
+  fn code(&self) -> Code {
+    Code::K8S016
+  }
+}
+
+/// Check for Services that set `spec.externalIPs`, which is deprecated from 1.36
+pub fn service_external_ips(services: &[Service], target_minor: i32) -> Vec<ServiceExternalIps> {
+  if !Code::K8S016.is_applicable(target_minor) {
+    return vec![];
+  }
+
+  services
+    .iter()
+    .filter_map(|service| {
+      let external_ips = service.spec.as_ref()?.external_ips.as_deref()?;
+      if external_ips.is_empty() {
+        return None;
+      }
+
+      Some(ServiceExternalIps {
+        finding: Finding::new(Code::K8S016, Remediation::Recommended),
+        name: service.metadata.name.clone().unwrap_or_default(),
+        namespace: service.metadata.namespace.clone().unwrap_or_default(),
+        external_ips: external_ips.join(", "),
+      })
+    })
+    .collect()
 }
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
@@ -640,6 +789,7 @@ mod tests {
       labels: None,
       kubelet_version: format!("v1.{minor_version}.0"),
       minor_version,
+      container_runtime_version: "containerd://2.1.4".to_string(),
     }
   }
 
@@ -897,11 +1047,11 @@ mod tests {
   }
 
   #[test]
-  fn kube_proxy_ipvs_mode_ipvs_target_36_required() {
+  fn kube_proxy_ipvs_mode_ipvs_target_37_recommended() {
     let cm = make_configmap("mode: ipvs");
-    let result = kube_proxy_ipvs_mode(Some(&cm), 36).unwrap();
+    let result = kube_proxy_ipvs_mode(Some(&cm), 37).unwrap();
     assert_eq!(result.len(), 1);
-    assert!(matches!(result[0].finding.remediation, Remediation::Required));
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
     assert_eq!(result[0].current_mode, "ipvs");
   }
 
@@ -978,6 +1128,152 @@ mod tests {
     assert_eq!(result.len(), 2);
     assert_eq!(result[0].resource.name, "ingress-nginx-controller");
     assert_eq!(result[1].resource.name, "ingress-nginx-controller-legacy");
+  }
+
+  // ===========================================================================
+  // containerd_version
+  // ===========================================================================
+
+  fn make_node_with_runtime(name: &str, runtime: &str) -> resources::Node {
+    resources::Node {
+      container_runtime_version: runtime.to_string(),
+      ..make_node(name, 35)
+    }
+  }
+
+  #[test]
+  fn containerd_version_not_applicable_before_1_36() {
+    let nodes = vec![make_node_with_runtime("old", "containerd://1.7.27")];
+    assert!(containerd_version(&nodes, 35).is_empty());
+  }
+
+  #[test]
+  fn containerd_version_flags_1x_only() {
+    let nodes = vec![
+      make_node_with_runtime("old", "containerd://1.7.27"),
+      make_node_with_runtime("old-v-prefix", "containerd://v1.6.0"),
+      make_node_with_runtime("new", "containerd://2.1.4"),
+      make_node_with_runtime("other-runtime", "cri-o://1.30.0"),
+      make_node_with_runtime("unparseable", "containerd://unknown"),
+    ];
+    let result = containerd_version(&nodes, 36);
+    let names: Vec<&str> = result.iter().map(|f| f.name.as_str()).collect();
+    assert_eq!(names, ["old", "old-v-prefix"]);
+    assert!(matches!(result[0].finding.remediation, Remediation::Required));
+    assert_eq!(result[0].container_runtime_version, "containerd://1.7.27");
+  }
+
+  #[test]
+  fn containerd_version_skips_aws_managed_compute() {
+    let with_compute_type = |name: &str, compute_type: &str| resources::Node {
+      labels: Some(BTreeMap::from([(
+        COMPUTE_TYPE_LABEL.to_string(),
+        compute_type.to_string(),
+      )])),
+      ..make_node_with_runtime(name, "containerd://1.7.27")
+    };
+    let nodes = vec![
+      with_compute_type("fargate-ip-10-0-1-1", "fargate"),
+      with_compute_type("auto-mode", "auto"),
+      with_compute_type("hybrid", "hybrid"),
+    ];
+    let result = containerd_version(&nodes, 36);
+    let names: Vec<&str> = result.iter().map(|f| f.name.as_str()).collect();
+    assert_eq!(names, ["hybrid"]);
+  }
+
+  // ===========================================================================
+  // git_repo_volumes
+  // ===========================================================================
+
+  fn make_deployment_with_volumes(
+    name: &str,
+    volumes: Vec<k8s_openapi::api::core::v1::Volume>,
+  ) -> resources::StdResource {
+    let mut resource = make_deployment_with_image(name, "default", "app:v1");
+    if let Some(spec) = resource.spec.template.as_mut().and_then(|t| t.spec.as_mut()) {
+      spec.volumes = Some(volumes);
+    }
+    resource
+  }
+
+  #[test]
+  fn git_repo_volumes_flags_only_git_repo() {
+    use k8s_openapi::api::core::v1::{EmptyDirVolumeSource, GitRepoVolumeSource, Volume};
+
+    let with_git = make_deployment_with_volumes(
+      "with-git",
+      vec![
+        Volume {
+          name: "scratch".to_string(),
+          empty_dir: Some(EmptyDirVolumeSource::default()),
+          ..Default::default()
+        },
+        Volume {
+          name: "source".to_string(),
+          git_repo: Some(GitRepoVolumeSource {
+            repository: "https://example.com/repo.git".to_string(),
+            ..Default::default()
+          }),
+          ..Default::default()
+        },
+      ],
+    );
+    let without_git = make_deployment_with_volumes(
+      "without-git",
+      vec![Volume {
+        name: "scratch".to_string(),
+        empty_dir: Some(EmptyDirVolumeSource::default()),
+        ..Default::default()
+      }],
+    );
+    let resources = [with_git, without_git];
+
+    assert!(git_repo_volumes(&resources, 35).is_empty());
+
+    let result = git_repo_volumes(&resources, 36);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].resource.name, "with-git");
+    assert_eq!(result[0].volume, "source");
+    assert!(matches!(result[0].finding.remediation, Remediation::Required));
+  }
+
+  // ===========================================================================
+  // service_external_ips
+  // ===========================================================================
+
+  fn make_service(name: &str, external_ips: Option<Vec<&str>>) -> Service {
+    use k8s_openapi::{api::core::v1::ServiceSpec, apimachinery::pkg::apis::meta::v1::ObjectMeta};
+
+    Service {
+      metadata: ObjectMeta {
+        name: Some(name.to_string()),
+        namespace: Some("default".to_string()),
+        ..Default::default()
+      },
+      spec: Some(ServiceSpec {
+        external_ips: external_ips.map(|ips| ips.into_iter().map(String::from).collect()),
+        ..Default::default()
+      }),
+      ..Default::default()
+    }
+  }
+
+  #[test]
+  fn service_external_ips_flags_only_set_external_ips() {
+    let services = [
+      make_service("with-ips", Some(vec!["192.0.2.10", "192.0.2.11"])),
+      make_service("empty-ips", Some(vec![])),
+      make_service("no-ips", None),
+    ];
+
+    assert!(service_external_ips(&services, 35).is_empty());
+
+    let result = service_external_ips(&services, 36);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].name, "with-ips");
+    assert_eq!(result[0].external_ips, "192.0.2.10, 192.0.2.11");
+    assert!(matches!(result[0].finding.remediation, Remediation::Recommended));
   }
 
   // ===========================================================================

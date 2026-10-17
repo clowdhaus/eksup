@@ -52,9 +52,9 @@ expression: output
           "remediation": "Recommended"
         },
         "name": "node-1",
-        "kubelet_version": "v1.28.0",
-        "kubernetes_version": "v1.28",
-        "control_plane_version": "v1.30",
+        "kubelet_version": "v1.30.0",
+        "kubernetes_version": "v1.30",
+        "control_plane_version": "v1.32",
         "version_skew": "+2"
       }
     ],
@@ -124,7 +124,10 @@ expression: output
     "kube_proxy_version_skew": [],
     "kube_proxy_ipvs_mode": [],
     "ingress_nginx_retirement": [],
-    "pod_disruption_budgets": []
+    "pod_disruption_budgets": [],
+    "containerd_version": [],
+    "git_repo_volumes": [],
+    "service_external_ips": []
   },
   "suppressed": {
     "min_replicas": [],
@@ -134,7 +137,9 @@ expression: output
     "termination_grace_period": [],
     "docker_socket": [],
     "ingress_nginx_retirement": [],
-    "pod_disruption_budgets": []
+    "pod_disruption_budgets": [],
+    "git_repo_volumes": [],
+    "service_external_ips": []
   },
   "service_limits": {
     "ec2_limits": [],

@@ -175,7 +175,7 @@ checks:
   K8S003: { ignore: [{ name: "*-batch", namespace: "*" }] }
   K8S004: { ignore: [{ name: "singleton-*", namespace: "default" }] }
   K8S005: { ignore: [{ name: "*-logger*", namespace: "*monitoring*" }] }
-  # ... K8S006, K8S007, K8S008, K8S013 all use the same `ignore:` shape
+  # ... K8S006, K8S007, K8S008, K8S013, K8S015, K8S016 all use the same `ignore:` shape
 ```
 
 - `K8S002.min_replicas`: Global minimum replica threshold (default: 2). Must be >= 1.
@@ -210,6 +210,8 @@ The following workload checks accept the `ignore:` shape shown above (each rule 
 - `K8S007` — termination grace period
 - `K8S008` — Docker socket mount
 - `K8S013` — `ingress-nginx` controller retirement
+- `K8S015` — `gitRepo` volumes
+- `K8S016` — Service `externalIPs` (matched against the Service `name` + `namespace`)
 
 #### Cluster-level checks (no `ignore` support)
 
@@ -222,6 +224,7 @@ Cluster-level checks do not support `ignore` because their findings have no reso
 - `K8S010` — EBS CSI driver
 - `K8S011` — kube-proxy / kubelet version skew
 - `K8S012` — kube-proxy IPVS mode (singleton DaemonSet; finding has no per-resource fields)
+- `K8S014` — containerd version (node-level finding)
 
 The right control for a cluster-level check is "disable the check entirely" — a separate, future feature.
 
